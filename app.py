@@ -160,6 +160,49 @@ def delete_appointment(appointment_id):
     flash("Cita eliminada.", "info")
     return redirect(url_for("appointments_list"))
 
+@app.route("/appointment/<int:appointment_id>/edit", methods=["GET", "POST"])
+def edit_appointment(appointment_id):
+    appointment = Appointment.query.get_or_404(appointment_id)
+    services = Service.query.filter_by(is_active=True).all()
+
+    if request.method == "POST":
+        # Campos básicos
+        appointment.customer_name = request.form["customer_name"]
+        appointment.plate = request.form["plate"]
+        appointment.notes = request.form["notes"]
+
+        # Fecha y hora
+        date = request.form["date"]
+        start_time = request.form["start_time"]
+        start_dt = datetime.strptime(f"{date} {start_time}", "%Y-%m-%d %H:%M")
+        appointment.start_datetime = start_dt
+
+        # Servicios seleccionados
+        selected_ids = request.form.getlist("service_ids")
+        selected_services = Service.query.filter(Service.id.in_(selected_ids)).all()
+        
+        # Guardar en texto (como antes)
+        appointment.services = ", ".join([s.name for s in selected_services])
+
+        # Calcular duración
+        durations = [s.duration_minutes for s in selected_services]
+
+        if durations:
+            longest = max(durations)
+            extras = sum(durations) - longest
+            total_duration = longest + int(extras * 0.5)
+        else:
+            total_duration = 60
+
+        # Asignar nueva hora final
+        appointment.end_datetime = appointment.start_datetime + timedelta(minutes=total_duration)
+
+        db.session.commit()
+        flash("Cita actualizada correctamente.", "success")
+        return redirect(url_for("appointments_list"))
+
+    return render_template("edit_appointment.html", appointment=appointment, services=services)
+
 
 @app.route("/services", methods=["GET", "POST"])
 def services_view():

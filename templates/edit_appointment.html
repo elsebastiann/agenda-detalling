@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2>Editar cita</h2>
+
+<form method="post" class="row gy-3">
+
+  <div class="col-md-4">
+    <label class="form-label">Nombre del cliente</label>
+    <input type="text" name="customer_name" class="form-control"
+           value="{{ appointment.customer_name }}" required>
+  </div>
+
+  <div class="col-md-2">
+    <label class="form-label">Placa</label>
+    <input type="text" name="plate" class="form-control"
+           value="{{ appointment.plate }}">
+  </div>
+
+  <div class="col-md-3">
+    <label class="form-label">Fecha</label>
+    <input type="date" name="date" class="form-control"
+           value="{{ appointment.start_datetime.strftime('%Y-%m-%d') }}" required>
+  </div>
+
+  <div class="col-md-3">
+    <label class="form-label">Hora de inicio</label>
+    <input type="time" name="start_time" class="form-control"
+           value="{{ appointment.start_datetime.strftime('%H:%M') }}" required>
+  </div>
+
+
+  <!-- Servicios -->
+  <div class="col-12">
+    <label class="form-label">Servicios</label>
+    <select name="service_ids" class="form-select" multiple size="8" required>
+      {% for s in services %}
+        <option value="{{ s.id }}"
+          {% if s.name in appointment.services %}selected{% endif %}>
+            {{ s.name }} ({{ s.duration_minutes }} min)
+        </option>
+      {% endfor %}
+    </select>
+    <div class="form-text">Puedes seleccionar múltiples servicios (Cmd/Ctrl + clic).</div>
+  </div>
+
+  <div class="col-12">
+    <label class="form-label">Notas</label>
+    <textarea name="notes" class="form-control" rows="3">{{ appointment.notes }}</textarea>
+  </div>
+
+  <div class="col-12 mt-3">
+    <button type="submit" class="btn btn-primary">Guardar cambios</button>
+    <a href="{{ url_for('appointments_list') }}" class="btn btn-secondary">Cancelar</a>
+  </div>
+
+</form>
+{% endblock %}
