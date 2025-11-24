@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2>Nueva cita</h2>
+<form method="post" class="row gy-3">
+  
+  <div class="col-md-4">
+    <label class="form-label">Nombre del cliente</label>
+    <input type="text" name="customer_name" class="form-control" placeholder="Ej. Felipe Prieto">
+  </div>
+
+  <div class="col-md-2">
+    <label class="form-label">Placa</label>
+    <input type="text" name="plate" class="form-control" placeholder="ABC123">
+  </div>
+
+  <div class="col-md-3">
+    <label class="form-label">Fecha</label>
+    <input type="date" name="date" class="form-control" required>
+  </div>
+
+  <div class="col-md-3">
+    <label class="form-label">Hora inicio</label>
+    <input type="time" name="start_time" class="form-control" required>
+  </div>
+
+  <hr class="mt-4">
+
+  <div class="col-md-12">
+    <label class="form-label">Servicios</label>
+    <select name="service_ids" class="form-select" multiple size="8" required>
+      {% for s in services %}
+        <option value="{{ s.id }}">{{ s.name }} ({{ s.duration_minutes }} min)</option>
+      {% endfor %}
+    </select>
+    <div class="form-text">
+      Selecciona uno o varios servicios (Cmd/Ctrl + clic). <br>
+      La duración se calcula automáticamente según tus reglas internas.
+    </div>
+  </div>
+
+  <div class="col-12">
+    <label class="form-label">Notas</label>
+    <textarea name="notes" class="form-control" rows="3"
+              placeholder="Color del carro, detalles especiales..."></textarea>
+  </div>
+
+  <div class="col-12 mt-3">
+    <button type="submit" class="btn btn-primary">Guardar cita</button>
+    <a href="{{ url_for('calendar_view') }}" class="btn btn-secondary">Volver</a>
+  </div>
+
+</form>
+{% endblock %}

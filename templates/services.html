@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2>Servicios y paquetes</h2>
+
+<div class="row mt-4">
+  
+  <div class="col-md-5">
+    <h5>Agregar nuevo servicio</h5>
+    <form method="post" class="row gy-2">
+      <div class="col-12">
+        <label class="form-label">Nombre</label>
+        <input type="text" name="name" class="form-control" placeholder="Ej. Porcelanizado" required>
+      </div>
+
+      <div class="col-12">
+        <label class="form-label">Duración (minutos)</label>
+        <input type="number" name="duration_minutes" class="form-control" min="10" step="5" required>
+      </div>
+
+      <div class="col-12 mt-2">
+        <button type="submit" class="btn btn-primary">Crear servicio</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="col-md-7">
+    <h5 class="mb-3">Servicios existentes</h5>
+
+    <table class="table table-dark table-striped table-sm align-middle">
+      <thead>
+        <tr>
+          <th>Nombre</th>
+          <th>Duración</th>
+          <th>Activo</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in services %}
+        <tr>
+          <td>{{ s.name }}</td>
+          <td>{{ s.duration_minutes }} min</td>
+          <td>{{ "Sí" if s.is_active else "No" }}</td>
+          <td>
+            <form method="post" action="{{ url_for('toggle_service', service_id=s.id) }}">
+              <button class="btn btn-sm btn-outline-light">
+                {{ "Desactivar" if s.is_active else "Activar" }}
+              </button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+  </div>
+
+</div>
+{% endblock %}

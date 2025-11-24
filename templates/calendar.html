@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block extra_head %}
+<link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/main.min.css" rel="stylesheet">
+
+<style>
+  html, body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+  }
+
+  #calendar-container {
+    height: calc(100vh - 140px); /* espacio para navbar + margen */
+    width: 100%;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+
+  #calendar {
+    height: 100% !important;
+    width: 100%;
+    background-color: #1e1e1e;
+    border-radius: 10px;
+    padding: 10px;
+    overflow: visible !important;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<h2 class="mb-3 text-center">Agenda semanal</h2>
+
+<div id="calendar-container">
+  <div id="calendar"></div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/locales-all.global.min.js"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  var calendarEl = document.getElementById('calendar');
+
+  var calendar = new FullCalendar.Calendar(calendarEl, {
+    initialView: 'timeGridWeek',
+    locale: 'es',
+    slotMinTime: '07:00:00',
+    slotMaxTime: '20:00:00',
+    nowIndicator: true,
+    allDaySlot: false,
+    expandRows: true,
+    height: '100%',
+    handleWindowResize: true,
+    events: '/api/events'
+  });
+
+  calendar.render();
+});
+</script>
+{% endblock %}
