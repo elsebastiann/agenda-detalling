@@ -3,6 +3,17 @@ from flask import Flask, render_template, request, redirect, url_for, jsonify, f
 from flask_sqlalchemy import SQLAlchemy
 import os
 
+COLORS = {
+    "wash amarillo": "#FFEAA7",
+    "wash rosa": "#FFCAD4",
+    "wash morado": "#DCD0FF",
+    "chasis": "#D9E4F5",
+    "motor": "#FFFFFF",
+    "desmanchado interno": "#C3E5FF",
+    "porcelanizado": "#D6F5D6",
+    "efecto bross": "#E7D5C6"
+}
+
 app = Flask(__name__)
 app.secret_key = "cambia_esto_por_algo_mas_seguro"
 
@@ -34,6 +45,7 @@ class Appointment(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     customer_name = db.Column(db.String(120), nullable=True)
     plate = db.Column(db.String(20), nullable=True)
+    phone = db.Column(db.String(20)) 
     services = db.Column(db.String(255), nullable=False)  # "Wash Morado, Motor"
     start_datetime = db.Column(db.DateTime, nullable=False)
     end_datetime = db.Column(db.DateTime, nullable=False)
@@ -90,6 +102,7 @@ def new_appointment():
     if request.method == "POST":
         customer_name = request.form.get("customer_name") or "Sin nombre"
         plate = request.form.get("plate") or ""
+        phone = request.form.get("phone") or ""
         date_str = request.form.get("date")
         time_str = request.form.get("start_time")
         notes = request.form.get("notes") or ""
@@ -131,6 +144,7 @@ def new_appointment():
         appt = Appointment(
             customer_name=customer_name,
             plate=plate,
+            phone=phone,
             services=services_str,
             start_datetime=start_dt,
             end_datetime=end_dt,
@@ -248,6 +262,11 @@ def api_events():
     events = []
 
     for appt in appointments:
+        # Definir el color según el PRIMER servicio listado
+        first_service = appt.services.split(",")[0].strip().lower()
+        color = COLORS.get(first_service, "#A0C8FF")  # color por defecto pastel
+
+        # Construir título
         title_parts = [appt.customer_name]
         if appt.plate:
             title_parts.append(appt.plate.upper())
@@ -262,11 +281,26 @@ def api_events():
                 "title": title,
                 "start": appt.start_datetime.isoformat(),
                 "end": appt.end_datetime.isoformat(),
+                "backgroundColor": color,
+                "borderColor": color,
             }
         )
 
     return jsonify(events)
 
+@app.route("/appointment/<int:appointment_id>/json")
+def appointment_json(appointment_id):
+    appt = Appointment.query.get_or_404(appointment_id)
+    return jsonify({
+        "id": appt.id,
+        "customer_name": appt.customer_name,
+        "plate": appt.plate,
+        "phone": appt.phone,
+        "services": appt.services,
+        "notes": appt.notes,
+        "start": appt.start_datetime.strftime("%Y-%m-%d %H:%M"),
+        "end": appt.end_datetime.strftime("%Y-%m-%d %H:%M"),
+    })
 
 # -----------------------
 # INICIALIZACIÓN

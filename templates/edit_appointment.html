@@ -18,6 +18,13 @@
   </div>
 
   <div class="col-md-3">
+    <label class="form-label">Teléfono</label>
+    <input type="text" name="phone" class="form-control" value="{{ appointment.phone }}"
+           pattern="\d{10}" maxlength="10" minlength="10"
+           placeholder="3001234567" required>
+  </div>
+
+  <div class="col-md-3">
     <label class="form-label">Fecha</label>
     <input type="date" name="date" class="form-control"
            value="{{ appointment.start_datetime.strftime('%Y-%m-%d') }}" required>

@@ -13,6 +13,21 @@
   {% block extra_head %}{% endblock %}
 </head>
 
+<!-- Modal para mostrar detalles de la cita -->
+<div class="modal fade" id="appointmentModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content bg-dark text-light">
+      <div class="modal-header">
+        <h5 class="modal-title">Detalles de la Cita</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="modalBodyContent">
+        Cargando...
+      </div>
+    </div>
+  </div>
+</div>
+
 <body class="bg-dark text-light">
 
 <nav class="navbar navbar-expand-lg navbar-dark bg-secondary mb-3">

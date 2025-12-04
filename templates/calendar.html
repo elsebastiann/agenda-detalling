@@ -25,6 +25,13 @@
     padding: 10px;
     overflow: visible !important;
   }
+
+  /* Texto oscuro dentro de los eventos del calendario */
+  .fc-event-title, 
+  .fc-event-main, 
+  .fc-event {
+    color: #000 !important;
+  }
 </style>
 {% endblock %}
 
@@ -54,8 +61,69 @@ document.addEventListener('DOMContentLoaded', function() {
     expandRows: true,
     height: '100%',
     handleWindowResize: true,
-    events: '/api/events'
-  });
+
+    eventContent: function(info) {
+      let wrapper = document.createElement("div");
+      wrapper.style.height = "100%";
+      wrapper.style.display = "flex";
+      wrapper.style.position = "relative";
+      wrapper.style.borderRadius = "6px";
+      wrapper.style.overflow = "hidden";
+
+      let parts = info.event.extendedProps.colors || [];
+
+      parts.forEach(p => {
+          let block = document.createElement("div");
+          block.style.flex = p.percent;
+          block.style.backgroundColor = p.color;
+          wrapper.appendChild(block);
+      });
+
+      // Texto arriba
+      let text = document.createElement("div");
+      text.innerHTML = `<b>${info.event.title}</b>`;
+      text.style.position = "absolute";
+      text.style.top = "4px";
+      text.style.left = "6px";
+      text.style.fontSize = "11px";
+      text.style.color = "#000";
+
+      wrapper.appendChild(text);
+
+      return { domNodes: [wrapper] };
+    },
+
+
+    eventClick: function(info) {
+      let id = info.event.id;
+
+      fetch(`/appointment/${id}/json`)
+        .then(res => res.json())
+        .then(data => {
+
+          document.getElementById("modalBodyContent").innerHTML = `
+            <p><b>Cliente:</b> ${data.customer_name}</p>
+            <p><b>Placa:</b> ${data.plate || 'Sin placa'}</p>
+            <p><b>Teléfono:</b> ${data.phone || 'No registrado'}</p>
+            <p><b>Servicios:</b> ${data.services}</p>
+            <p><b>Inicio:</b> ${data.start}</p>
+            <p><b>Fin:</b> ${data.end}</p>
+            <p><b>Notas:</b> ${data.notes || 'Sin notas'}</p>
+
+            <a href="/appointment/${data.id}/edit" class="btn btn-primary mt-2">
+              Editar cita
+            </a>
+          `;
+
+          let modal = new bootstrap.Modal(document.getElementById("appointmentModal"));
+          modal.show();
+        });
+    },
+
+    events: '/api/events',
+    displayEventTime: false,
+    eventColor: null,
+});
 
   calendar.render();
 });
