@@ -4,19 +4,21 @@
 <h2>Nueva cita</h2>
 <form method="post" class="row gy-3">
   
-  <div class="col-md-4">
-    <label class="form-label">Nombre del cliente</label>
-    <input type="text" name="customer_name" class="form-control" placeholder="Ej. Felipe Prieto">
+  <div class="col-md-3">
+    <label class="form-label">Placa</label>
+    <input type="text" name="plate" id="plate" class="form-control"
+           placeholder="ABC123" autocomplete="off"
+           style="text-transform: uppercase;">
   </div>
 
-  <div class="col-md-2">
-    <label class="form-label">Placa</label>
-    <input type="text" name="plate" class="form-control" placeholder="ABC123">
+  <div class="col-md-4">
+    <label class="form-label">Nombre del cliente</label>
+    <input type="text" name="customer_name" id="customer_name" class="form-control" placeholder="Ej. Felipe Prieto" autocomplete="name">
   </div>
 
   <div class="col-md-3">
     <label class="form-label">Teléfono</label>
-    <input type="text" name="phone" class="form-control"
+    <input type="text" name="phone" id="phone" class="form-control"
            pattern="\d{10}" maxlength="10" minlength="10"
            placeholder="3001234567" required>
   </div>
@@ -30,7 +32,13 @@
 
   <div class="col-md-3">
     <label class="form-label">Hora inicio</label>
-    <input type="time" name="start_time" class="form-control" required>
+    <input type="time" name="start_time" id="start_time"
+           class="form-control"
+           step="900"
+           list="timeOptions"
+           required>
+    <datalist id="timeOptions"></datalist>
+    <div class="form-text">Minutos en intervalos de 15.</div>
   </div>
 
   <hr class="mt-4">
@@ -60,4 +68,126 @@
   </div>
 
 </form>
+<script>
+  // Autocompletar datos del cliente por placa
+  const plateEl = document.getElementById("plate");
+  const nameEl = document.getElementById("customer_name");
+  const phoneEl = document.getElementById("phone");
+
+  plateEl?.addEventListener("input", () => {
+    plateEl.value = plateEl.value.toUpperCase();
+  });
+
+  let plateTimer = null;
+  let lastPlateQueried = "";
+
+  function normalizePlate(value) {
+    return (value || "").replace(/\s+/g, "").toUpperCase();
+  }
+
+  async function fetchClientByPlate(plate) {
+    try {
+      const resp = await fetch(`/api/clients/by-plate?plate=${encodeURIComponent(plate)}`);
+      if (!resp.ok) return null;
+      return await resp.json();
+    } catch (e) {
+      return null;
+    }
+  }
+
+  async function tryAutofillByPlate() {
+    const plate = normalizePlate(plateEl?.value);
+    if (!plate || plate.length < 4) return;
+
+    // Evitar consultar lo mismo repetidamente
+    if (plate === lastPlateQueried) return;
+    lastPlateQueried = plate;
+
+    const data = await fetchClientByPlate(plate);
+    if (!data || !data.found) return;
+
+    // Solo llenar si el campo está vacío (deja opción de modificar)
+    if (nameEl && !nameEl.value.trim()) nameEl.value = data.full_name || "";
+    if (phoneEl && !phoneEl.value.trim()) phoneEl.value = (data.phone || "").replace(/\D/g, "").slice(0, 10);
+  }
+
+  // Debounce mientras escribe
+  plateEl?.addEventListener("input", () => {
+    clearTimeout(plateTimer);
+    plateTimer = setTimeout(tryAutofillByPlate, 450);
+  });
+
+  // También al salir del campo
+  plateEl?.addEventListener("blur", () => {
+    clearTimeout(plateTimer);
+    tryAutofillByPlate();
+  });
+  // Hora en un solo selector (input time) + validación/snap a 15 min (07:00 a 20:00)
+  const startTimeEl = document.getElementById("start_time");
+  const datalistEl = document.getElementById("timeOptions");
+
+  function pad2(n){ return String(n).padStart(2,'0'); }
+
+  function clampTimeToRange(hh, mm, minH=7, maxH=20) {
+    if (hh < minH) return {hh: minH, mm: 0};
+    if (hh > maxH) return {hh: maxH, mm: 0};
+    if (hh === maxH) return {hh: maxH, mm: 0}; // 20:00 máximo
+    return {hh, mm};
+  }
+
+  function snapTo15(value) {
+    if (!value || !value.includes(":")) return "";
+    let [h, m] = value.split(":");
+    let hh = parseInt(h, 10);
+    let mm = parseInt(m, 10);
+    if (Number.isNaN(hh) || Number.isNaN(mm)) return "";
+
+    // Snap al múltiplo más cercano de 15
+    mm = Math.round(mm / 15) * 15;
+    if (mm === 60) { mm = 0; hh += 1; }
+
+    const c = clampTimeToRange(hh, mm, 7, 20);
+    hh = c.hh; mm = c.mm;
+
+    return `${pad2(hh)}:${pad2(mm)}`;
+  }
+
+  function buildTimeDatalist() {
+    if (!datalistEl) return;
+    datalistEl.innerHTML = "";
+    for (let h = 7; h <= 20; h++) {
+      for (let m = 0; m < 60; m += 15) {
+        if (h === 20 && m > 0) continue;
+        const opt = document.createElement("option");
+        opt.value = `${pad2(h)}:${pad2(m)}`;
+        datalistEl.appendChild(opt);
+      }
+    }
+  }
+
+  function setDefaultTimeIfEmpty() {
+    if (!startTimeEl) return;
+    if (startTimeEl.value) return;
+
+    const now = new Date();
+    let hh = now.getHours();
+    let mm = now.getMinutes();
+    mm = Math.round(mm / 15) * 15;
+    if (mm === 60) { mm = 0; hh += 1; }
+
+    const c = clampTimeToRange(hh, mm, 7, 20);
+    startTimeEl.value = `${pad2(c.hh)}:${pad2(c.mm)}`;
+  }
+
+  buildTimeDatalist();
+  setDefaultTimeIfEmpty();
+
+  // Snap/validación al salir y al cambiar
+  startTimeEl?.addEventListener("change", () => {
+    startTimeEl.value = snapTo15(startTimeEl.value) || startTimeEl.value;
+  });
+  startTimeEl?.addEventListener("blur", () => {
+    startTimeEl.value = snapTo15(startTimeEl.value) || startTimeEl.value;
+  });
+</script>
 {% endblock %}

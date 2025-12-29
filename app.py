@@ -46,6 +46,7 @@ class Service(db.Model):
         return f"<Service {self.name} ({self.duration_minutes} min)>"
 
 
+
 class Appointment(db.Model):
     __tablename__ = "appointments"
     id = db.Column(db.Integer, primary_key=True)
@@ -59,6 +60,22 @@ class Appointment(db.Model):
 
     def __repr__(self):
         return f"<Appointment {self.customer_name} - {self.services}>"
+
+
+# -----------------------
+# CLIENT MODEL
+# -----------------------
+class Client(db.Model):
+    __tablename__ = "clients"
+    # Placa como identificador principal (normalizada a mayúsculas sin espacios)
+    plate = db.Column(db.String(20), primary_key=True)
+    full_name = db.Column(db.String(120), nullable=True)
+    phone = db.Column(db.String(20), nullable=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def __repr__(self):
+        return f"<Client {self.plate} {self.full_name}>"
 
 
 class Expense(db.Model):
@@ -118,6 +135,7 @@ def seed_services():
     db.session.commit()
     print("Servicios iniciales creados.")
 
+
 def seed_expense_categories():
     """Crea categorías base de gastos si la tabla está vacía."""
     if ExpenseCategory.query.count() > 0:
@@ -127,6 +145,40 @@ def seed_expense_categories():
         db.session.add(ExpenseCategory(name=name, is_active=True))
     db.session.commit()
     print("Categorías iniciales de gastos creadas.")
+
+
+# -----------------------
+# CLIENT HELPERS
+# -----------------------
+def normalize_plate(value: str | None) -> str:
+    """Normaliza placa: trim, sin espacios internos, mayúsculas."""
+    if not value:
+        return ""
+    return "".join(value.split()).upper()
+
+
+def upsert_client_from_appointment(plate: str, full_name: str | None, phone: str | None):
+    """Crea o actualiza el cliente por placa."""
+    plate_n = normalize_plate(plate)
+    if not plate_n:
+        return
+
+    full_name = (full_name or "").strip()
+    phone = (phone or "").strip()
+
+    client = Client.query.get(plate_n)
+    if client:
+        # Actualizar solo si viene algún dato
+        if full_name:
+            client.full_name = full_name
+        if phone:
+            client.phone = phone
+    else:
+        db.session.add(Client(
+            plate=plate_n,
+            full_name=full_name or None,
+            phone=phone or None
+        ))
 
 # -----------------------
 # RUTAS
@@ -148,7 +200,7 @@ def new_appointment():
 
     if request.method == "POST":
         customer_name = request.form.get("customer_name") or "Sin nombre"
-        plate = request.form.get("plate") or ""
+        plate = normalize_plate(request.form.get("plate") or "")
         phone = request.form.get("phone") or ""
         date_str = request.form.get("date")
         time_str = request.form.get("start_time")
@@ -187,6 +239,9 @@ def new_appointment():
         end_dt = start_dt + timedelta(minutes=total_minutes)
 
         services_str = ", ".join(s.name for s in selected_services)
+
+        # Guardar/actualizar datos del cliente por placa
+        upsert_client_from_appointment(plate=plate, full_name=customer_name, phone=phone)
 
         appt = Appointment(
             customer_name=customer_name,
@@ -233,7 +288,7 @@ def edit_appointment(appointment_id):
     if request.method == "POST":
         # Campos básicos
         appointment.customer_name = request.form["customer_name"]
-        appointment.plate = request.form["plate"]
+        appointment.plate = normalize_plate(request.form["plate"])
         appointment.phone = request.form.get("phone") or ""
         appointment.notes = request.form["notes"]
 
@@ -262,6 +317,9 @@ def edit_appointment(appointment_id):
 
         # Asignar nueva hora final
         appointment.end_datetime = appointment.start_datetime + timedelta(minutes=total_duration)
+
+        # Guardar/actualizar datos del cliente por placa (si hay placa)
+        upsert_client_from_appointment(plate=appointment.plate, full_name=appointment.customer_name, phone=appointment.phone)
 
         db.session.commit()
         flash("Cita actualizada correctamente.", "success")
@@ -657,6 +715,7 @@ def api_events():
 
     return jsonify(events)
 
+
 @app.route("/appointment/<int:appointment_id>/json")
 def appointment_json(appointment_id):
     appt = Appointment.query.get_or_404(appointment_id)
@@ -669,6 +728,31 @@ def appointment_json(appointment_id):
         "notes": appt.notes,
         "start": appt.start_datetime.strftime("%Y-%m-%d %H:%M"),
         "end": appt.end_datetime.strftime("%Y-%m-%d %H:%M"),
+    })
+
+
+# -----------------------
+# API: CLIENT BY PLATE
+# -----------------------
+@app.route("/api/clients/by-plate")
+def api_client_by_plate():
+    """
+    Devuelve datos de cliente por placa.
+    Uso: /api/clients/by-plate?plate=ABC123
+    """
+    plate = normalize_plate(request.args.get("plate") or "")
+    if not plate:
+        return jsonify({"found": False}), 400
+
+    client = Client.query.get(plate)
+    if not client:
+        return jsonify({"found": False, "plate": plate})
+
+    return jsonify({
+        "found": True,
+        "plate": client.plate,
+        "full_name": client.full_name or "",
+        "phone": client.phone or "",
     })
 
 # -----------------------
