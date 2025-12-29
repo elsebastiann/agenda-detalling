@@ -22,6 +22,7 @@ COLORS = {
 app = Flask(__name__)
 app.secret_key = "cambia_esto_por_algo_mas_seguro"
 
+
 # Base de datos SQLite
 basedir = os.path.abspath(os.path.dirname(__file__))
 db_path = os.path.join(basedir, "agenda.db")
