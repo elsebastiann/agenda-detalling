@@ -32,6 +32,34 @@
   .fc-event {
     color: #000 !important;
   }
+
+  /* ===== Ajustes visuales calendario ===== */
+
+  /* Día actual: fondo gris claro (no amarillo) */
+  .fc-timegrid-col.fc-day-today,
+  .fc-daygrid-day.fc-day-today {
+    background-color: #919191 !important;
+  }
+
+  /* Quitar borde/overlay amarillo por defecto */
+  .fc .fc-highlight,
+  .fc .fc-day-today {
+    background-color: #919191 !important;
+  }
+
+  /* Encabezados de días (Lun, Mar, etc.) */
+  .fc .fc-col-header-cell-cushion {
+    color: #cccccc !important;   /* gris claro */
+    font-weight: 400 !important; /* regular */
+    text-decoration: none !important;
+  }
+
+  /* También aplica al número del día */
+  .fc .fc-daygrid-day-number,
+  .fc .fc-timegrid-axis-cushion {
+    color: #cccccc !important;
+    font-weight: 400 !important;
+  }
 </style>
 {% endblock %}
 
@@ -54,6 +82,7 @@ document.addEventListener('DOMContentLoaded', function() {
   var calendar = new FullCalendar.Calendar(calendarEl, {
     initialView: 'timeGridWeek',
     locale: 'es',
+    dayHeaderFormat: { weekday: 'short', day: 'numeric' },
     slotMinTime: '07:00:00',
     slotMaxTime: '20:00:00',
     nowIndicator: true,

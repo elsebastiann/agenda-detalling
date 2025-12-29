@@ -24,9 +24,21 @@ app.secret_key = "cambia_esto_por_algo_mas_seguro"
 
 
 # Base de datos SQLite
+# - Local (por defecto): <repo>/agenda.db
+# - Railway (con Volume): setear variable de entorno DB_PATH=/data/agenda.db
 basedir = os.path.abspath(os.path.dirname(__file__))
-db_path = os.path.join(basedir, "agenda.db")
-app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///" + db_path
+default_db_path = os.path.join(basedir, "agenda.db")
+
+# Si DB_PATH viene definido, úsalo. Si no, usa el default local.
+db_path = os.environ.get("DB_PATH", default_db_path)
+
+# Asegurar que exista el directorio (ej: /data)
+db_dir = os.path.dirname(db_path)
+if db_dir and not os.path.exists(db_dir):
+    os.makedirs(db_dir, exist_ok=True)
+
+# SQLAlchemy requiere ruta absoluta para SQLite (mejor práctica)
+app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///" + os.path.abspath(db_path)
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 db = SQLAlchemy(app)
