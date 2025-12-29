@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+  <h2 class="mb-0">Nuevo gasto</h2>
+  <a class="btn btn-outline-light btn-sm" href="{{ url_for('expenses_list') }}">Volver</a>
+</div>
+
+<form method="post" class="card bg-secondary border-0 mt-3 p-3">
+  <div class="row g-3">
+    <div class="col-12 col-md-3">
+      <label class="form-label">Fecha del gasto</label>
+      <input type="date" name="expense_date" class="form-control" value="{{ today }}" required>
+      <div class="form-text text-light">Se precarga con la fecha de hoy, pero puedes cambiarla.</div>
+    </div>
+
+    <div class="col-12 col-md-3">
+      <label class="form-label">Categoría</label>
+      <select name="category" id="category" class="form-select" required>
+        <option value="" selected disabled>Selecciona...</option>
+        {% for c in categories %}
+          <option value="{{ c }}">{{ c }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="col-12 col-md-3">
+      <label class="form-label">Método de pago</label>
+      <select name="payment_method" class="form-select" required>
+        <option value="" selected disabled>Selecciona...</option>
+        {% for pm in payment_methods %}
+          <option value="{{ pm }}">{{ pm }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="col-12 col-md-3">
+      <label class="form-label">Monto</label>
+      <input type="number" name="amount" class="form-control" min="0" step="0.01" placeholder="45000" required>
+    </div>
+
+    <div class="col-12 col-md-4">
+      <label class="form-label">Proveedor</label>
+      <select name="vendor_choice" id="vendor_choice" class="form-select">
+        <option value="" selected>Selecciona...</option>
+        {% for v in vendors %}
+          <option value="{{ v }}">{{ v }}</option>
+        {% endfor %}
+        <option value="__other__">Otro...</option>
+      </select>
+
+      <input type="text"
+             name="vendor_other"
+             id="vendor_other"
+             class="form-control mt-2 d-none"
+             placeholder="Escribe el proveedor"
+             minlength="2">
+    </div>
+
+    <div class="col-12 col-md-4">
+      <label class="form-label">Recibo / factura</label>
+      <input type="text" name="receipt" class="form-control" placeholder="INV-123">
+    </div>
+
+    <div class="col-12 col-md-4">
+      <label class="form-label">Descripción</label>
+      <input type="text" name="description" class="form-control" placeholder="Compra de shampoo pH neutro" required>
+    </div>
+
+    <div class="col-12">
+      <label class="form-label">Notas</label>
+      <textarea name="notes" id="notes" class="form-control" rows="3" placeholder="Opcional (obligatorio para Caja menor)"></textarea>
+    </div>
+  </div>
+
+  <div class="d-flex gap-2 mt-3">
+    <button class="btn btn-dark">Guardar gasto</button>
+    <a class="btn btn-outline-light" href="{{ url_for('expenses_list') }}">Cancelar</a>
+  </div>
+</form>
+<script>
+  function syncVendorRule() {
+    const choice = (document.getElementById("vendor_choice")?.value || "").trim().toLowerCase();
+    const other = document.getElementById("vendor_other");
+    if (!other) return;
+
+    if (choice === "__other__") {
+      other.classList.remove("d-none");
+      other.required = true;
+    } else {
+      other.classList.add("d-none");
+      other.required = false;
+      other.value = "";
+    }
+  }
+
+  function syncNotesRule() {
+    const cat = (document.getElementById("category")?.value || "").trim().toLowerCase();
+    const notes = document.getElementById("notes");
+    if (!notes) return;
+
+    if (cat === "caja menor") {
+      notes.required = true;
+      notes.minLength = 5;
+      notes.placeholder = "Obligatorio (mínimo 5 caracteres) para Caja menor";
+    } else {
+      notes.required = false;
+      notes.minLength = 0;
+      notes.placeholder = "Opcional (obligatorio para Caja menor)";
+    }
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    syncNotesRule();
+    syncVendorRule();
+    document.getElementById("category")?.addEventListener("change", syncNotesRule);
+    document.getElementById("vendor_choice")?.addEventListener("change", syncVendorRule);
+  });
+</script>
+{% endblock %}

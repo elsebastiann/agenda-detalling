@@ -1,7 +1,10 @@
-from datetime import datetime, timedelta
-from flask import Flask, render_template, request, redirect, url_for, jsonify, flash
+from datetime import datetime, timedelta, date
+from flask import Flask, render_template, request, redirect, url_for, jsonify, flash, Response
 from flask_sqlalchemy import SQLAlchemy
 import os
+import csv
+import io
+from decimal import Decimal
 
 COLORS = {
     "wash amarillo": "#FFEAA7",
@@ -11,7 +14,9 @@ COLORS = {
     "motor": "#FFFFFF",
     "desmanchado interno": "#C3E5FF",
     "porcelanizado": "#D6F5D6",
-    "efecto bross": "#E7D5C6"
+    "efecto bross": "#E7D5C6",
+    "enjuague": "#8BF9FB"
+
 }
 
 app = Flask(__name__)
@@ -55,6 +60,37 @@ class Appointment(db.Model):
         return f"<Appointment {self.customer_name} - {self.services}>"
 
 
+class Expense(db.Model):
+    __tablename__ = "expenses"
+    id = db.Column(db.Integer, primary_key=True)
+
+    # Fecha real del gasto (editable por el usuario). Por defecto: hoy.
+    expense_date = db.Column(db.Date, nullable=False, default=date.today)
+
+    # Fecha/hora del registro (automática)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    amount = db.Column(db.Numeric(12, 2), nullable=False)
+    category = db.Column(db.String(80), nullable=False)
+    payment_method = db.Column(db.String(40), nullable=False)
+    vendor = db.Column(db.String(120), nullable=True)
+    description = db.Column(db.String(255), nullable=False)
+    receipt = db.Column(db.String(80), nullable=True)
+    notes = db.Column(db.Text, nullable=True)
+
+    def __repr__(self):
+        return f"<Expense {self.expense_date} {self.category} {self.amount}>"
+
+class ExpenseCategory(db.Model):
+    __tablename__ = "expense_categories"
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(80), nullable=False, unique=True)
+    is_active = db.Column(db.Boolean, default=True)
+
+    def __repr__(self):
+        return f"<ExpenseCategory {self.name} active={self.is_active}>"
+
 # -----------------------
 # SEED INICIAL DE SERVICIOS
 # -----------------------
@@ -69,9 +105,10 @@ def seed_services():
         ("Wash Morado", 160),
         ("Chasis", 60),
         ("Motor", 60),
-        ("Porcelanizado", 180),
-        ("Efecto Bross", 300),
-        ("Desmanchado Interno", 360),
+        ("Porcelanizado", 240),
+        ("Efecto Bross", 540),
+        ("Desmanchado Interno", 540),
+        ("Enjuague", 40),
     ]
 
     for name, minutes in services_data:
@@ -80,6 +117,15 @@ def seed_services():
     db.session.commit()
     print("Servicios iniciales creados.")
 
+def seed_expense_categories():
+    """Crea categorías base de gastos si la tabla está vacía."""
+    if ExpenseCategory.query.count() > 0:
+        return
+
+    for name in EXPENSE_CATEGORIES_DEFAULT:
+        db.session.add(ExpenseCategory(name=name, is_active=True))
+    db.session.commit()
+    print("Categorías iniciales de gastos creadas.")
 
 # -----------------------
 # RUTAS
@@ -183,6 +229,7 @@ def edit_appointment(appointment_id):
         # Campos básicos
         appointment.customer_name = request.form["customer_name"]
         appointment.plate = request.form["plate"]
+        appointment.phone = request.form.get("phone") or ""
         appointment.notes = request.form["notes"]
 
         # Fecha y hora
@@ -253,6 +300,323 @@ def toggle_service(service_id):
 
 
 # -----------------------
+# GASTOS (MÓDULO MVP)
+# -----------------------
+EXPENSE_CATEGORIES_DEFAULT = [
+    "Inventario",
+    "Arriendo",
+    "Servicios Publicos",
+    "Nomina",
+    "Arreglos locativos",
+    "Caja menor",
+]
+
+PAYMENT_METHODS = [
+    "Efectivo",
+    "Transferencia",
+    "Tarjeta",
+    "Crédito",
+    "Otro",
+]
+
+
+def _parse_date(value: str | None):
+    if not value:
+        return None
+    try:
+        return datetime.strptime(value, "%Y-%m-%d").date()
+    except ValueError:
+        return None
+
+
+@app.route("/expenses")
+def expenses_list():
+    """Listado de gastos con filtros (sin límite) y búsqueda simple."""
+    q = (request.args.get("q") or "").strip()
+    from_str = request.args.get("from")
+    to_str = request.args.get("to")
+    category = (request.args.get("category") or "").strip()
+    payment_method = (request.args.get("payment_method") or "").strip()
+
+    date_from = _parse_date(from_str)
+    date_to = _parse_date(to_str)
+
+    query = Expense.query
+
+    if date_from:
+        query = query.filter(Expense.expense_date >= date_from)
+    if date_to:
+        query = query.filter(Expense.expense_date <= date_to)
+    if category:
+        query = query.filter(Expense.category == category)
+    if payment_method:
+        query = query.filter(Expense.payment_method == payment_method)
+    if q:
+        like = f"%{q}%"
+        query = query.filter(
+            (Expense.description.ilike(like))
+            | (Expense.vendor.ilike(like))
+            | (Expense.receipt.ilike(like))
+            | (Expense.notes.ilike(like))
+        )
+
+    expenses = query.order_by(Expense.expense_date.desc(), Expense.created_at.desc()).all()
+
+    return render_template(
+        "expenses_list.html",
+        expenses=expenses,
+        categories=[c.name for c in ExpenseCategory.query.filter_by(is_active=True).order_by(ExpenseCategory.name).all()],
+        categories_all=ExpenseCategory.query.order_by(ExpenseCategory.name).all(),
+        payment_methods=PAYMENT_METHODS,
+        filters={
+            "q": q,
+            "from": from_str or "",
+            "to": to_str or "",
+            "category": category,
+            "payment_method": payment_method,
+        },
+    )
+
+
+@app.route("/expenses/new", methods=["GET", "POST"])
+def expenses_new():
+    if request.method == "POST":
+        expense_date_str = request.form.get("expense_date")
+        category = (request.form.get("category") or "").strip()
+        payment_method = (request.form.get("payment_method") or "").strip()
+        vendor = (request.form.get("vendor") or "").strip()
+        description = (request.form.get("description") or "").strip()
+        receipt = (request.form.get("receipt") or "").strip()
+        notes = (request.form.get("notes") or "").strip()
+        amount_str = (request.form.get("amount") or "").strip().replace(",", ".")
+
+        expense_date = _parse_date(expense_date_str)
+        if not expense_date:
+            flash("Debes ingresar una fecha de gasto válida.", "danger")
+            return redirect(url_for("expenses_new"))
+
+        if not category:
+            flash("Debes seleccionar una categoría.", "danger")
+            return redirect(url_for("expenses_new"))
+
+        if not payment_method:
+            flash("Debes seleccionar un método de pago.", "danger")
+            return redirect(url_for("expenses_new"))
+
+        if not description:
+            flash("Debes ingresar una descripción.", "danger")
+            return redirect(url_for("expenses_new"))
+
+        if category.strip().lower() == "caja menor":
+            if len((notes or "").strip()) < 5:
+                flash("Para 'Caja menor', las notas son obligatorias (mínimo 5 caracteres).", "danger")
+                return redirect(url_for("expenses_new"))
+
+        try:
+            amount = Decimal(amount_str)
+        except Exception:
+            flash("Monto inválido. Ej: 45000 o 45000.50", "danger")
+            return redirect(url_for("expenses_new"))
+
+        if amount <= 0:
+            flash("El monto debe ser mayor a 0.", "danger")
+            return redirect(url_for("expenses_new"))
+
+        exp = Expense(
+            expense_date=expense_date,
+            amount=amount,
+            category=category,
+            payment_method=payment_method,
+            vendor=vendor or None,
+            description=description,
+            receipt=receipt or None,
+            notes=notes or None,
+        )
+        db.session.add(exp)
+        db.session.commit()
+
+        flash("Gasto registrado.", "success")
+        return redirect(url_for("expenses_list"))
+
+    # Precargar fecha con hoy (editable)
+    return render_template(
+        "expenses_new.html",
+        categories=[c.name for c in ExpenseCategory.query.filter_by(is_active=True).order_by(ExpenseCategory.name).all()],
+        payment_methods=PAYMENT_METHODS,
+        today=date.today().strftime("%Y-%m-%d"),
+    )
+
+
+@app.route("/expenses/<int:expense_id>/edit", methods=["GET", "POST"])
+def expenses_edit(expense_id):
+    exp = Expense.query.get_or_404(expense_id)
+
+    if request.method == "POST":
+        expense_date = _parse_date(request.form.get("expense_date"))
+        category = (request.form.get("category") or "").strip()
+        payment_method = (request.form.get("payment_method") or "").strip()
+        vendor = (request.form.get("vendor") or "").strip()
+        description = (request.form.get("description") or "").strip()
+        receipt = (request.form.get("receipt") or "").strip()
+        notes = (request.form.get("notes") or "").strip()
+        amount_str = (request.form.get("amount") or "").strip().replace(",", ".")
+
+        if not expense_date:
+            flash("Debes ingresar una fecha de gasto válida.", "danger")
+            return redirect(url_for("expenses_edit", expense_id=expense_id))
+
+        if not category or not payment_method or not description:
+            flash("Categoría, método de pago y descripción son obligatorios.", "danger")
+            return redirect(url_for("expenses_edit", expense_id=expense_id))
+
+        if category.strip().lower() == "caja menor":
+            if len((notes or "").strip()) < 5:
+                flash("Para 'Caja menor', las notas son obligatorias (mínimo 5 caracteres).", "danger")
+                return redirect(url_for("expenses_edit", expense_id=expense_id))
+
+        try:
+            amount = Decimal(amount_str)
+        except Exception:
+            flash("Monto inválido. Ej: 45000 o 45000.50", "danger")
+            return redirect(url_for("expenses_edit", expense_id=expense_id))
+
+        if amount <= 0:
+            flash("El monto debe ser mayor a 0.", "danger")
+            return redirect(url_for("expenses_edit", expense_id=expense_id))
+
+        exp.expense_date = expense_date
+        exp.amount = amount
+        exp.category = category
+        exp.payment_method = payment_method
+        exp.vendor = vendor or None
+        exp.description = description
+        exp.receipt = receipt or None
+        exp.notes = notes or None
+
+        db.session.commit()
+        flash("Gasto actualizado.", "success")
+        return redirect(url_for("expenses_list"))
+
+    return render_template(
+        "expenses_edit.html",
+        expense=exp,
+        categories=[c.name for c in ExpenseCategory.query.filter_by(is_active=True).order_by(ExpenseCategory.name).all()],
+        payment_methods=PAYMENT_METHODS,
+    )
+
+
+@app.route("/expenses/<int:expense_id>/delete", methods=["POST"])
+def expenses_delete(expense_id):
+    exp = Expense.query.get_or_404(expense_id)
+    db.session.delete(exp)
+    db.session.commit()
+    flash("Gasto eliminado.", "info")
+    return redirect(url_for("expenses_list"))
+
+
+@app.route("/expenses/export")
+def expenses_export():
+    """Export CSV por filtros (para Google Sheets / Looker Studio)."""
+    q = (request.args.get("q") or "").strip()
+    from_str = request.args.get("from")
+    to_str = request.args.get("to")
+    category = (request.args.get("category") or "").strip()
+    payment_method = (request.args.get("payment_method") or "").strip()
+
+    date_from = _parse_date(from_str)
+    date_to = _parse_date(to_str)
+
+    query = Expense.query
+    if date_from:
+        query = query.filter(Expense.expense_date >= date_from)
+    if date_to:
+        query = query.filter(Expense.expense_date <= date_to)
+    if category:
+        query = query.filter(Expense.category == category)
+    if payment_method:
+        query = query.filter(Expense.payment_method == payment_method)
+    if q:
+        like = f"%{q}%"
+        query = query.filter(
+            (Expense.description.ilike(like))
+            | (Expense.vendor.ilike(like))
+            | (Expense.receipt.ilike(like))
+            | (Expense.notes.ilike(like))
+        )
+
+    expenses = query.order_by(Expense.expense_date.asc(), Expense.created_at.asc()).all()
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow([
+        "expense_date",
+        "created_at",
+        "amount",
+        "category",
+        "payment_method",
+        "vendor",
+        "description",
+        "receipt",
+        "notes",
+    ])
+
+    for e in expenses:
+        writer.writerow([
+            e.expense_date.strftime("%Y-%m-%d") if e.expense_date else "",
+            e.created_at.strftime("%Y-%m-%d %H:%M:%S") if e.created_at else "",
+            f"{e.amount}" if e.amount is not None else "",
+            e.category or "",
+            e.payment_method or "",
+            e.vendor or "",
+            e.description or "",
+            e.receipt or "",
+            e.notes or "",
+        ])
+
+    filename = "expenses_export.csv"
+    return Response(
+        output.getvalue(),
+        mimetype="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
+
+
+# -----------------------
+# Gestión de categorías de gastos
+# -----------------------
+
+@app.route("/expense-categories/new", methods=["POST"])
+def expense_categories_new():
+    name = (request.form.get("name") or "").strip()
+    if not name:
+        flash("Debes ingresar el nombre de la categoría.", "danger")
+        return redirect(url_for("expenses_list"))
+
+    # Normalizar espacios múltiples
+    name = " ".join(name.split())
+
+    existing = ExpenseCategory.query.filter_by(name=name).first()
+    if existing:
+        existing.is_active = True
+        db.session.commit()
+        flash("La categoría ya existía y fue activada.", "info")
+        return redirect(url_for("expenses_list"))
+
+    db.session.add(ExpenseCategory(name=name, is_active=True))
+    db.session.commit()
+    flash("Categoría creada.", "success")
+    return redirect(url_for("expenses_list"))
+
+
+@app.route("/expense-categories/<int:category_id>/toggle", methods=["POST"])
+def expense_categories_toggle(category_id):
+    c = ExpenseCategory.query.get_or_404(category_id)
+    c.is_active = not c.is_active
+    db.session.commit()
+    flash("Categoría actualizada.", "info")
+    return redirect(url_for("expenses_list"))
+
+# -----------------------
 # API PARA FULLCALENDAR
 # -----------------------
 @app.route("/api/events")
@@ -308,6 +672,7 @@ def appointment_json(appointment_id):
 with app.app_context():
     db.create_all()
     seed_services()
+    seed_expense_categories()
 
 
 if __name__ == "__main__":
