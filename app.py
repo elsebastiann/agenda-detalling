@@ -203,7 +203,11 @@ def new_appointment():
         flash("Cita creada correctamente.", "success")
         return redirect(url_for("calendar_view"))
 
-    return render_template("new_appointment.html", services=services)
+    return render_template(
+        "new_appointment.html",
+        services=services,
+        today=date.today().isoformat()
+    )
 
 
 @app.route("/appointments")
