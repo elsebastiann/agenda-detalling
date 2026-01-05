@@ -19,6 +19,7 @@ COLORS = {
 
 }
 
+
 app = Flask(__name__)
 app.secret_key = "cambia_esto_por_algo_mas_seguro"
 
