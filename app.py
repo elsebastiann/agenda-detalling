@@ -706,14 +706,22 @@ def api_events():
         first_service = appt.services.split(",")[0].strip().lower()
         color = COLORS.get(first_service, "#A0C8FF")  # color por defecto pastel
 
-        # Construir título
-        title_parts = [appt.customer_name]
-        if appt.plate:
-            title_parts.append(appt.plate.upper())
-        if appt.services:
-            title_parts.append(appt.services)
+        # Primer nombre
+        first_name = ""
+        if appt.customer_name:
+            first_name = appt.customer_name.strip().split(" ")[0]
 
-        title = " - ".join(part for part in title_parts if part)
+        # Placa
+        plate = appt.plate.upper() if appt.plate else ""
+
+        # Observaciones (si existen)
+        notes = (appt.notes or "").strip()
+
+        # Construir título
+        title = f"{plate} - {first_name}".strip(" -")
+
+        if notes:
+            title += f"\n{notes}"
 
         events.append(
             {
