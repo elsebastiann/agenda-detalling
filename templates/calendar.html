@@ -92,36 +92,18 @@ document.addEventListener('DOMContentLoaded', function() {
     handleWindowResize: true,
 
     eventContent: function(info) {
-      let wrapper = document.createElement("div");
-      wrapper.style.height = "100%";
-      wrapper.style.display = "flex";
-      wrapper.style.position = "relative";
-      wrapper.style.borderRadius = "6px";
-      wrapper.style.overflow = "hidden";
+      let container = document.createElement("div");
+      container.style.whiteSpace = "pre-line";
+      container.style.fontSize = "11px";
+      container.style.color = "#000";
+      container.style.padding = "4px 6px";
+      container.style.fontWeight = "600"; // negrita agradable (no tan pesada)
 
-      let parts = info.event.extendedProps.colors || [];
+      // El título viene con saltos de línea (\n) desde el backend
+      container.textContent = info.event.title;
 
-      parts.forEach(p => {
-          let block = document.createElement("div");
-          block.style.flex = p.percent;
-          block.style.backgroundColor = p.color;
-          wrapper.appendChild(block);
-      });
-
-      // Texto arriba
-      let text = document.createElement("div");
-      text.innerHTML = `<b>${info.event.title}</b>`;
-      text.style.position = "absolute";
-      text.style.top = "4px";
-      text.style.left = "6px";
-      text.style.fontSize = "11px";
-      text.style.color = "#000";
-
-      wrapper.appendChild(text);
-
-      return { domNodes: [wrapper] };
+      return { domNodes: [container] };
     },
-
 
     eventClick: function(info) {
       let id = info.event.id;

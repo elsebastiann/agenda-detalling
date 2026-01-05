@@ -714,14 +714,22 @@ def api_events():
         # Placa
         plate = appt.plate.upper() if appt.plate else ""
 
-        # Observaciones (si existen)
+        # Observaciones
         notes = (appt.notes or "").strip()
 
-        # Construir título
-        title = f"{plate} - {first_name}".strip(" -")
+        # Construcción del título (líneas separadas)
+        title_lines = []
+
+        if first_name:
+            title_lines.append(first_name)
+
+        if plate:
+            title_lines.append(plate)
 
         if notes:
-            title += f"\n{notes}"
+            title_lines.append(notes)
+
+        title = "\n".join(title_lines)
 
         events.append(
             {
