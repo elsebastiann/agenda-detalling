@@ -41,7 +41,22 @@
 
     <div class="col-12 col-md-4">
       <label class="form-label">Proveedor</label>
-      <input type="text" name="vendor" class="form-control" value="{{ expense.vendor or '' }}">
+      <select name="vendor" id="vendor" class="form-select">
+        <option value="">Selecciona...</option>
+
+        {% for v in vendors %}
+          <option value="{{ v }}" {% if expense.vendor == v %}selected{% endif %}>{{ v }}</option>
+        {% endfor %}
+
+        <option value="__other__">Otro...</option>
+      </select>
+
+      <input type="text"
+             name="vendor_other"
+             id="vendor_other"
+             class="form-control mt-2 d-none"
+             placeholder="Escribe el proveedor"
+             minlength="2">
     </div>
 
     <div class="col-12 col-md-4">
@@ -82,9 +97,27 @@
     }
   }
 
+  function syncVendorRule() {
+    const select = document.getElementById("vendor");
+    const otherInput = document.getElementById("vendor_other");
+
+    if (!select || !otherInput) return;
+
+    if (select.value === "__other__") {
+      otherInput.classList.remove("d-none");
+      otherInput.required = true;
+    } else {
+      otherInput.classList.add("d-none");
+      otherInput.required = false;
+      otherInput.value = "";
+    }
+  }
+
   document.addEventListener("DOMContentLoaded", () => {
     syncNotesRule();
     document.getElementById("category")?.addEventListener("change", syncNotesRule);
+    document.getElementById("vendor")?.addEventListener("change", syncVendorRule);
+    syncVendorRule();
   });
 </script>
 {% endblock %}

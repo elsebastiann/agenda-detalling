@@ -41,7 +41,7 @@
 
     <div class="col-12 col-md-4">
       <label class="form-label">Proveedor</label>
-      <select name="vendor_choice" id="vendor_choice" class="form-select">
+      <select name="vendor" id="vendor" class="form-select">
         <option value="" selected>Selecciona...</option>
         {% for v in vendors %}
           <option value="{{ v }}">{{ v }}</option>
@@ -80,7 +80,7 @@
 </form>
 <script>
   function syncVendorRule() {
-    const choice = (document.getElementById("vendor_choice")?.value || "").trim().toLowerCase();
+    const choice = (document.getElementById("vendor")?.value || "").trim().toLowerCase();
     const other = document.getElementById("vendor_other");
     if (!other) return;
 
@@ -114,7 +114,7 @@
     syncNotesRule();
     syncVendorRule();
     document.getElementById("category")?.addEventListener("change", syncNotesRule);
-    document.getElementById("vendor_choice")?.addEventListener("change", syncVendorRule);
+    document.getElementById("vendor")?.addEventListener("change", syncVendorRule);
   });
 </script>
 {% endblock %}

@@ -113,6 +113,7 @@ class Expense(db.Model):
     def __repr__(self):
         return f"<Expense {self.expense_date} {self.category} {self.amount}>"
 
+
 class ExpenseCategory(db.Model):
     __tablename__ = "expense_categories"
     id = db.Column(db.Integer, primary_key=True)
@@ -121,6 +122,20 @@ class ExpenseCategory(db.Model):
 
     def __repr__(self):
         return f"<ExpenseCategory {self.name} active={self.is_active}>"
+
+# -----------------------
+# Helper: Get list of existing vendors (for expense forms)
+# -----------------------
+def get_existing_vendors():
+    vendors = (
+        db.session.query(Expense.vendor)
+        .filter(Expense.vendor.isnot(None))
+        .filter(Expense.vendor != "")
+        .distinct()
+        .order_by(Expense.vendor)
+        .all()
+    )
+    return [v[0] for v in vendors]
 
 # -----------------------
 # SEED INICIAL DE SERVICIOS
@@ -461,6 +476,14 @@ def expenses_new():
         category = (request.form.get("category") or "").strip()
         payment_method = (request.form.get("payment_method") or "").strip()
         vendor = (request.form.get("vendor") or "").strip()
+        vendor_other = (request.form.get("vendor_other") or "").strip()
+
+        if vendor == "__other__":
+            if not vendor_other:
+                flash("Debes especificar el proveedor.", "danger")
+                return redirect(url_for("expenses_new"))
+            vendor = vendor_other
+
         description = (request.form.get("description") or "").strip()
         receipt = (request.form.get("receipt") or "").strip()
         notes = (request.form.get("notes") or "").strip()
@@ -520,6 +543,7 @@ def expenses_new():
         categories=[c.name for c in ExpenseCategory.query.filter_by(is_active=True).order_by(ExpenseCategory.name).all()],
         payment_methods=PAYMENT_METHODS,
         today=date.today().strftime("%Y-%m-%d"),
+        vendors=get_existing_vendors()
     )
 
 
@@ -532,6 +556,14 @@ def expenses_edit(expense_id):
         category = (request.form.get("category") or "").strip()
         payment_method = (request.form.get("payment_method") or "").strip()
         vendor = (request.form.get("vendor") or "").strip()
+        vendor_other = (request.form.get("vendor_other") or "").strip()
+
+        if vendor == "__other__":
+            if not vendor_other:
+                flash("Debes especificar el proveedor.", "danger")
+                return redirect(url_for("expenses_edit", expense_id=expense_id))
+            vendor = vendor_other
+
         description = (request.form.get("description") or "").strip()
         receipt = (request.form.get("receipt") or "").strip()
         notes = (request.form.get("notes") or "").strip()
@@ -578,6 +610,7 @@ def expenses_edit(expense_id):
         expense=exp,
         categories=[c.name for c in ExpenseCategory.query.filter_by(is_active=True).order_by(ExpenseCategory.name).all()],
         payment_methods=PAYMENT_METHODS,
+        vendors=get_existing_vendors()
     )
 
 
