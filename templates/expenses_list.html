@@ -106,11 +106,16 @@
 
   <tbody>
     {% for e in expenses %}
-      <tr>
+      <tr class="{% if e.is_void %}table-secondary text-muted{% endif %}">
         <td>{{ e.expense_date.strftime("%Y-%m-%d") }}</td>
         <td>{{ e.created_at.strftime("%Y-%m-%d %H:%M:%S") }}</td>
-        <td>{{ e.amount }}</td>
-        <td>{{ e.category }}</td>
+        <td>${{ "{:,.0f}".format(e.amount) }}</td>
+        <td>
+          {{ e.category }}
+          {% if e.is_void %}
+            <span class="badge bg-secondary ms-1">ANULADO</span>
+          {% endif %}
+        </td>
         <td>{{ e.payment_method }}</td>
         <td>{{ e.vendor or "-" }}</td>
         <td>{{ e.description }}</td>
@@ -118,9 +123,21 @@
         <td>{{ e.notes or "-" }}</td>
         <td class="d-flex gap-2">
           <a class="btn btn-sm btn-outline-info" href="{{ url_for('expenses_edit', expense_id=e.id) }}">Editar</a>
-          <form method="post" action="{{ url_for('expenses_delete', expense_id=e.id) }}"
-                onsubmit="return confirm('¿Eliminar este gasto?');">
-            <button class="btn btn-sm btn-outline-danger">Eliminar</button>
+          <form method="post"
+                action="{{ url_for('expenses_toggle_void', expense_id=e.id) }}"
+                style="display:inline">
+
+            {% if e.is_void %}
+              <button class="btn btn-sm btn-outline-success"
+                      onclick="return confirm('¿Deseas reactivar este gasto?')">
+                Reactivar
+              </button>
+            {% else %}
+              <button class="btn btn-sm btn-outline-warning"
+                      onclick="return confirm('¿Deseas anular este gasto?')">
+                Anular
+              </button>
+            {% endif %}
           </form>
         </td>
       </tr>

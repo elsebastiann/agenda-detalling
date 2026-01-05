@@ -109,6 +109,7 @@ class Expense(db.Model):
     description = db.Column(db.String(255), nullable=False)
     receipt = db.Column(db.String(80), nullable=True)
     notes = db.Column(db.Text, nullable=True)
+    is_void = db.Column(db.Boolean, nullable=False, default=False)
 
     def __repr__(self):
         return f"<Expense {self.expense_date} {self.category} {self.amount}>"
@@ -614,12 +615,22 @@ def expenses_edit(expense_id):
     )
 
 
-@app.route("/expenses/<int:expense_id>/delete", methods=["POST"])
-def expenses_delete(expense_id):
+
+
+
+# Nueva ruta para anular/des-anular un gasto
+@app.route("/expenses/<int:expense_id>/toggle-void", methods=["POST"])
+def expenses_toggle_void(expense_id):
     exp = Expense.query.get_or_404(expense_id)
-    db.session.delete(exp)
+
+    exp.is_void = not exp.is_void
+
+    if exp.is_void:
+        flash("Gasto anulado.", "warning")
+    else:
+        flash("Gasto reactivado.", "success")
+
     db.session.commit()
-    flash("Gasto eliminado.", "info")
     return redirect(url_for("expenses_list"))
 
 
@@ -667,6 +678,7 @@ def expenses_export():
         "description",
         "receipt",
         "notes",
+        "is_void",
     ])
 
     for e in expenses:
@@ -680,6 +692,7 @@ def expenses_export():
             e.description or "",
             e.receipt or "",
             e.notes or "",
+            "1" if e.is_void else "0",
         ])
 
     filename = "expenses_export.csv"
