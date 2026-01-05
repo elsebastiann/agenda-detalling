@@ -42,7 +42,25 @@ if db_dir and not os.path.exists(db_dir):
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///" + os.path.abspath(db_path)
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
+
 db = SQLAlchemy(app)
+
+# --- Ensure expenses schema migration for is_void column ---
+from sqlalchemy import text
+
+def ensure_expenses_schema():
+    with app.app_context():
+        try:
+            # Verificar si la columna is_void existe
+            db.session.execute(text("SELECT is_void FROM expenses LIMIT 1"))
+        except Exception:
+            # Si no existe, crearla sin borrar datos
+            db.session.execute(
+                text("ALTER TABLE expenses ADD COLUMN is_void BOOLEAN DEFAULT 0")
+            )
+            db.session.commit()
+
+ensure_expenses_schema()
 
 
 # -----------------------
