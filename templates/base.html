@@ -71,28 +71,17 @@
       <div class="d-flex flex-column flex-lg-row gap-2 mt-3 mt-lg-0">
         <a class="btn btn-sm btn-outline-light me-2" href="{{ url_for('new_appointment') }}">+ Nueva cita</a>
         <a class="btn btn-sm btn-outline-light me-2" href="{{ url_for('appointments_list') }}">Lista de citas</a>
-        <div class="dropdown d-inline-block me-2">
-          <button class="btn btn-sm btn-outline-light dropdown-toggle"
-                  type="button"
-                  data-bs-toggle="dropdown"
-                  aria-expanded="false">
-            Gastos
-          </button>
-          <ul class="dropdown-menu dropdown-menu-dark">
-            <li>
-              <a class="dropdown-item" href="{{ url_for('expenses_list') }}">
-                Lista de gastos
-              </a>
-            </li>
-            {% if request.endpoint != 'expenses_new' %}
-            <li>
-              <a class="dropdown-item" href="{{ url_for('expenses_new') }}">
-                + Nuevo gasto
-              </a>
-            </li>
-            {% endif %}
-          </ul>
-        </div>
+
+        <a class="btn btn-sm btn-outline-light me-2"
+           href="{{ url_for('expenses_new') }}">
+           + Nuevo gasto
+        </a>
+
+        <a class="btn btn-sm btn-outline-light me-2"
+           href="{{ url_for('expenses_list') }}">
+           Lista de gastos
+        </a>
+
         <a class="btn btn-sm btn-outline-light" href="{{ url_for('services_view') }}">Servicios</a>
       </div>
     </div>
