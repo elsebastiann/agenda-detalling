@@ -80,8 +80,21 @@ document.addEventListener('DOMContentLoaded', function() {
   var calendarEl = document.getElementById('calendar');
 
   var calendar = new FullCalendar.Calendar(calendarEl, {
-    initialView: 'timeGridWeek',
+    headerToolbar: {
+      left: 'prev,next today',
+      center: 'title',
+      right: 'timeGridDay,timeGridWeek'
+    },
+    initialView: window.innerWidth < 768 ? 'timeGridDay' : 'timeGridWeek',
     locale: 'es',
+    views: {
+      timeGridDay: {
+        buttonText: 'Día'
+      },
+      timeGridWeek: {
+        buttonText: 'Semana'
+      }
+    },
     dayHeaderFormat: { weekday: 'short', day: 'numeric' },
     slotMinTime: '07:00:00',
     slotMaxTime: '20:00:00',
