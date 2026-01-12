@@ -113,18 +113,28 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(data => {
 
           document.getElementById("modalBodyContent").innerHTML = `
-            <p><b>Cliente:</b> ${data.customer_name}</p>
-            <p><b>Placa:</b> ${data.plate || 'Sin placa'}</p>
-            <p><b>Teléfono:</b> ${data.phone || 'No registrado'}</p>
-            <p><b>Servicios:</b> ${data.services}</p>
-            <p><b>Inicio:</b> ${data.start}</p>
-            <p><b>Fin:</b> ${data.end}</p>
-            <p><b>Notas:</b> ${data.notes || 'Sin notas'}</p>
+  <p><b>Cliente:</b> ${data.customer_name}</p>
+  <p><b>Placa:</b> ${data.plate || 'Sin placa'}</p>
+  <p><b>Teléfono:</b> ${data.phone || 'No registrado'}</p>
+  <p><b>Servicios:</b> ${data.services}</p>
+  <p><b>Inicio:</b> ${data.start}</p>
+  <p><b>Fin:</b> ${data.end}</p>
+  <p><b>Notas:</b> ${data.notes || 'Sin notas'}</p>
 
-            <a href="/appointment/${data.id}/edit" class="btn btn-primary mt-2">
-              Editar cita
-            </a>
-          `;
+  <div class="d-flex gap-2 mt-3">
+    <a href="/appointment/${data.id}/edit" class="btn btn-primary">
+      Editar cita
+    </a>
+
+    <form method="POST"
+          action="/appointments/${data.id}/delete"
+          onsubmit="return confirm('¿Seguro que deseas eliminar esta cita?');">
+      <button type="submit" class="btn btn-danger">
+        Eliminar cita
+      </button>
+    </form>
+  </div>
+`;
 
           let modal = new bootstrap.Modal(document.getElementById("appointmentModal"));
           modal.show();

@@ -20,9 +20,14 @@
 
   <div class="col-md-3">
     <label class="form-label">Teléfono</label>
-    <input type="text" name="phone" id="phone" class="form-control" value="{{ appointment.phone }}"
-           pattern="\d{10}" maxlength="10" minlength="10"
-           placeholder="3001234567" required>
+    <input type="tel" name="phone" id="phone" class="form-control"
+           value="{{ appointment.phone }}"
+           inputmode="numeric"
+           pattern="[0-9]{10}"
+           maxlength="10"
+           minlength="10"
+           placeholder="3001234567"
+           required>
   </div>
 
   <div class="col-md-3">
