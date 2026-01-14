@@ -82,12 +82,36 @@
            Lista de gastos
         </a>
 
-        <a class="btn btn-sm btn-outline-light me-2"
-           href="{{ url_for('vehicle_types_list') }}">
-           Tipos de vehículo
-        </a>
-
-        <a class="btn btn-sm btn-outline-light" href="{{ url_for('services_view') }}">Servicios</a>
+        <div class="dropdown me-2">
+          <button class="btn btn-sm btn-outline-light dropdown-toggle"
+                  type="button"
+                  data-bs-toggle="dropdown"
+                  aria-expanded="false">
+            Parametrización
+          </button>
+          <ul class="dropdown-menu dropdown-menu-end">
+            <li>
+              <a class="dropdown-item" href="{{ url_for('vehicle_types_list') }}">
+                Tipos de vehículo
+              </a>
+            </li>
+            <li>
+              <a class="dropdown-item" href="{{ url_for('services_view') }}">
+                Servicios
+              </a>
+            </li>
+            <li>
+              <a class="dropdown-item" href="{{ url_for('service_prices_list') }}">
+                Detalle de servicios
+              </a>
+            </li>
+            <li>
+              <a class="dropdown-item" href="{{ url_for('payment_methods_list') }}">
+                Medios de pago
+              </a>
+            </li>
+          </ul>
+        </div>
       </div>
     </div>
   </div>

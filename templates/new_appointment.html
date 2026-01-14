@@ -45,6 +45,51 @@
   </div>
 
   <div class="col-md-3">
+    <label class="form-label">Convenio (opcional)</label>
+    <select name="agreement_id" id="agreement_id" class="form-select">
+      <option value="">Sin convenio</option>
+      <option value="__new__">➕ Crear nuevo convenio…</option>
+      {% for a in agreements %}
+        <option value="{{ a.id }}">
+          {{ a.name }}
+          {% if a.discount_type == "percentage" %}
+            ({{ a.value }}%)
+          {% else %}
+            (${{ "{:,}".format(a.value) }})
+          {% endif %}
+        </option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="col-md-6" id="newAgreementBox" style="display:none;">
+    <div class="card card-body border-secondary">
+      <div class="row g-2">
+        <div class="col-md-4">
+          <input type="text" id="new_agreement_name" class="form-control"
+                 placeholder="Nombre del convenio">
+        </div>
+        <div class="col-md-4">
+          <select id="new_agreement_type" class="form-select">
+            <option value="">Tipo</option>
+            <option value="percentage">%</option>
+            <option value="fixed">Valor fijo</option>
+          </select>
+        </div>
+        <div class="col-md-4">
+          <input type="number" id="new_agreement_value" class="form-control"
+                 placeholder="Valor">
+        </div>
+        <div class="col-12">
+          <small class="text-muted">
+            El convenio se creará y quedará disponible para futuras citas.
+          </small>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-3">
     <label class="form-label">Hora inicio</label>
     <input type="time" name="start_time" id="start_time"
            class="form-control"
@@ -219,6 +264,17 @@
   const priceBox = document.getElementById('estimatedPriceBox');
   const priceValue = document.getElementById('estimatedPriceValue');
 
+  const agreementSelect = document.getElementById("agreement_id");
+  const newAgreementBox = document.getElementById("newAgreementBox");
+
+  agreementSelect?.addEventListener("change", () => {
+    if (agreementSelect.value === "__new__") {
+      newAgreementBox.style.display = "block";
+    } else {
+      newAgreementBox.style.display = "none";
+    }
+  });
+
   async function maybeShowPriceBox() {
     const hasServices = servicesSelect && servicesSelect.selectedOptions.length > 0;
     const hasVehicle = vehicleTypeSelect && vehicleTypeSelect.value;
@@ -233,6 +289,9 @@
 
     const serviceIds = Array.from(servicesSelect.selectedOptions).map(o => parseInt(o.value, 10));
     const vehicleTypeId = parseInt(vehicleTypeSelect.value, 10);
+    const agreementId = agreementSelect && agreementSelect.value && agreementSelect.value !== "__new__"
+      ? parseInt(agreementSelect.value, 10)
+      : null;
 
     try {
       const resp = await fetch('/api/estimate-price', {
@@ -240,7 +299,8 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           service_ids: serviceIds,
-          vehicle_type_id: vehicleTypeId
+          vehicle_type_id: vehicleTypeId,
+          agreement_id: agreementId
         })
       });
 
@@ -259,5 +319,60 @@
 
   servicesSelect?.addEventListener('change', maybeShowPriceBox);
   vehicleTypeSelect?.addEventListener('change', maybeShowPriceBox);
+  agreementSelect?.addEventListener("change", maybeShowPriceBox);
+
+  const formEl = document.querySelector("form");
+
+  formEl?.addEventListener("submit", async (e) => {
+    if (agreementSelect.value !== "__new__") return;
+
+    e.preventDefault();
+
+    const name = document.getElementById("new_agreement_name").value.trim();
+    const discountType = document.getElementById("new_agreement_type").value;
+    const value = document.getElementById("new_agreement_value").value;
+
+    if (!name || !discountType || !value) {
+      alert("Completa todos los campos del nuevo convenio.");
+      return;
+    }
+
+    try {
+      const resp = await fetch("/api/agreements/quick-create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: name,
+          discount_type: discountType,
+          value: parseInt(value, 10)
+        })
+      });
+
+      const data = await resp.json();
+      if (!data.ok) {
+        alert(data.error || "Error creando el convenio");
+        return;
+      }
+
+      // Insertar y seleccionar el nuevo convenio en el select
+      const opt = document.createElement("option");
+      opt.value = data.agreement.id;
+      opt.textContent =
+        data.agreement.name +
+        (data.agreement.discount_type === "percentage"
+          ? ` (${data.agreement.value}%)`
+          : ` ($${Number(data.agreement.value).toLocaleString("es-CO")})`);
+
+      agreementSelect.appendChild(opt);
+      agreementSelect.value = data.agreement.id;
+
+      // Ocultar el bloque y enviar el formulario
+      newAgreementBox.style.display = "none";
+      formEl.submit();
+
+    } catch (err) {
+      alert("Error de red creando el convenio.");
+    }
+  });
 </script>
 {% endblock %}

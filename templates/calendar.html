@@ -32,6 +32,9 @@
   .fc-event {
     color: #000 !important;
   }
+  .fc-event {
+    line-height: 1.25;
+  }
 
   /* ===== Ajustes visuales calendario ===== */
 
@@ -162,7 +165,15 @@ document.addEventListener('DOMContentLoaded', function() {
       container.style.fontWeight = "600"; // negrita agradable (no tan pesada)
 
       // El título viene con saltos de línea (\n) desde el backend
-      container.textContent = info.event.title;
+      const estimated = info.event.extendedProps?.estimated_amount;
+
+      let text = info.event.title;
+      if (estimated !== undefined && estimated !== null) {
+        const formatted = "$" + Number(estimated).toLocaleString("es-CO");
+        text += "\n" + formatted;
+      }
+
+      container.textContent = text;
 
       return { domNodes: [container] };
     },
@@ -182,61 +193,113 @@ document.addEventListener('DOMContentLoaded', function() {
   <p><b>Inicio:</b> ${data.start}</p>
   <p><b>Fin:</b> ${data.end}</p>
   <p><b>Notas:</b> ${data.notes || 'Sin notas'}</p>
+  <p>
+    <b>Valor estimado:</b>
+    <span class="fw-semibold">
+      $${Number(data.estimated_amount || 0).toLocaleString("es-CO")}
+    </span>
+  </p>
+  <p>
+    <b>Estado:</b>
+    ${
+      data.status === "completed"
+        ? "<span class='badge bg-success'>Finalizado</span>"
+        : data.status === "cancelled"
+          ? "<span class='badge bg-danger'>Cancelado</span>"
+          : "<span class='badge bg-secondary'>Agendado</span>"
+    }
+  </p>
 
   <div class="d-flex gap-2 mt-3 flex-wrap">
-    <a href="/appointment/${data.id}/edit" class="btn btn-primary">
-      Editar cita
-    </a>
-
-    <button class="btn btn-success"
-            onclick="openCloseService(${data.id})">
-      Cerrar servicio
-    </button>
+    ${
+      data.status === "scheduled"
+        ? `
+          <button class="btn btn-success"
+                  onclick="openCloseService(${data.id})">
+            Cerrar servicio
+          </button>
+          `
+        : `
+          <button class="btn btn-secondary" disabled>
+            Servicio ${data.status === "completed" ? "finalizado" : "cancelado"}
+          </button>
+          `
+    }
   </div>
 
-  <div id="closeServiceBox" class="mt-4" style="display:none;">
-    <hr>
-    <h6>Cerrar servicio</h6>
+  <div id="closeServiceBox"
+       class="mt-4"
+       style="display:${data.status === "scheduled" ? "none" : "none"};">
+  <hr>
+  <h6>Cerrar servicio</h6>
 
-    <div class="mb-2">
-      <label class="form-label">Estado</label>
-      <select id="closeStatus" class="form-select">
-        <option value="completed">Finalizado</option>
-        <option value="cancelled">Cancelado</option>
+  <div class="mb-2">
+    <label class="form-label">Estado</label>
+    <select id="closeStatus" class="form-select">
+      <option value="completed">Finalizado</option>
+      <option value="cancelled">Cancelado</option>
+    </select>
+  </div>
+
+  <div class="mb-2" id="paymentMethodBox">
+    <label class="form-label">Medio de pago</label>
+    <input type="text"
+           id="closePaymentMethod"
+           class="form-control"
+           placeholder="Ej: Efectivo, Transferencia">
+  </div>
+
+  <hr>
+
+  <h6 class="mt-2">Ajuste manual (opcional)</h6>
+
+  <div class="row g-2">
+    <div class="col-md-4">
+      <select id="adjustmentType" class="form-select">
+        <option value="">Sin ajuste</option>
+        <option value="discount">Descuento</option>
+        <option value="surcharge">Recargo</option>
       </select>
     </div>
 
-    <div class="mb-2" id="paymentMethodBox">
-      <label class="form-label">Medio de pago</label>
-      <input type="text"
-             id="closePaymentMethod"
-             class="form-control"
-             placeholder="Ej: Efectivo, Transferencia">
+    <div class="col-md-4">
+      <select id="adjustmentMode" class="form-select">
+        <option value="fixed">Valor fijo</option>
+        <option value="percentage">%</option>
+      </select>
     </div>
 
-    <div class="mb-2">
-      <label class="form-label">Descuento</label>
+    <div class="col-md-4">
       <input type="number"
-             id="closeDiscount"
+             id="adjustmentValue"
              class="form-control"
              min="0"
              step="1"
              inputmode="numeric"
-             value="0">
+             placeholder="Valor">
     </div>
-
-    <div class="mb-2">
-      <label class="form-label">Notas</label>
-      <textarea id="closeNotes"
-                class="form-control"
-                rows="2"></textarea>
-    </div>
-
-    <button class="btn btn-success mt-2"
-            onclick="submitCloseService(${data.id})">
-      Confirmar cierre
-    </button>
   </div>
+
+  <div class="mb-2 mt-2">
+    <label class="form-label">Motivo del ajuste</label>
+    <textarea id="adjustmentReason"
+              class="form-control"
+              rows="2"
+              placeholder="Obligatorio si hay ajuste"></textarea>
+  </div>
+
+  <div class="mb-2">
+    <label class="form-label">Notas</label>
+    <textarea id="closeNotes"
+              class="form-control"
+              rows="2"></textarea>
+  </div>
+
+  <button class="btn btn-success mt-2"
+          onclick="submitCloseService(${data.id})">
+    Confirmar cierre
+  </button>
+</div>
 `;
 
           let modal = new bootstrap.Modal(document.getElementById("appointmentModal"));
@@ -274,13 +337,29 @@ function openCloseService() {
 }
 
 function submitCloseService(appointmentId) {
-  const status = document.getElementById("closeStatus").value;
+  const currentStatus = document.getElementById("closeStatus").value;
+  if (currentStatus !== "completed" && currentStatus !== "cancelled") {
+    alert("Estado inválido.");
+    return;
+  }
+
+  const status = currentStatus;
   const paymentMethod = document.getElementById("closePaymentMethod").value;
-  const discount = document.getElementById("closeDiscount").value;
+
+  const adjustmentType = document.getElementById("adjustmentType").value;
+  const adjustmentMode = document.getElementById("adjustmentMode").value;
+  const adjustmentValue = document.getElementById("adjustmentValue").value;
+  const adjustmentReason = document.getElementById("adjustmentReason").value.trim();
+
   const notes = document.getElementById("closeNotes").value;
 
   if (status === "completed" && !paymentMethod) {
     alert("Debes indicar el medio de pago.");
+    return;
+  }
+
+  if (adjustmentType && (!adjustmentValue || !adjustmentReason)) {
+    alert("Si aplicas un ajuste, debes indicar valor y motivo.");
     return;
   }
 
@@ -290,7 +369,10 @@ function submitCloseService(appointmentId) {
     body: JSON.stringify({
       status: status,
       payment_method: paymentMethod,
-      discount: discount,
+      adjustment_type: adjustmentType,
+      adjustment_mode: adjustmentMode,
+      adjustment_value: adjustmentValue,
+      adjustment_reason: adjustmentReason,
       notes: notes
     })
   })

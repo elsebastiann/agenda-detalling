@@ -1668,7 +1668,7 @@ with app.app_context():
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=True, port=5001)
 @app.route("/appointments/<int:appointment_id>/close", methods=["POST"])
 def close_appointment(appointment_id):
     appt = Appointment.query.get_or_404(appointment_id)
