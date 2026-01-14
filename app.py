@@ -319,16 +319,32 @@ class Appointment(db.Model):
     )
 
     agreement_id = db.Column(
-    db.Integer,
-    db.ForeignKey("agreements.id"),
-    nullable=True
+        db.Integer,
+        db.ForeignKey("agreements.id"),
+        nullable=True
     )
     agreement = db.relationship("Agreement")
 
     vehicle_type = db.relationship("VehicleType")
 
+    # Estado de la cita: scheduled | completed | cancelled
+    status = db.Column(db.String(20), nullable=False, default="scheduled")
+
     def __repr__(self):
         return f"<Appointment {self.customer_name} - {self.services}>"
+
+# --- Ensure appointments schema migration for status column ---
+def ensure_appointments_status_schema():
+    with app.app_context():
+        try:
+            db.session.execute(text("SELECT status FROM appointments LIMIT 1"))
+        except Exception:
+            db.session.execute(
+                text("ALTER TABLE appointments ADD COLUMN status VARCHAR(20) DEFAULT 'scheduled'")
+            )
+            db.session.commit()
+
+ensure_appointments_status_schema()
 
 # -----------------------
 # SERVICE SALES (INGRESOS / BI)
@@ -927,6 +943,7 @@ def new_appointment():
             end_datetime=end_dt,
             notes=notes,
             vehicle_type_id=int(vehicle_type_id),
+            status="scheduled",
         )
         db.session.add(appt)
         db.session.commit()
@@ -1589,7 +1606,8 @@ def appointment_json(appointment_id):
         "notes": appt.notes,
         "start": appt.start_datetime.strftime("%Y-%m-%d %H:%M"),
         "end": appt.end_datetime.strftime("%Y-%m-%d %H:%M"),
-        "estimated_amount": estimated_amount
+        "estimated_amount": estimated_amount,
+        "status": appt.status,
     })
 
 
@@ -1710,6 +1728,9 @@ def close_appointment(appointment_id):
         final_amount = base_amount
 
     vt_name = appt.vehicle_type.name if appt.vehicle_type else "N/A"
+
+    # Actualizar el estado de la cita antes de crear la venta
+    appt.status = status
 
     sale = ServiceSale(
         appointment_id=appt.id,

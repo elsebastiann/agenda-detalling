@@ -211,20 +211,48 @@ document.addEventListener('DOMContentLoaded', function() {
   </p>
 
   <div class="d-flex gap-2 mt-3 flex-wrap">
+
+    ${
+      data.status === "scheduled"
+        ? `
+          <a href="/appointments/${data.id}/edit"
+             class="btn btn-outline-primary">
+            Editar cita
+          </a>
+
+          <form method="POST"
+                action="/appointments/${data.id}/delete"
+                onsubmit="return confirm('¿Seguro que deseas eliminar esta cita?');">
+            <button type="submit" class="btn btn-outline-danger">
+              Eliminar cita
+            </button>
+          </form>
+          `
+        : `
+          <button class="btn btn-outline-secondary" disabled>
+            Editar cita
+          </button>
+          <button class="btn btn-outline-secondary" disabled>
+            Eliminar cita
+          </button>
+          `
+    }
+
     ${
       data.status === "scheduled"
         ? `
           <button class="btn btn-success"
                   onclick="openCloseService(${data.id})">
-            Cerrar servicio
+            Finalizar / Cancelar
           </button>
-          `
+        `
         : `
           <button class="btn btn-secondary" disabled>
             Servicio ${data.status === "completed" ? "finalizado" : "cancelado"}
           </button>
-          `
+        `
     }
+
   </div>
 
   <div id="closeServiceBox"
@@ -332,8 +360,13 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 });
 
-function openCloseService() {
-  document.getElementById("closeServiceBox").style.display = "block";
+function openCloseService(appointmentId) {
+  const box = document.getElementById("closeServiceBox");
+  if (!box) {
+    alert("No se pudo abrir el formulario de cierre.");
+    return;
+  }
+  box.style.display = "block";
 }
 
 function submitCloseService(appointmentId) {
