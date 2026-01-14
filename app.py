@@ -83,8 +83,6 @@ def ensure_service_sales_schema():
         except Exception:
             ServiceSale.__table__.create(db.engine)
 
-ensure_service_sales_schema()
-
 # -----------------------
 # MODELOS
 # -----------------------
@@ -1436,6 +1434,7 @@ def api_estimate_price():
 # -----------------------
 with app.app_context():
     db.create_all()
+    ensure_service_sales_schema()
     seed_services()
     seed_vehicle_types()
     seed_payment_methods()
