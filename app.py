@@ -62,10 +62,33 @@ def ensure_expenses_schema():
 
 ensure_expenses_schema()
 
+# --- Ensure appointments schema migration for vehicle_type_id ---
+def ensure_appointments_schema():
+    with app.app_context():
+        try:
+            db.session.execute(text("SELECT vehicle_type_id FROM appointments LIMIT 1"))
+        except Exception:
+            db.session.execute(
+                text("ALTER TABLE appointments ADD COLUMN vehicle_type_id INTEGER")
+            )
+            db.session.commit()
+
+ensure_appointments_schema()
+
+# --- Ensure service_sales table exists ---
+def ensure_service_sales_schema():
+    with app.app_context():
+        try:
+            db.session.execute(text("SELECT id FROM service_sales LIMIT 1"))
+        except Exception:
+            ServiceSale.__table__.create(db.engine)
+
+ensure_service_sales_schema()
 
 # -----------------------
 # MODELOS
 # -----------------------
+
 class Service(db.Model):
     __tablename__ = "services"
     id = db.Column(db.Integer, primary_key=True)
@@ -75,6 +98,62 @@ class Service(db.Model):
 
     def __repr__(self):
         return f"<Service {self.name} ({self.duration_minutes} min)>"
+
+# -----------------------
+# VEHICLE TYPES (CATÁLOGO)
+# -----------------------
+class VehicleType(db.Model):
+    __tablename__ = "vehicle_types"
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(80), nullable=False, unique=True)
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    def __repr__(self):
+        return f"<VehicleType {self.name} active={self.is_active}>"
+
+# -----------------------
+# PAYMENT METHODS (CATÁLOGO)
+# -----------------------
+class PaymentMethod(db.Model):
+    __tablename__ = "payment_methods"
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(80), nullable=False, unique=True)
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    def __repr__(self):
+        return f"<PaymentMethod {self.name} active={self.is_active}>"
+
+# -----------------------
+# SERVICE PRICES (PRECIO + DURACIÓN REAL POR VEHÍCULO)
+# -----------------------
+class ServicePrice(db.Model):
+    __tablename__ = "service_prices"
+    id = db.Column(db.Integer, primary_key=True)
+
+    service_id = db.Column(db.Integer, db.ForeignKey("services.id"), nullable=False)
+    vehicle_type_id = db.Column(db.Integer, db.ForeignKey("vehicle_types.id"), nullable=False)
+
+    price = db.Column(db.Integer, nullable=False)  # sin decimales
+    duration_minutes = db.Column(db.Integer, nullable=False)
+
+    is_active = db.Column(db.Boolean, default=True)
+
+    service = db.relationship("Service", backref=db.backref("prices", lazy=True))
+    vehicle_type = db.relationship("VehicleType", backref=db.backref("service_prices", lazy=True))
+
+    __table_args__ = (
+        db.UniqueConstraint("service_id", "vehicle_type_id", name="uix_service_vehicle"),
+    )
+
+    def __repr__(self):
+        return (
+            f"<ServicePrice service={self.service_id} "
+            f"vehicle={self.vehicle_type_id} "
+            f"price={self.price} "
+            f"duration={self.duration_minutes}min>"
+        )
 
 
 
@@ -89,10 +168,58 @@ class Appointment(db.Model):
     end_datetime = db.Column(db.DateTime, nullable=False)
     notes = db.Column(db.Text, nullable=True)
 
+    # Nueva columna para tipo de vehículo (nullable por compatibilidad)
+    vehicle_type_id = db.Column(
+        db.Integer,
+        db.ForeignKey("vehicle_types.id"),
+        nullable=True
+    )
+    vehicle_type = db.relationship("VehicleType")
+
     def __repr__(self):
         return f"<Appointment {self.customer_name} - {self.services}>"
 
+# -----------------------
+# SERVICE SALES (INGRESOS / BI)
+# -----------------------
+class ServiceSale(db.Model):
+    __tablename__ = "service_sales"
+    id = db.Column(db.Integer, primary_key=True)
 
+    appointment_id = db.Column(
+        db.Integer,
+        db.ForeignKey("appointments.id"),
+        nullable=False
+    )
+
+    # Fecha del servicio (día en que se cerró)
+    service_date = db.Column(db.Date, nullable=False)
+
+    # Fecha/hora de creación del registro
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    # Datos planos (BI friendly)
+    vehicle_type = db.Column(db.String(80), nullable=False)
+    plate = db.Column(db.String(20), nullable=True)
+    customer_name = db.Column(db.String(120), nullable=True)
+    services = db.Column(db.String(255), nullable=False)
+
+    base_amount = db.Column(db.Integer, nullable=False)
+    discount_amount = db.Column(db.Integer, nullable=False, default=0)
+    final_amount = db.Column(db.Integer, nullable=False)
+
+    payment_method = db.Column(db.String(80), nullable=True)
+
+    # completed | cancelled
+    status = db.Column(db.String(20), nullable=False)
+
+    notes = db.Column(db.Text, nullable=True)
+
+    appointment = db.relationship("Appointment")
+
+    def __repr__(self):
+        return f"<ServiceSale {self.service_date} {self.final_amount} {self.status}>"
+    
 # -----------------------
 # CLIENT MODEL
 # -----------------------
@@ -183,6 +310,7 @@ def seed_services():
     print("Servicios iniciales creados.")
 
 
+
 def seed_expense_categories():
     """Crea categorías base de gastos si la tabla está vacía."""
     if ExpenseCategory.query.count() > 0:
@@ -192,6 +320,48 @@ def seed_expense_categories():
         db.session.add(ExpenseCategory(name=name, is_active=True))
     db.session.commit()
     print("Categorías iniciales de gastos creadas.")
+
+# -----------------------
+# SEED INICIAL DE TIPOS DE VEHÍCULO
+# -----------------------
+def seed_vehicle_types():
+    if VehicleType.query.count() > 0:
+        return
+
+    vehicle_types = [
+        "Automovil",
+        "SUV",
+        "Camioneta",
+        "Moto",
+        "Cuatrimoto",
+        "Buggy",
+        "Jet Ski",
+    ]
+
+    for name in vehicle_types:
+        db.session.add(VehicleType(name=name, is_active=True))
+
+    db.session.commit()
+    print("Tipos de vehículo iniciales creados.")
+
+# -----------------------
+# SEED INICIAL DE MEDIOS DE PAGO
+# -----------------------
+def seed_payment_methods():
+    if PaymentMethod.query.count() > 0:
+        return
+
+    methods = [
+        "Efectivo",
+        "Transferencia",
+        "Tarjeta de Credito",
+    ]
+
+    for name in methods:
+        db.session.add(PaymentMethod(name=name, is_active=True))
+
+    db.session.commit()
+    print("Medios de pago iniciales creados.")
 
 
 # -----------------------
@@ -228,6 +398,245 @@ def upsert_client_from_appointment(plate: str, full_name: str | None, phone: str
         ))
 
 # -----------------------
+# HELPER: Calcular duración real por servicios + tipo de vehículo
+# -----------------------
+def calculate_real_duration_minutes(service_ids: list[int], vehicle_type_id: int) -> int:
+    """
+    Calcula duración total real usando ServicePrice.
+    Estrategia:
+    - Suma todas las duraciones reales encontradas
+    - Si falta alguna combinación, usa duración base del servicio
+    - Aplica solapamiento: servicio más largo + 50% de los demás
+    """
+
+    durations = []
+
+    for sid in service_ids:
+        sp = (
+            ServicePrice.query
+            .filter_by(service_id=sid, vehicle_type_id=vehicle_type_id, is_active=True)
+            .first()
+        )
+
+        if sp:
+            durations.append(sp.duration_minutes)
+        else:
+            # fallback seguro
+            svc = Service.query.get(sid)
+            if svc:
+                durations.append(svc.duration_minutes)
+
+    if not durations:
+        return 60  # fallback absoluto
+
+    durations.sort(reverse=True)
+    longest = durations[0]
+    others = durations[1:]
+
+    total = longest + sum(d * 0.5 for d in others)
+    return int(round(total))
+
+# -----------------------
+# HELPER: Calcular precio real por servicios + tipo de vehículo
+# -----------------------
+def calculate_real_price(service_ids: list[int], vehicle_type_id: int) -> int:
+    """
+    Calcula el precio base real usando ServicePrice.
+    Estrategia:
+    - Suma los precios reales encontrados
+    - Si falta alguna combinación, ignora ese servicio (precio 0)
+    - Devuelve entero (sin decimales)
+    """
+
+    total_price = 0
+
+    for sid in service_ids:
+        sp = (
+            ServicePrice.query
+            .filter_by(service_id=sid, vehicle_type_id=vehicle_type_id, is_active=True)
+            .first()
+        )
+        if sp:
+            total_price += sp.price
+
+    return int(total_price)
+
+# -----------------------
+# HELPER: Verificar si la cita ya fue cerrada (ServiceSale existe para appointment_id)
+# -----------------------
+def appointment_already_closed(appointment_id: int) -> bool:
+    return (
+        ServiceSale.query
+        .filter_by(appointment_id=appointment_id)
+        .first()
+        is not None
+    )
+
+# -----------------------
+# PAYMENT METHODS (CRUD)
+# -----------------------
+
+@app.route("/payment-methods")
+def payment_methods_list():
+    methods = PaymentMethod.query.order_by(PaymentMethod.name).all()
+    return render_template(
+        "payment_methods.html",
+        payment_methods=methods
+    )
+
+
+@app.route("/payment-methods/new", methods=["POST"])
+def payment_methods_new():
+    name = (request.form.get("name") or "").strip()
+
+    if not name:
+        flash("Debes ingresar el nombre del medio de pago.", "danger")
+        return redirect(url_for("payment_methods_list"))
+
+    name = " ".join(name.split())
+
+    existing = PaymentMethod.query.filter_by(name=name).first()
+    if existing:
+        existing.is_active = True
+        db.session.commit()
+        flash("El medio de pago ya existía y fue activado.", "info")
+        return redirect(url_for("payment_methods_list"))
+
+    db.session.add(PaymentMethod(name=name, is_active=True))
+    db.session.commit()
+    flash("Medio de pago creado.", "success")
+    return redirect(url_for("payment_methods_list"))
+
+
+@app.route("/payment-methods/<int:method_id>/toggle", methods=["POST"])
+def payment_methods_toggle(method_id):
+    pm = PaymentMethod.query.get_or_404(method_id)
+    pm.is_active = not pm.is_active
+    db.session.commit()
+    flash("Medio de pago actualizado.", "info")
+    return redirect(url_for("payment_methods_list"))
+
+# -----------------------
+# VEHICLE TYPES (CRUD)
+# -----------------------
+
+@app.route("/vehicle-types")
+def vehicle_types_list():
+    vehicle_types = VehicleType.query.order_by(VehicleType.name).all()
+    return render_template(
+        "vehicle_types.html",
+        vehicle_types=vehicle_types
+    )
+
+
+@app.route("/vehicle-types/new", methods=["POST"])
+def vehicle_types_new():
+    name = (request.form.get("name") or "").strip()
+
+    if not name:
+        flash("Debes ingresar el nombre del tipo de vehículo.", "danger")
+        return redirect(url_for("vehicle_types_list"))
+
+    name = " ".join(name.split())
+
+    existing = VehicleType.query.filter_by(name=name).first()
+    if existing:
+        existing.is_active = True
+        db.session.commit()
+        flash("El tipo de vehículo ya existía y fue activado.", "info")
+        return redirect(url_for("vehicle_types_list"))
+
+    db.session.add(VehicleType(name=name, is_active=True))
+    db.session.commit()
+    flash("Tipo de vehículo creado.", "success")
+    return redirect(url_for("vehicle_types_list"))
+
+
+@app.route("/vehicle-types/<int:vehicle_type_id>/toggle", methods=["POST"])
+def vehicle_types_toggle(vehicle_type_id):
+    vt = VehicleType.query.get_or_404(vehicle_type_id)
+    vt.is_active = not vt.is_active
+    db.session.commit()
+    flash("Tipo de vehículo actualizado.", "info")
+    return redirect(url_for("vehicle_types_list"))
+
+# -----------------------
+# SERVICE PRICES (CRUD)
+# -----------------------
+
+@app.route("/service-prices")
+def service_prices_list():
+    service_prices = (
+        ServicePrice.query
+        .join(Service)
+        .join(VehicleType)
+        .order_by(Service.name, VehicleType.name)
+        .all()
+    )
+
+    services = Service.query.filter_by(is_active=True).order_by(Service.name).all()
+    vehicle_types = VehicleType.query.filter_by(is_active=True).order_by(VehicleType.name).all()
+
+    return render_template(
+        "service_prices.html",
+        service_prices=service_prices,
+        services=services,
+        vehicle_types=vehicle_types
+    )
+
+
+@app.route("/service-prices/new", methods=["POST"])
+def service_prices_new():
+    service_id = request.form.get("service_id")
+    vehicle_type_id = request.form.get("vehicle_type_id")
+    price = request.form.get("price")
+    duration = request.form.get("duration_minutes")
+
+    if not service_id or not vehicle_type_id or not price or not duration:
+        flash("Debes completar todos los campos.", "danger")
+        return redirect(url_for("service_prices_list"))
+
+    try:
+        price = int(price)
+        duration = int(duration)
+    except ValueError:
+        flash("Precio y duración deben ser números enteros.", "danger")
+        return redirect(url_for("service_prices_list"))
+
+    existing = ServicePrice.query.filter_by(
+        service_id=service_id,
+        vehicle_type_id=vehicle_type_id
+    ).first()
+
+    if existing:
+        existing.price = price
+        existing.duration_minutes = duration
+        existing.is_active = True
+        flash("Precio actualizado para esta combinación.", "info")
+    else:
+        sp = ServicePrice(
+            service_id=service_id,
+            vehicle_type_id=vehicle_type_id,
+            price=price,
+            duration_minutes=duration,
+            is_active=True
+        )
+        db.session.add(sp)
+        flash("Precio creado.", "success")
+
+    db.session.commit()
+    return redirect(url_for("service_prices_list"))
+
+
+@app.route("/service-prices/<int:price_id>/toggle", methods=["POST"])
+def service_prices_toggle(price_id):
+    sp = ServicePrice.query.get_or_404(price_id)
+    sp.is_active = not sp.is_active
+    db.session.commit()
+    flash("Registro actualizado.", "info")
+    return redirect(url_for("service_prices_list"))
+
+# -----------------------
 # RUTAS
 # -----------------------
 @app.route("/")
@@ -244,6 +653,7 @@ def calendar_view():
 @app.route("/appointments/new", methods=["GET", "POST"])
 def new_appointment():
     services = Service.query.filter_by(is_active=True).order_by(Service.name).all()
+    vehicle_types = VehicleType.query.filter_by(is_active=True).order_by(VehicleType.name).all()
 
     if request.method == "POST":
         customer_name = request.form.get("customer_name") or "Sin nombre"
@@ -253,6 +663,7 @@ def new_appointment():
         time_str = request.form.get("start_time")
         notes = request.form.get("notes") or ""
         selected_ids = request.form.getlist("service_ids")
+        vehicle_type_id = request.form.get("vehicle_type_id")
 
         if not date_str or not time_str:
             flash("Debes seleccionar fecha y hora.", "danger")
@@ -260,6 +671,10 @@ def new_appointment():
 
         if not selected_ids:
             flash("Debes seleccionar al menos un servicio.", "danger")
+            return redirect(url_for("new_appointment"))
+
+        if not vehicle_type_id:
+            flash("Debes seleccionar el tipo de vehículo.", "danger")
             return redirect(url_for("new_appointment"))
 
         # Convertir fecha/hora
@@ -273,15 +688,17 @@ def new_appointment():
             flash("Los servicios seleccionados no son válidos.", "danger")
             return redirect(url_for("new_appointment"))
 
-        # Algoritmo: servicio más largo + 50% de los demás
-        durations = [s.duration_minutes for s in selected_services]
-        durations_sorted = sorted(durations, reverse=True)
-        longest = durations_sorted[0]
-        others = durations_sorted[1:]
-        overlap_factor = 0.5  # 50%
+        service_ids = [s.id for s in selected_services]
 
-        total_minutes = longest + sum(d * overlap_factor for d in others)
-        total_minutes = int(round(total_minutes))
+        total_minutes = calculate_real_duration_minutes(
+            service_ids=service_ids,
+            vehicle_type_id=int(vehicle_type_id)
+        )
+
+        estimated_price = calculate_real_price(
+            service_ids=service_ids,
+            vehicle_type_id=int(vehicle_type_id)
+        )
 
         end_dt = start_dt + timedelta(minutes=total_minutes)
 
@@ -298,6 +715,7 @@ def new_appointment():
             start_datetime=start_dt,
             end_datetime=end_dt,
             notes=notes,
+            vehicle_type_id=int(vehicle_type_id),
         )
         db.session.add(appt)
         db.session.commit()
@@ -308,6 +726,7 @@ def new_appointment():
     return render_template(
         "new_appointment.html",
         services=services,
+        vehicle_types=vehicle_types,
         today=date.today().isoformat()
     )
 
@@ -353,14 +772,22 @@ def edit_appointment(appointment_id):
         appointment.services = ", ".join([s.name for s in selected_services])
 
         # Calcular duración
-        durations = [s.duration_minutes for s in selected_services]
+        service_ids = [s.id for s in selected_services]
 
-        if durations:
-            longest = max(durations)
-            extras = sum(durations) - longest
-            total_duration = longest + int(extras * 0.5)
+        if appointment.vehicle_type_id:
+            total_duration = calculate_real_duration_minutes(
+                service_ids=service_ids,
+                vehicle_type_id=appointment.vehicle_type_id
+            )
         else:
-            total_duration = 60
+            # fallback si la cita es antigua y no tiene tipo de vehículo
+            durations = [s.duration_minutes for s in selected_services]
+            if durations:
+                longest = max(durations)
+                extras = sum(durations) - longest
+                total_duration = longest + int(extras * 0.5)
+            else:
+                total_duration = 60
 
         # Asignar nueva hora final
         appointment.end_datetime = appointment.start_datetime + timedelta(minutes=total_duration)
@@ -439,6 +866,7 @@ def _parse_date(value: str | None):
         return None
 
 
+
 @app.route("/expenses")
 def expenses_list():
     """Listado de gastos con filtros (sin límite) y búsqueda simple."""
@@ -485,6 +913,124 @@ def expenses_list():
             "category": category,
             "payment_method": payment_method,
         },
+    )
+
+
+
+# -----------------------
+# Listado de ingresos (ventas de servicios) con filtros básicos
+# -----------------------
+@app.route("/sales")
+def sales_list():
+    """Listado de ingresos (ventas de servicios) con filtros básicos."""
+    from_str = request.args.get("from")
+    to_str = request.args.get("to")
+    status = (request.args.get("status") or "").strip()
+    payment_method = (request.args.get("payment_method") or "").strip()
+
+    date_from = _parse_date(from_str)
+    date_to = _parse_date(to_str)
+
+    query = ServiceSale.query
+
+    if date_from:
+        query = query.filter(ServiceSale.service_date >= date_from)
+    if date_to:
+        query = query.filter(ServiceSale.service_date <= date_to)
+    if status:
+        query = query.filter(ServiceSale.status == status)
+    if payment_method:
+        query = query.filter(ServiceSale.payment_method == payment_method)
+
+    sales = query.order_by(
+        ServiceSale.service_date.desc(),
+        ServiceSale.created_at.desc()
+    ).all()
+
+    return render_template(
+        "service_sales_list.html",
+        sales=sales,
+        filters={
+            "from": from_str or "",
+            "to": to_str or "",
+            "status": status,
+            "payment_method": payment_method,
+        }
+    )
+
+
+# -----------------------
+# Export CSV de ingresos (service_sales) con los mismos filtros del listado.
+# -----------------------
+@app.route("/sales/export")
+def sales_export():
+    """Export CSV de ingresos (service_sales) con los mismos filtros del listado."""
+    from_str = request.args.get("from")
+    to_str = request.args.get("to")
+    status = (request.args.get("status") or "").strip()
+    payment_method = (request.args.get("payment_method") or "").strip()
+
+    date_from = _parse_date(from_str)
+    date_to = _parse_date(to_str)
+
+    query = ServiceSale.query
+
+    if date_from:
+        query = query.filter(ServiceSale.service_date >= date_from)
+    if date_to:
+        query = query.filter(ServiceSale.service_date <= date_to)
+    if status:
+        query = query.filter(ServiceSale.status == status)
+    if payment_method:
+        query = query.filter(ServiceSale.payment_method == payment_method)
+
+    sales = query.order_by(
+        ServiceSale.service_date.asc(),
+        ServiceSale.created_at.asc()
+    ).all()
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+
+    # Header BI-friendly
+    writer.writerow([
+        "service_date",
+        "created_at",
+        "appointment_id",
+        "vehicle_type",
+        "plate",
+        "customer_name",
+        "services",
+        "base_amount",
+        "discount_amount",
+        "final_amount",
+        "payment_method",
+        "status",
+        "notes",
+    ])
+
+    for s in sales:
+        writer.writerow([
+            s.service_date.strftime("%Y-%m-%d") if s.service_date else "",
+            s.created_at.strftime("%Y-%m-%d %H:%M:%S") if s.created_at else "",
+            s.appointment_id,
+            s.vehicle_type,
+            s.plate or "",
+            s.customer_name or "",
+            s.services or "",
+            s.base_amount,
+            s.discount_amount,
+            s.final_amount,
+            s.payment_method or "",
+            s.status,
+            s.notes or "",
+        ])
+
+    filename = "service_sales_export.csv"
+    return Response(
+        output.getvalue(),
+        mimetype="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
     )
 
 
@@ -848,14 +1394,111 @@ def api_client_by_plate():
         "phone": client.phone or "",
     })
 
+
+# -----------------------
+# API: ESTIMAR PRECIO DE CITA
+# -----------------------
+@app.route("/api/estimate-price", methods=["POST"])
+def api_estimate_price():
+    """
+    Calcula el precio estimado según:
+    - servicios seleccionados
+    - tipo de vehículo
+    No guarda nada en BD.
+    """
+    data = request.get_json(silent=True) or {}
+
+    service_ids = data.get("service_ids") or []
+    vehicle_type_id = data.get("vehicle_type_id")
+
+    try:
+        service_ids = [int(sid) for sid in service_ids]
+        vehicle_type_id = int(vehicle_type_id)
+    except Exception:
+        return jsonify({"ok": False, "error": "Datos inválidos"}), 400
+
+    if not service_ids or not vehicle_type_id:
+        return jsonify({"ok": False, "error": "Datos incompletos"}), 400
+
+    price = calculate_real_price(
+        service_ids=service_ids,
+        vehicle_type_id=vehicle_type_id
+    )
+
+    return jsonify({
+        "ok": True,
+        "price": price
+    })
+
+
 # -----------------------
 # INICIALIZACIÓN
 # -----------------------
 with app.app_context():
     db.create_all()
     seed_services()
+    seed_vehicle_types()
+    seed_payment_methods()
     seed_expense_categories()
 
 
 if __name__ == "__main__":
     app.run(debug=True)
+@app.route("/appointments/<int:appointment_id>/close", methods=["POST"])
+def close_appointment(appointment_id):
+    appt = Appointment.query.get_or_404(appointment_id)
+
+    if appointment_already_closed(appointment_id):
+        return jsonify({
+            "ok": False,
+            "error": "La cita ya fue cerrada."
+        }), 400
+
+    data = request.get_json(silent=True) or {}
+
+    payment_method = (data.get("payment_method") or "").strip()
+    status = (data.get("status") or "").strip()  # completed | cancelled
+    discount = int(data.get("discount") or 0)
+    notes = (data.get("notes") or "").strip()
+
+    if status not in ("completed", "cancelled"):
+        return jsonify({"ok": False, "error": "Estado inválido"}), 400
+
+    if status == "completed" and not payment_method:
+        return jsonify({"ok": False, "error": "Medio de pago requerido"}), 400
+
+    # Resolver servicios por nombre
+    service_names = [s.strip() for s in appt.services.split(",") if s.strip()]
+    services = Service.query.filter(Service.name.in_(service_names)).all()
+    service_ids = [s.id for s in services]
+
+    # Precio base real
+    base_amount = calculate_real_price(
+        service_ids=service_ids,
+        vehicle_type_id=appt.vehicle_type_id
+    )
+
+    discount_amount = max(discount, 0)
+    final_amount = max(base_amount - discount_amount, 0)
+
+    vt_name = appt.vehicle_type.name if appt.vehicle_type else "N/A"
+
+    sale = ServiceSale(
+        appointment_id=appt.id,
+        service_date=appt.start_datetime.date(),
+        vehicle_type=vt_name,
+        plate=appt.plate,
+        customer_name=appt.customer_name,
+        services=appt.services,
+        base_amount=base_amount,
+        discount_amount=discount_amount,
+        final_amount=final_amount,
+        payment_method=payment_method if status == "completed" else None,
+        status=status,
+        notes=notes or None
+    )
+
+    db.session.add(sale)
+    db.session.commit()
+
+    return jsonify({"ok": True})

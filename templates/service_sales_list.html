@@ -1,0 +1,118 @@
+
+
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+
+  <h4 class="mb-3">Ingresos por servicios</h4>
+
+  <!-- Filtros -->
+  <form method="get" class="row g-2 align-items-end mb-3">
+
+    <div class="col-sm-2">
+      <label class="form-label">Desde</label>
+      <input type="date" name="from" class="form-control"
+             value="{{ filters.from }}">
+    </div>
+
+    <div class="col-sm-2">
+      <label class="form-label">Hasta</label>
+      <input type="date" name="to" class="form-control"
+             value="{{ filters.to }}">
+    </div>
+
+    <div class="col-sm-2">
+      <label class="form-label">Estado</label>
+      <select name="status" class="form-select">
+        <option value="">Todos</option>
+        <option value="completed"
+          {% if filters.status == "completed" %}selected{% endif %}>
+          Finalizado
+        </option>
+        <option value="cancelled"
+          {% if filters.status == "cancelled" %}selected{% endif %}>
+          Cancelado
+        </option>
+      </select>
+    </div>
+
+    <div class="col-sm-2">
+      <label class="form-label">Medio de pago</label>
+      <input type="text" name="payment_method"
+             class="form-control"
+             placeholder="Ej: Efectivo"
+             value="{{ filters.payment_method }}">
+    </div>
+
+    <div class="col-sm-2">
+      <button type="submit" class="btn btn-primary w-100">
+        Filtrar
+      </button>
+    </div>
+
+    <div class="col-sm-2">
+      <a class="btn btn-outline-success w-100"
+         href="{{ url_for('sales_export',
+              from=filters.from,
+              to=filters.to,
+              status=filters.status,
+              payment_method=filters.payment_method) }}">
+        Exportar CSV
+      </a>
+    </div>
+
+  </form>
+
+  <!-- Tabla -->
+  <div class="table-responsive">
+    <table class="table table-sm table-hover align-middle">
+      <thead class="table-light">
+        <tr>
+          <th>Fecha</th>
+          <th>Cliente</th>
+          <th>Placa</th>
+          <th>Vehículo</th>
+          <th>Servicios</th>
+          <th class="text-end">Base</th>
+          <th class="text-end">Descuento</th>
+          <th class="text-end">Total</th>
+          <th>Pago</th>
+          <th>Estado</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in sales %}
+        <tr class="{% if s.status == 'cancelled' %}table-secondary{% endif %}">
+          <td>{{ s.service_date }}</td>
+          <td>{{ s.customer_name or "-" }}</td>
+          <td>{{ s.plate or "-" }}</td>
+          <td>{{ s.vehicle_type }}</td>
+          <td>{{ s.services }}</td>
+          <td class="text-end">$ {{ "{:,}".format(s.base_amount) }}</td>
+          <td class="text-end">$ {{ "{:,}".format(s.discount_amount) }}</td>
+          <td class="text-end fw-bold">
+            $ {{ "{:,}".format(s.final_amount) }}
+          </td>
+          <td>{{ s.payment_method or "-" }}</td>
+          <td>
+            {% if s.status == "completed" %}
+              <span class="badge bg-success">Finalizado</span>
+            {% else %}
+              <span class="badge bg-secondary">Cancelado</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="10" class="text-center text-muted">
+            No hay registros
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+</div>
+{% endblock %}

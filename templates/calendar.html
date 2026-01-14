@@ -183,18 +183,59 @@ document.addEventListener('DOMContentLoaded', function() {
   <p><b>Fin:</b> ${data.end}</p>
   <p><b>Notas:</b> ${data.notes || 'Sin notas'}</p>
 
-  <div class="d-flex gap-2 mt-3">
+  <div class="d-flex gap-2 mt-3 flex-wrap">
     <a href="/appointment/${data.id}/edit" class="btn btn-primary">
       Editar cita
     </a>
 
-    <form method="POST"
-          action="/appointments/${data.id}/delete"
-          onsubmit="return confirm('¿Seguro que deseas eliminar esta cita?');">
-      <button type="submit" class="btn btn-danger">
-        Eliminar cita
-      </button>
-    </form>
+    <button class="btn btn-success"
+            onclick="openCloseService(${data.id})">
+      Cerrar servicio
+    </button>
+  </div>
+
+  <div id="closeServiceBox" class="mt-4" style="display:none;">
+    <hr>
+    <h6>Cerrar servicio</h6>
+
+    <div class="mb-2">
+      <label class="form-label">Estado</label>
+      <select id="closeStatus" class="form-select">
+        <option value="completed">Finalizado</option>
+        <option value="cancelled">Cancelado</option>
+      </select>
+    </div>
+
+    <div class="mb-2" id="paymentMethodBox">
+      <label class="form-label">Medio de pago</label>
+      <input type="text"
+             id="closePaymentMethod"
+             class="form-control"
+             placeholder="Ej: Efectivo, Transferencia">
+    </div>
+
+    <div class="mb-2">
+      <label class="form-label">Descuento</label>
+      <input type="number"
+             id="closeDiscount"
+             class="form-control"
+             min="0"
+             step="1"
+             inputmode="numeric"
+             value="0">
+    </div>
+
+    <div class="mb-2">
+      <label class="form-label">Notas</label>
+      <textarea id="closeNotes"
+                class="form-control"
+                rows="2"></textarea>
+    </div>
+
+    <button class="btn btn-success mt-2"
+            onclick="submitCloseService(${data.id})">
+      Confirmar cierre
+    </button>
   </div>
 `;
 
@@ -227,5 +268,40 @@ document.addEventListener('DOMContentLoaded', function() {
     updatePageTitle();
   });
 });
+
+function openCloseService() {
+  document.getElementById("closeServiceBox").style.display = "block";
+}
+
+function submitCloseService(appointmentId) {
+  const status = document.getElementById("closeStatus").value;
+  const paymentMethod = document.getElementById("closePaymentMethod").value;
+  const discount = document.getElementById("closeDiscount").value;
+  const notes = document.getElementById("closeNotes").value;
+
+  if (status === "completed" && !paymentMethod) {
+    alert("Debes indicar el medio de pago.");
+    return;
+  }
+
+  fetch(`/appointments/${appointmentId}/close`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      status: status,
+      payment_method: paymentMethod,
+      discount: discount,
+      notes: notes
+    })
+  })
+  .then(res => res.json())
+  .then(data => {
+    if (!data.ok) {
+      alert(data.error || "Error al cerrar el servicio");
+      return;
+    }
+    location.reload();
+  });
+}
 </script>
 {% endblock %}

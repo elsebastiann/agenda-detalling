@@ -1,0 +1,110 @@
+
+
+{% extends "base.html" %}
+{% block content %}
+
+<div class="container mt-4">
+
+  <h2 class="mb-3">Precios y duración por servicio</h2>
+
+  <!-- Formulario nueva combinación -->
+  <form method="POST" action="{{ url_for('service_prices_new') }}" class="row g-2 mb-4">
+    <div class="col-12 col-md-3">
+      <select name="service_id" class="form-select" required>
+        <option value="">Servicio</option>
+        {% for s in services %}
+          <option value="{{ s.id }}">{{ s.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="col-12 col-md-3">
+      <select name="vehicle_type_id" class="form-select" required>
+        <option value="">Tipo de vehículo</option>
+        {% for vt in vehicle_types %}
+          <option value="{{ vt.id }}">{{ vt.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="col-6 col-md-2">
+      <input type="number"
+             name="price"
+             class="form-control"
+             placeholder="Precio"
+             min="0"
+             step="1"
+             inputmode="numeric"
+             pattern="[0-9]*"
+             required>
+    </div>
+
+    <div class="col-6 col-md-2">
+      <input type="number"
+             name="duration_minutes"
+             class="form-control"
+             placeholder="Duración (min)"
+             min="1"
+             step="1"
+             inputmode="numeric"
+             pattern="[0-9]*"
+             required>
+    </div>
+
+    <div class="col-12 col-md-2">
+      <button type="submit" class="btn btn-primary w-100">
+        Guardar
+      </button>
+    </div>
+  </form>
+
+  <!-- Tabla de combinaciones -->
+  <div class="table-responsive">
+    <table class="table table-dark table-hover align-middle">
+      <thead>
+        <tr>
+          <th>Servicio</th>
+          <th>Tipo de vehículo</th>
+          <th class="text-end">Precio</th>
+          <th class="text-center">Duración (min)</th>
+          <th class="text-center">Estado</th>
+          <th class="text-center">Acción</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for sp in service_prices %}
+        <tr>
+          <td>{{ sp.service.name }}</td>
+          <td>{{ sp.vehicle_type.name }}</td>
+          <td class="text-end">$ {{ "{:,}".format(sp.price).replace(",", ".") }}</td>
+          <td class="text-center">{{ sp.duration_minutes }}</td>
+          <td class="text-center">
+            {% if sp.is_active %}
+              <span class="badge bg-success">Activo</span>
+            {% else %}
+              <span class="badge bg-secondary">Inactivo</span>
+            {% endif %}
+          </td>
+          <td class="text-center">
+            <form method="POST"
+                  action="{{ url_for('service_prices_toggle', price_id=sp.id) }}">
+              {% if sp.is_active %}
+                <button type="submit" class="btn btn-sm btn-outline-warning">
+                  Desactivar
+                </button>
+              {% else %}
+                <button type="submit" class="btn btn-sm btn-outline-success">
+                  Activar
+                </button>
+              {% endif %}
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+</div>
+
+{% endblock %}

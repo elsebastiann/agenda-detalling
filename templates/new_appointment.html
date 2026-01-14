@@ -7,7 +7,7 @@
   <div class="col-md-3">
     <label class="form-label">Placa</label>
     <input type="text" name="plate" id="plate" class="form-control"
-           placeholder="ABC123" autocomplete="off"
+           placeholder="ZIE226" autocomplete="off"
            style="text-transform: uppercase;">
   </div>
 
@@ -35,6 +35,16 @@
   </div>
 
   <div class="col-md-3">
+    <label class="form-label">Tipo de vehículo</label>
+    <select name="vehicle_type_id" class="form-select" required>
+      <option value="">Selecciona el tipo</option>
+      {% for vt in vehicle_types %}
+        <option value="{{ vt.id }}">{{ vt.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="col-md-3">
     <label class="form-label">Hora inicio</label>
     <input type="time" name="start_time" id="start_time"
            class="form-control"
@@ -51,12 +61,21 @@
     <label class="form-label">Servicios</label>
     <select name="service_ids" class="form-select" multiple size="8" required>
       {% for s in services %}
-        <option value="{{ s.id }}">{{ s.name }} ({{ s.duration_minutes }} min)</option>
+        <option value="{{ s.id }}">{{ s.name }}</option>
       {% endfor %}
     </select>
     <div class="form-text">
       Selecciona uno o varios servicios (Cmd/Ctrl + clic). <br>
       La duración se calcula automáticamente según tus reglas internas.
+    </div>
+  </div>
+
+  <div class="col-12 mt-3">
+    <div class="alert alert-secondary d-flex align-items-center justify-content-between"
+         id="estimatedPriceBox"
+         style="display:none;">
+      <span>Precio estimado</span>
+      <strong id="estimatedPriceValue">$ 0</strong>
     </div>
   </div>
 
@@ -193,5 +212,52 @@
   startTimeEl?.addEventListener("blur", () => {
     startTimeEl.value = snapTo15(startTimeEl.value) || startTimeEl.value;
   });
+
+  // UI: mostrar contenedor de precio estimado cuando hay selección válida
+  const servicesSelect = document.querySelector('select[name="service_ids"]');
+  const vehicleTypeSelect = document.querySelector('select[name="vehicle_type_id"]');
+  const priceBox = document.getElementById('estimatedPriceBox');
+  const priceValue = document.getElementById('estimatedPriceValue');
+
+  async function maybeShowPriceBox() {
+    const hasServices = servicesSelect && servicesSelect.selectedOptions.length > 0;
+    const hasVehicle = vehicleTypeSelect && vehicleTypeSelect.value;
+
+    if (!hasServices || !hasVehicle) {
+      priceBox.style.display = 'none';
+      return;
+    }
+
+    priceBox.style.display = 'flex';
+    priceValue.textContent = 'Calculando…';
+
+    const serviceIds = Array.from(servicesSelect.selectedOptions).map(o => parseInt(o.value, 10));
+    const vehicleTypeId = parseInt(vehicleTypeSelect.value, 10);
+
+    try {
+      const resp = await fetch('/api/estimate-price', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          service_ids: serviceIds,
+          vehicle_type_id: vehicleTypeId
+        })
+      });
+
+      const data = await resp.json();
+      if (!data.ok) {
+        priceValue.textContent = '—';
+        return;
+      }
+
+      priceValue.textContent =
+        '$ ' + data.price.toLocaleString('es-CO');
+    } catch (e) {
+      priceValue.textContent = '—';
+    }
+  }
+
+  servicesSelect?.addEventListener('change', maybeShowPriceBox);
+  vehicleTypeSelect?.addEventListener('change', maybeShowPriceBox);
 </script>
 {% endblock %}
