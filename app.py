@@ -1653,22 +1653,6 @@ def api_estimate_price():
         "price": price
     })
 
-
-# -----------------------
-# INICIALIZACIÓN
-# -----------------------
-with app.app_context():
-    db.create_all()
-    ensure_service_sales_schema()
-    seed_services()
-    seed_vehicle_types()
-    seed_payment_methods()
-    seed_expense_categories()
-    seed_agreements()
-
-
-if __name__ == "__main__":
-    app.run(debug=True, port=5001)
 @app.route("/appointments/<int:appointment_id>/close", methods=["POST"])
 def close_appointment(appointment_id):
     appt = Appointment.query.get_or_404(appointment_id)
@@ -1746,3 +1730,20 @@ def close_appointment(appointment_id):
     db.session.commit()
 
     return jsonify({"ok": True})
+
+# -----------------------
+# INICIALIZACIÓN
+# -----------------------
+with app.app_context():
+    db.create_all()
+    ensure_service_sales_schema()
+    seed_services()
+    seed_vehicle_types()
+    seed_payment_methods()
+    seed_expense_categories()
+    seed_agreements()
+
+
+if __name__ == "__main__":
+    app.run(debug=True, port=5001)
+
