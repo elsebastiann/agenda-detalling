@@ -75,6 +75,18 @@ def ensure_appointments_schema():
 
 ensure_appointments_schema()
 
+def ensure_appointments_agreement_schema():
+    with app.app_context():
+        try:
+            db.session.execute(text("SELECT agreement_id FROM appointments LIMIT 1"))
+        except Exception:
+            db.session.execute(
+                text("ALTER TABLE appointments ADD COLUMN agreement_id INTEGER")
+            )
+            db.session.commit()
+
+ensure_appointments_agreement_schema()
+
 # --- Ensure service_sales table exists ---
 def ensure_service_sales_schema():
     with app.app_context():
@@ -111,8 +123,120 @@ class VehicleType(db.Model):
         return f"<VehicleType {self.name} active={self.is_active}>"
 
 # -----------------------
+# AGREEMENTS / CONVENIOS (CRUD)
+# -----------------------
+
+@app.route("/agreements")
+def agreements_list():
+    agreements = Agreement.query.order_by(Agreement.name).all()
+    return render_template(
+        "agreements.html",
+        agreements=agreements
+    )
+
+@app.route("/agreements/new", methods=["POST"])
+def agreements_new():
+    name = (request.form.get("name") or "").strip()
+    discount_type = request.form.get("discount_type")
+    value = request.form.get("value")
+
+    if not name or discount_type not in ("percentage", "fixed") or not value:
+        flash("Debes completar todos los campos del convenio.", "danger")
+        return redirect(url_for("agreements_list"))
+
+    try:
+        value = int(value)
+    except ValueError:
+        flash("El valor del descuento debe ser numérico.", "danger")
+        return redirect(url_for("agreements_list"))
+
+    existing = Agreement.query.filter_by(name=name).first()
+    if existing:
+        existing.discount_type = discount_type
+        existing.value = value
+        existing.is_active = True
+        db.session.commit()
+        flash("El convenio ya existía y fue actualizado.", "info")
+        return redirect(url_for("agreements_list"))
+
+    db.session.add(
+        Agreement(
+            name=name,
+            discount_type=discount_type,
+            value=value,
+            is_active=True
+        )
+    )
+    db.session.commit()
+    flash("Convenio creado.", "success")
+    return redirect(url_for("agreements_list"))
+
+
+@app.route("/agreements/<int:agreement_id>/toggle", methods=["POST"])
+def agreements_toggle(agreement_id):
+    ag = Agreement.query.get_or_404(agreement_id)
+    ag.is_active = not ag.is_active
+    db.session.commit()
+    flash("Convenio actualizado.", "info")
+    return redirect(url_for("agreements_list"))
+
+# --- QUICK CREATE AGREEMENT ENDPOINT (API) ---
+@app.route("/api/agreements/quick-create", methods=["POST"])
+def agreements_quick_create():
+    data = request.get_json(silent=True) or {}
+
+    name = (data.get("name") or "").strip()
+    discount_type = data.get("discount_type")
+    value = data.get("value")
+
+    if not name or discount_type not in ("percentage", "fixed") or not value:
+        return jsonify({"ok": False, "error": "Datos incompletos"}), 400
+
+    try:
+        value = int(value)
+    except ValueError:
+        return jsonify({"ok": False, "error": "Valor inválido"}), 400
+
+    existing = Agreement.query.filter_by(name=name).first()
+    if existing:
+        existing.discount_type = discount_type
+        existing.value = value
+        existing.is_active = True
+        db.session.commit()
+
+        return jsonify({
+            "ok": True,
+            "agreement": {
+                "id": existing.id,
+                "name": existing.name,
+                "discount_type": existing.discount_type,
+                "value": existing.value
+            }
+        })
+
+    ag = Agreement(
+        name=name,
+        discount_type=discount_type,
+        value=value,
+        is_active=True
+    )
+    db.session.add(ag)
+    db.session.commit()
+
+    return jsonify({
+        "ok": True,
+        "agreement": {
+            "id": ag.id,
+            "name": ag.name,
+            "discount_type": ag.discount_type,
+            "value": ag.value
+        }
+    })
+
+# -----------------------
 # PAYMENT METHODS (CATÁLOGO)
 # -----------------------
+
 class PaymentMethod(db.Model):
     __tablename__ = "payment_methods"
     id = db.Column(db.Integer, primary_key=True)
@@ -122,6 +246,27 @@ class PaymentMethod(db.Model):
 
     def __repr__(self):
         return f"<PaymentMethod {self.name} active={self.is_active}>"
+
+# -----------------------
+# AGREEMENTS / CONVENIOS
+# -----------------------
+class Agreement(db.Model):
+    __tablename__ = "agreements"
+    id = db.Column(db.Integer, primary_key=True)
+
+    name = db.Column(db.String(120), nullable=False, unique=True)
+
+    # percentage | fixed
+    discount_type = db.Column(db.String(20), nullable=False)
+
+    # valor del descuento (ej: 10 para %, 20000 para fijo)
+    value = db.Column(db.Integer, nullable=False)
+
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    def __repr__(self):
+        return f"<Agreement {self.name} {self.discount_type} {self.value}>"
 
 # -----------------------
 # SERVICE PRICES (PRECIO + DURACIÓN REAL POR VEHÍCULO)
@@ -172,6 +317,14 @@ class Appointment(db.Model):
         db.ForeignKey("vehicle_types.id"),
         nullable=True
     )
+
+    agreement_id = db.Column(
+    db.Integer,
+    db.ForeignKey("agreements.id"),
+    nullable=True
+    )
+    agreement = db.relationship("Agreement")
+
     vehicle_type = db.relationship("VehicleType")
 
     def __repr__(self):
@@ -345,6 +498,7 @@ def seed_vehicle_types():
 # -----------------------
 # SEED INICIAL DE MEDIOS DE PAGO
 # -----------------------
+
 def seed_payment_methods():
     if PaymentMethod.query.count() > 0:
         return
@@ -360,6 +514,30 @@ def seed_payment_methods():
 
     db.session.commit()
     print("Medios de pago iniciales creados.")
+
+# -----------------------
+# SEED INICIAL DE CONVENIOS
+# -----------------------
+def seed_agreements():
+    if Agreement.query.count() > 0:
+        return
+
+    agreements = [
+        ("Club Mercedes-Benz", "percentage", 10),
+    ]
+
+    for name, dtype, value in agreements:
+        db.session.add(
+            Agreement(
+                name=name,
+                discount_type=dtype,
+                value=value,
+                is_active=True
+            )
+        )
+
+    db.session.commit()
+    print("Convenios iniciales creados.")
 
 
 # -----------------------
@@ -458,6 +636,41 @@ def calculate_real_price(service_ids: list[int], vehicle_type_id: int) -> int:
             total_price += sp.price
 
     return int(total_price)
+
+def apply_agreement_discount(price: int, agreement: Agreement | None) -> int:
+    if not agreement or not agreement.is_active:
+        return price
+
+    if agreement.discount_type == "percentage":
+        discount = int(round(price * (agreement.value / 100)))
+    else:
+        discount = agreement.value
+
+    return max(price - discount, 0)
+
+# -----------------------
+# HELPER: Calcular valor estimado de una cita (precio base + convenio, sin ajustes manuales)
+# -----------------------
+def calculate_estimated_amount_for_appointment(appt: Appointment) -> int:
+    """
+    Calcula el valor estimado de una cita:
+    - Precio real por servicios + tipo de vehículo
+    - Aplica convenio si existe
+    - NO aplica ajustes manuales (eso es solo al cierre)
+    """
+    if not appt.vehicle_type_id:
+        return 0
+
+    service_names = [s.strip() for s in appt.services.split(",") if s.strip()]
+    services = Service.query.filter(Service.name.in_(service_names)).all()
+    service_ids = [s.id for s in services]
+
+    base_price = calculate_real_price(
+        service_ids=service_ids,
+        vehicle_type_id=appt.vehicle_type_id
+    )
+
+    return apply_agreement_discount(base_price, appt.agreement)
 
 # -----------------------
 # HELPER: Verificar si la cita ya fue cerrada (ServiceSale existe para appointment_id)
@@ -990,7 +1203,7 @@ def sales_export():
     output = io.StringIO()
     writer = csv.writer(output)
 
-    # Header BI-friendly
+    # Header BI-friendly (PASO 3)
     writer.writerow([
         "service_date",
         "created_at",
@@ -999,8 +1212,9 @@ def sales_export():
         "plate",
         "customer_name",
         "services",
+        "estimated_amount",
         "base_amount",
-        "discount_amount",
+        "manual_discount_amount",
         "final_amount",
         "payment_method",
         "status",
@@ -1008,6 +1222,8 @@ def sales_export():
     ])
 
     for s in sales:
+        # Valor estimado = base_amount (ya incluye convenio)
+        estimated_amount = s.base_amount
         writer.writerow([
             s.service_date.strftime("%Y-%m-%d") if s.service_date else "",
             s.created_at.strftime("%Y-%m-%d %H:%M:%S") if s.created_at else "",
@@ -1016,6 +1232,7 @@ def sales_export():
             s.plate or "",
             s.customer_name or "",
             s.services or "",
+            estimated_amount,
             s.base_amount,
             s.discount_amount,
             s.final_amount,
@@ -1339,6 +1556,9 @@ def api_events():
 
         title = "\n".join(title_lines)
 
+        # Calcular el valor estimado antes de construir el dict
+        estimated_amount = calculate_estimated_amount_for_appointment(appt)
+
         events.append(
             {
                 "id": appt.id,
@@ -1347,6 +1567,9 @@ def api_events():
                 "end": appt.end_datetime.isoformat(),
                 "backgroundColor": color,
                 "borderColor": color,
+                "extendedProps": {
+                    "estimated_amount": estimated_amount
+                }
             }
         )
 
@@ -1356,6 +1579,7 @@ def api_events():
 @app.route("/appointment/<int:appointment_id>/json")
 def appointment_json(appointment_id):
     appt = Appointment.query.get_or_404(appointment_id)
+    estimated_amount = calculate_estimated_amount_for_appointment(appt)
     return jsonify({
         "id": appt.id,
         "customer_name": appt.customer_name,
@@ -1365,6 +1589,7 @@ def appointment_json(appointment_id):
         "notes": appt.notes,
         "start": appt.start_datetime.strftime("%Y-%m-%d %H:%M"),
         "end": appt.end_datetime.strftime("%Y-%m-%d %H:%M"),
+        "estimated_amount": estimated_amount
     })
 
 
@@ -1439,6 +1664,7 @@ with app.app_context():
     seed_vehicle_types()
     seed_payment_methods()
     seed_expense_categories()
+    seed_agreements()
 
 
 if __name__ == "__main__":
@@ -1457,7 +1683,6 @@ def close_appointment(appointment_id):
 
     payment_method = (data.get("payment_method") or "").strip()
     status = (data.get("status") or "").strip()  # completed | cancelled
-    discount = int(data.get("discount") or 0)
     notes = (data.get("notes") or "").strip()
 
     if status not in ("completed", "cancelled"):
@@ -1471,14 +1696,34 @@ def close_appointment(appointment_id):
     services = Service.query.filter(Service.name.in_(service_names)).all()
     service_ids = [s.id for s in services]
 
-    # Precio base real
-    base_amount = calculate_real_price(
+    # Precio base real con convenio
+    base_price = calculate_real_price(
         service_ids=service_ids,
         vehicle_type_id=appt.vehicle_type_id
     )
 
-    discount_amount = max(discount, 0)
-    final_amount = max(base_amount - discount_amount, 0)
+    base_amount = apply_agreement_discount(base_price, appt.agreement)
+
+    # Ajuste manual (descuento/recargo)
+    adjustment_type = data.get("adjustment_type")  # discount | surcharge | None
+    adjustment_mode = data.get("adjustment_mode")  # percentage | fixed
+    adjustment_value = int(data.get("adjustment_value") or 0)
+    adjustment_reason = (data.get("adjustment_reason") or "").strip()
+
+    adjustment_amount = 0
+
+    if adjustment_value > 0:
+        if adjustment_mode == "percentage":
+            adjustment_amount = int(round(base_amount * (adjustment_value / 100)))
+        else:
+            adjustment_amount = adjustment_value
+
+    if adjustment_type == "discount":
+        final_amount = max(base_amount - adjustment_amount, 0)
+    elif adjustment_type == "surcharge":
+        final_amount = base_amount + adjustment_amount
+    else:
+        final_amount = base_amount
 
     vt_name = appt.vehicle_type.name if appt.vehicle_type else "N/A"
 
@@ -1490,7 +1735,7 @@ def close_appointment(appointment_id):
         customer_name=appt.customer_name,
         services=appt.services,
         base_amount=base_amount,
-        discount_amount=discount_amount,
+        discount_amount=adjustment_amount if adjustment_type == "discount" else 0,
         final_amount=final_amount,
         payment_method=payment_method if status == "completed" else None,
         status=status,
