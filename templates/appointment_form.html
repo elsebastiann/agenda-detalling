@@ -1,0 +1,254 @@
+<form method="post" class="row gy-3">
+
+  <!-- PLACA -->
+  <div class="col-md-3">
+    <label class="form-label">Placa</label>
+    <input type="text"
+           name="plate"
+           id="plate"
+           class="form-control"
+           value="{{ appointment.plate if appointment else '' }}"
+           style="text-transform: uppercase;"
+           required>
+  </div>
+
+  <!-- CLIENTE -->
+  <div class="col-md-4">
+    <label class="form-label">Nombre del cliente</label>
+    <input type="text"
+           name="customer_name"
+           class="form-control"
+           value="{{ appointment.customer_name if appointment else '' }}"
+           required>
+  </div>
+
+  <!-- TELEFONO -->
+  <div class="col-md-3">
+    <label class="form-label">Teléfono</label>
+    <input type="tel"
+           name="phone"
+           class="form-control"
+           value="{{ appointment.phone if appointment else '' }}"
+           inputmode="numeric"
+           pattern="[0-9]{10}"
+           maxlength="10"
+           minlength="10"
+           placeholder="3001234567"
+           required>
+  </div>
+
+  <!-- FECHA -->
+  <div class="col-md-3">
+    <label class="form-label">Fecha</label>
+    <input type="date"
+           name="date"
+           class="form-control"
+           value="{{ appointment.start_datetime.strftime('%Y-%m-%d') if appointment else today }}"
+           required>
+  </div>
+
+  <!-- HORA -->
+  <div class="col-md-3">
+    <label class="form-label">Hora inicio</label>
+    <input type="time"
+           name="start_time"
+           class="form-control"
+           step="900"
+           value="{{ appointment.start_datetime.strftime('%H:%M') if appointment else '' }}"
+           required>
+  </div>
+
+  <!-- VEHICULO -->
+  <div class="col-md-4">
+    <label class="form-label">Tipo de vehículo</label>
+    <select name="vehicle_type_id"
+            class="form-select"
+            required>
+      <option value="">Seleccione</option>
+      {% for vt in vehicle_types %}
+        <option value="{{ vt.id }}"
+          {% if appointment and appointment.vehicle_type_id == vt.id %}selected{% endif %}>
+          {{ vt.name }}
+        </option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <!-- CONVENIO -->
+  <div class="col-md-4">
+    <label class="form-label">Convenio (opcional)</label>
+    <select name="agreement_id" class="form-select">
+      <option value="">Sin convenio</option>
+      {% for a in agreements %}
+        <option value="{{ a.id }}"
+          {% if appointment and appointment.agreement_id == a.id %}selected{% endif %}>
+          {{ a.name }}
+        </option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <!-- SERVICIOS -->
+<div class="row">
+  <div class="col-12">
+    <label class="form-label">Servicios</label>
+    <select name="service_ids"
+            class="form-select"
+            multiple
+            size="8"
+            required>
+      {% for s in services %}
+        <option value="{{ s.id }}"
+          {% if appointment and s.name in appointment.services %}selected{% endif %}>
+          {{ s.name }}
+        </option>
+      {% endfor %}
+    </select>
+  </div>
+</div>
+
+<!-- VALOR ESTIMADO -->
+<div class="row mt-3">
+  <div class="col-md-4">
+    <label class="form-label">Valor estimado</label>
+    <input type="text"
+           id="estimated_price"
+           class="form-control"
+           value="$0"
+           readonly>
+    <div class="form-text">
+      Valor estimado según servicios y tipo de vehículo.
+    </div>
+  </div>
+</div>
+
+  <!-- NOTAS -->
+  <div class="col-12">
+    <label class="form-label">Observaciones</label>
+    <textarea name="notes"
+              class="form-control"
+              rows="3">{{ appointment.notes if appointment else '' }}</textarea>
+  </div>
+
+  <!-- BOTONES -->
+  <div class="col-12 mt-3">
+    <button type="submit" class="btn btn-primary">
+      {{ 'Guardar cambios' if mode == 'edit' else 'Crear cita' }}
+    </button>
+    <a href="{{ url_for('calendar_view') }}"
+       class="btn btn-secondary">
+      Cancelar
+    </a>
+  </div>
+
+</form>
+<script>
+function formatCOP(value) {
+  return '$' + Number(value || 0).toLocaleString('es-CO');
+}
+
+async function updateEstimatedPrice() {
+  const serviceSelect = document.querySelector('select[name="service_ids"]');
+  const vehicleSelect = document.querySelector('select[name="vehicle_type_id"]');
+  const output = document.getElementById('estimated_price');
+
+  if (!serviceSelect || !vehicleSelect || !output) return;
+
+  const serviceIds = Array.from(serviceSelect.selectedOptions).map(o => o.value);
+  const vehicleTypeId = vehicleSelect.value;
+
+  if (serviceIds.length === 0 || !vehicleTypeId) {
+    output.value = '$0';
+    return;
+  }
+
+  try {
+    const agreementSelect = document.querySelector('select[name="agreement_id"]');
+    const agreementId = agreementSelect ? agreementSelect.value : null;
+
+    const res = await fetch('/api/estimate-price', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        service_ids: serviceIds,
+        vehicle_type_id: vehicleTypeId,
+        agreement_id: agreementId
+      })
+    });
+
+    const data = await res.json();
+    if (data.ok) {
+      output.value = formatCOP(data.final_price);
+    }
+  } catch (err) {
+    console.error('Error calculando precio estimado', err);
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const serviceSelect = document.querySelector('select[name="service_ids"]');
+  const vehicleSelect = document.querySelector('select[name="vehicle_type_id"]');
+
+  if (serviceSelect) serviceSelect.addEventListener('change', updateEstimatedPrice);
+  if (vehicleSelect) vehicleSelect.addEventListener('change', updateEstimatedPrice);
+
+  updateEstimatedPrice();
+});
+</script>
+<script>
+async function lookupClientByPlate(plate) {
+  if (!plate || plate.length < 5) return;
+
+  try {
+    const res = await fetch(`/api/clients/by-plate?plate=${plate}`);
+    const data = await res.json();
+
+    if (!data.found) return;
+
+    const nameInput = document.querySelector('input[name="customer_name"]');
+    const phoneInput = document.querySelector('input[name="phone"]');
+    const vehicleSelect = document.querySelector('select[name="vehicle_type_id"]');
+    const agreementSelect = document.querySelector('select[name="agreement_id"]');
+
+    if (nameInput && data.full_name) {
+      nameInput.value = data.full_name;
+    }
+
+    if (phoneInput && data.phone) {
+      phoneInput.value = data.phone;
+    }
+
+    if (vehicleSelect && data.vehicle_type_id) {
+      vehicleSelect.value = data.vehicle_type_id;
+    }
+
+    if (agreementSelect && data.agreement_id) {
+      agreementSelect.value = data.agreement_id;
+    }
+
+    if (typeof updateEstimatedPrice === "function") {
+      updateEstimatedPrice();
+    }
+
+  } catch (err) {
+    console.error("Error buscando cliente por placa", err);
+  }
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  const plateInput = document.querySelector('input[name="plate"]');
+  if (!plateInput) return;
+
+  let debounceTimer = null;
+
+  plateInput.addEventListener("input", () => {
+    const plate = plateInput.value.toUpperCase();
+    plateInput.value = plate;
+
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => {
+      lookupClientByPlate(plate);
+    }, 400);
+  });
+});
+</script>

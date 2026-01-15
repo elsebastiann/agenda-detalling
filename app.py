@@ -346,6 +346,28 @@ def ensure_appointments_status_schema():
 
 ensure_appointments_status_schema()
 
+# --- Ensure appointments schema migration for close columns ---
+def ensure_appointments_close_schema():
+    with app.app_context():
+        cols = [
+            ("payment_method", "VARCHAR(80)"),
+            ("closed_at", "DATETIME"),
+            ("adjustment_type", "VARCHAR(20)"),
+            ("adjustment_mode", "VARCHAR(20)"),
+            ("adjustment_value", "INTEGER"),
+            ("adjustment_reason", "TEXT"),
+            ("final_amount", "INTEGER"),
+        ]
+
+        for col, ddl in cols:
+            try:
+                db.session.execute(text(f"SELECT {col} FROM appointments LIMIT 1"))
+            except Exception:
+                db.session.execute(
+                    text(f"ALTER TABLE appointments ADD COLUMN {col} {ddl}")
+                )
+        db.session.commit()
+
 # -----------------------
 # SERVICE SALES (INGRESOS / BI)
 # -----------------------
@@ -396,6 +418,8 @@ class Client(db.Model):
     plate = db.Column(db.String(20), primary_key=True)
     full_name = db.Column(db.String(120), nullable=True)
     phone = db.Column(db.String(20), nullable=True)
+    vehicle_type_id = db.Column(db.Integer, nullable=True)
+    agreement_id = db.Column(db.Integer, nullable=True)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -566,7 +590,13 @@ def normalize_plate(value: str | None) -> str:
     return "".join(value.split()).upper()
 
 
-def upsert_client_from_appointment(plate: str, full_name: str | None, phone: str | None):
+def upsert_client_from_appointment(
+    plate: str,
+    full_name: str | None,
+    phone: str | None,
+    vehicle_type_id: int | None = None,
+    agreement_id: int | None = None
+):
     """Crea o actualiza el cliente por placa."""
     plate_n = normalize_plate(plate)
     if not plate_n:
@@ -582,11 +612,17 @@ def upsert_client_from_appointment(plate: str, full_name: str | None, phone: str
             client.full_name = full_name
         if phone:
             client.phone = phone
+        if vehicle_type_id is not None:
+            client.vehicle_type_id = vehicle_type_id
+        if agreement_id is not None:
+            client.agreement_id = agreement_id
     else:
         db.session.add(Client(
             plate=plate_n,
             full_name=full_name or None,
-            phone=phone or None
+            phone=phone or None,
+            vehicle_type_id=vehicle_type_id,
+            agreement_id=agreement_id
         ))
 
 # -----------------------
@@ -891,6 +927,15 @@ def new_appointment():
         notes = request.form.get("notes") or ""
         selected_ids = request.form.getlist("service_ids")
         vehicle_type_id = request.form.get("vehicle_type_id")
+        agreement_id = request.form.get("agreement_id")
+        # Validar acuerdo: si viene vacío, None. Si viene, convertir a int.
+        if agreement_id is None or agreement_id == "":
+            agreement_id = None
+        else:
+            try:
+                agreement_id = int(agreement_id)
+            except Exception:
+                agreement_id = None
 
         if not date_str or not time_str:
             flash("Debes seleccionar fecha y hora.", "danger")
@@ -932,7 +977,13 @@ def new_appointment():
         services_str = ", ".join(s.name for s in selected_services)
 
         # Guardar/actualizar datos del cliente por placa
-        upsert_client_from_appointment(plate=plate, full_name=customer_name, phone=phone)
+        upsert_client_from_appointment(
+            plate=plate,
+            full_name=customer_name,
+            phone=phone,
+            vehicle_type_id=int(vehicle_type_id) if vehicle_type_id else None,
+            agreement_id=agreement_id
+        )
 
         appt = Appointment(
             customer_name=customer_name,
@@ -944,6 +995,7 @@ def new_appointment():
             notes=notes,
             vehicle_type_id=int(vehicle_type_id),
             status="scheduled",
+            agreement_id=agreement_id
         )
         db.session.add(appt)
         db.session.commit()
@@ -1002,6 +1054,22 @@ def edit_appointment(appointment_id):
         # Calcular duración
         service_ids = [s.id for s in selected_services]
 
+        # Obtener vehicle_type_id y agreement_id del form (si existen)
+        vehicle_type_id = request.form.get("vehicle_type_id")
+        agreement_id = request.form.get("agreement_id")
+        if vehicle_type_id:
+            try:
+                appointment.vehicle_type_id = int(vehicle_type_id)
+            except Exception:
+                pass
+        if agreement_id is None or agreement_id == "":
+            appointment.agreement_id = None
+        else:
+            try:
+                appointment.agreement_id = int(agreement_id)
+            except Exception:
+                appointment.agreement_id = None
+
         if appointment.vehicle_type_id:
             total_duration = calculate_real_duration_minutes(
                 service_ids=service_ids,
@@ -1021,7 +1089,13 @@ def edit_appointment(appointment_id):
         appointment.end_datetime = appointment.start_datetime + timedelta(minutes=total_duration)
 
         # Guardar/actualizar datos del cliente por placa (si hay placa)
-        upsert_client_from_appointment(plate=appointment.plate, full_name=appointment.customer_name, phone=appointment.phone)
+        upsert_client_from_appointment(
+            plate=appointment.plate,
+            full_name=appointment.customer_name,
+            phone=appointment.phone,
+            vehicle_type_id=appointment.vehicle_type_id,
+            agreement_id=appointment.agreement_id
+        )
 
         db.session.commit()
         flash("Cita actualizada correctamente.", "success")
@@ -1576,6 +1650,11 @@ def api_events():
         # Calcular el valor estimado antes de construir el dict
         estimated_amount = calculate_estimated_amount_for_appointment(appt)
 
+        # Si en el futuro extendedProps tiene más campos, los conservamos y solo agregamos/actualizamos estimated_amount
+        extended_props = {
+            "estimated_amount": estimated_amount
+        }
+
         events.append(
             {
                 "id": appt.id,
@@ -1584,9 +1663,7 @@ def api_events():
                 "end": appt.end_datetime.isoformat(),
                 "backgroundColor": color,
                 "borderColor": color,
-                "extendedProps": {
-                    "estimated_amount": estimated_amount
-                }
+                "extendedProps": extended_props
             }
         )
 
@@ -1633,7 +1710,30 @@ def api_client_by_plate():
         "plate": client.plate,
         "full_name": client.full_name or "",
         "phone": client.phone or "",
+        "vehicle_type_id": client.vehicle_type_id,
+        "agreement_id": client.agreement_id,
     })
+# --- Ensure clients schema migration for vehicle_type_id column ---
+def ensure_clients_vehicle_type_schema():
+    with app.app_context():
+        try:
+            db.session.execute(text("SELECT vehicle_type_id FROM clients LIMIT 1"))
+        except Exception:
+            db.session.execute(
+                text("ALTER TABLE clients ADD COLUMN vehicle_type_id INTEGER")
+            )
+            db.session.commit()
+
+# --- Ensure clients schema migration for agreement_id column ---
+def ensure_clients_agreement_schema():
+    with app.app_context():
+        try:
+            db.session.execute(text("SELECT agreement_id FROM clients LIMIT 1"))
+        except Exception:
+            db.session.execute(
+                text("ALTER TABLE clients ADD COLUMN agreement_id INTEGER")
+            )
+            db.session.commit()
 
 
 # -----------------------
@@ -1645,30 +1745,41 @@ def api_estimate_price():
     Calcula el precio estimado según:
     - servicios seleccionados
     - tipo de vehículo
+    - convenio (opcional)
     No guarda nada en BD.
     """
     data = request.get_json(silent=True) or {}
 
     service_ids = data.get("service_ids") or []
     vehicle_type_id = data.get("vehicle_type_id")
+    agreement_id = data.get("agreement_id")
 
     try:
         service_ids = [int(sid) for sid in service_ids]
         vehicle_type_id = int(vehicle_type_id)
+        agreement_id = int(agreement_id) if agreement_id not in (None, "") else None
     except Exception:
         return jsonify({"ok": False, "error": "Datos inválidos"}), 400
 
     if not service_ids or not vehicle_type_id:
         return jsonify({"ok": False, "error": "Datos incompletos"}), 400
 
-    price = calculate_real_price(
+    # Precio base real
+    base_price = calculate_real_price(
         service_ids=service_ids,
         vehicle_type_id=vehicle_type_id
     )
 
+    agreement = Agreement.query.get(agreement_id) if agreement_id else None
+
+    final_price = apply_agreement_discount(base_price, agreement)
+    discount_amount = base_price - final_price
+
     return jsonify({
         "ok": True,
-        "price": price
+        "base_price": base_price,
+        "discount_amount": discount_amount,
+        "final_price": final_price
     })
 
 @app.route("/appointments/<int:appointment_id>/close", methods=["POST"])
@@ -1758,6 +1869,9 @@ def close_appointment(appointment_id):
 with app.app_context():
     db.create_all()
     ensure_service_sales_schema()
+    ensure_clients_vehicle_type_schema()
+    ensure_clients_agreement_schema()
+    ensure_appointments_close_schema()
     seed_services()
     seed_vehicle_types()
     seed_payment_methods()

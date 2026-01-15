@@ -162,19 +162,18 @@ document.addEventListener('DOMContentLoaded', function() {
       container.style.fontSize = "11px";
       container.style.color = "#000";
       container.style.padding = "4px 6px";
-      container.style.fontWeight = "600"; // negrita agradable (no tan pesada)
+      container.style.fontWeight = "600";
 
-      // El título viene con saltos de línea (\n) desde el backend
       const estimated = info.event.extendedProps?.estimated_amount;
 
       let text = info.event.title;
+
       if (estimated !== undefined && estimated !== null) {
         const formatted = "$" + Number(estimated).toLocaleString("es-CO");
         text += "\n" + formatted;
       }
 
       container.textContent = text;
-
       return { domNodes: [container] };
     },
 
@@ -221,7 +220,7 @@ document.addEventListener('DOMContentLoaded', function() {
           </a>
 
           <form method="POST"
-                action="/appointments/${data.id}/delete"
+                action="/appointment/${data.id}/delete"
                 onsubmit="return confirm('¿Seguro que deseas eliminar esta cita?');">
             <button type="submit" class="btn btn-outline-danger">
               Eliminar cita
@@ -396,7 +395,7 @@ function submitCloseService(appointmentId) {
     return;
   }
 
-  fetch(`/appointments/${appointmentId}/close`, {
+  fetch(`/appointment/${appointmentId}/close`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
