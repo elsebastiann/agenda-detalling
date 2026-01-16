@@ -1037,7 +1037,7 @@ def delete_appointment(appointment_id):
     db.session.delete(appt)
     db.session.commit()
     flash("Cita eliminada.", "info")
-    return redirect(url_for("appointments_list"))
+    return redirect(url_for("calendar_view"))
 
 @app.route("/appointment/<int:appointment_id>/edit", methods=["GET", "POST"])
 def edit_appointment(appointment_id):
