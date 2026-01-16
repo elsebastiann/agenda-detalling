@@ -214,13 +214,13 @@ document.addEventListener('DOMContentLoaded', function() {
     ${
       data.status === "scheduled"
         ? `
-          <a href="/appointments/${data.id}/edit"
+          <a href="/appointment/${data.id}/edit"
              class="btn btn-outline-primary">
             Editar cita
           </a>
 
           <form method="POST"
-                action="/appointment/${data.id}/delete"
+                action="/appointments/${data.id}/delete"
                 onsubmit="return confirm('¿Seguro que deseas eliminar esta cita?');">
             <button type="submit" class="btn btn-outline-danger">
               Eliminar cita

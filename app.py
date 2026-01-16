@@ -180,6 +180,15 @@ def agreements_toggle(agreement_id):
     flash("Convenio actualizado.", "info")
     return redirect(url_for("agreements_list"))
 
+# --- BACKWARD-COMPATIBLE AGREEMENT CREATE ENDPOINT ---
+@app.route("/api/agreements", methods=["POST"])
+def agreements_create_alias():
+    """
+    Alias para compatibilidad con el frontend.
+    Delega en /api/agreements/quick-create
+    """
+    return agreements_quick_create()
+
 # --- QUICK CREATE AGREEMENT ENDPOINT (API) ---
 @app.route("/api/agreements/quick-create", methods=["POST"])
 def agreements_quick_create():
@@ -187,14 +196,18 @@ def agreements_quick_create():
 
     name = (data.get("name") or "").strip()
     discount_type = data.get("discount_type")
-    value = data.get("value")
+    value = data.get("discount_value") or data.get("value")
 
-    if not name or discount_type not in ("percentage", "fixed") or not value:
+    # Normalizar tipo
+    if discount_type == "fixed":
+        discount_type = "absolute"
+
+    if not name or discount_type not in ("percentage", "absolute") or value in (None, ""):
         return jsonify({"ok": False, "error": "Datos incompletos"}), 400
 
     try:
         value = int(value)
-    except ValueError:
+    except Exception:
         return jsonify({"ok": False, "error": "Valor inválido"}), 400
 
     existing = Agreement.query.filter_by(name=name).first()
@@ -1029,7 +1042,10 @@ def delete_appointment(appointment_id):
 @app.route("/appointment/<int:appointment_id>/edit", methods=["GET", "POST"])
 def edit_appointment(appointment_id):
     appointment = Appointment.query.get_or_404(appointment_id)
-    services = Service.query.filter_by(is_active=True).all()
+    # --- Cargar catálogos igual que en nueva cita ---
+    services = Service.query.filter_by(is_active=True).order_by(Service.name).all()
+    vehicle_types = VehicleType.query.filter_by(is_active=True).order_by(VehicleType.name).all()
+    agreements = Agreement.query.filter_by(is_active=True).order_by(Agreement.name).all()
 
     if request.method == "POST":
         # Campos básicos
@@ -1099,9 +1115,17 @@ def edit_appointment(appointment_id):
 
         db.session.commit()
         flash("Cita actualizada correctamente.", "success")
-        return redirect(url_for("appointments_list"))
+        return redirect(url_for("calendar_view"))
 
-    return render_template("edit_appointment.html", appointment=appointment, services=services)
+    return render_template(
+        "edit_appointment.html",
+        appointment=appointment,
+        services=services,
+        vehicle_types=vehicle_types,
+        agreements=agreements,
+        mode="edit",
+        today=appointment.start_datetime.date().isoformat()
+    )
 
 
 @app.route("/services", methods=["GET", "POST"])
