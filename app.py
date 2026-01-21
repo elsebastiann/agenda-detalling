@@ -140,7 +140,11 @@ def agreements_new():
     discount_type = request.form.get("discount_type")
     value = request.form.get("value")
 
-    if not name or discount_type not in ("percentage", "fixed") or not value:
+    # Normalizar tipo de descuento: 'fixed' -> 'absolute'
+    if discount_type == "fixed":
+        discount_type = "absolute"
+
+    if not name or discount_type not in ("percentage", "absolute") or not value:
         flash("Debes completar todos los campos del convenio.", "danger")
         return redirect(url_for("agreements_list"))
 
@@ -269,10 +273,10 @@ class Agreement(db.Model):
 
     name = db.Column(db.String(120), nullable=False, unique=True)
 
-    # percentage | fixed
+    # percentage | absolute
     discount_type = db.Column(db.String(20), nullable=False)
 
-    # valor del descuento (ej: 10 para %, 20000 para fijo)
+    # valor del descuento (ej: 10 para %, 20000 para absoluto)
     value = db.Column(db.Integer, nullable=False)
 
     is_active = db.Column(db.Boolean, default=True)
@@ -280,6 +284,18 @@ class Agreement(db.Model):
 
     def __repr__(self):
         return f"<Agreement {self.name} {self.discount_type} {self.value}>"
+# -----------------------
+# Normalización defensiva de discount_type en convenios
+# -----------------------
+def normalize_agreements_discount_type():
+    with app.app_context():
+        try:
+            db.session.execute(text(
+                "UPDATE agreements SET discount_type='absolute' WHERE discount_type='fixed'"
+            ))
+            db.session.commit()
+        except Exception:
+            pass
 
 # -----------------------
 # SERVICE PRICES (PRECIO + DURACIÓN REAL POR VEHÍCULO)
@@ -1896,6 +1912,8 @@ with app.app_context():
     ensure_clients_vehicle_type_schema()
     ensure_clients_agreement_schema()
     ensure_appointments_close_schema()
+    # --- Normalización defensiva de convenios (migración suave) ---
+    normalize_agreements_discount_type()
     seed_services()
     seed_vehicle_types()
     seed_payment_methods()
