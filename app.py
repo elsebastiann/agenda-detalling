@@ -1155,11 +1155,11 @@ def services_view():
         name = request.form.get("name")
         duration = request.form.get("duration_minutes")
 
-        if not name or not duration:
-            flash("Debes ingresar nombre y duración.", "danger")
+        if not name:
+            flash("Debes ingresar nombre.", "danger")
         else:
             try:
-                duration = int(duration)
+                duration = int(duration) if duration else 60
                 s = Service(name=name, duration_minutes=duration, is_active=True)
                 db.session.add(s)
                 db.session.commit()
