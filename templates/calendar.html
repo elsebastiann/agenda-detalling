@@ -331,6 +331,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
           let modal = new bootstrap.Modal(document.getElementById("appointmentModal"));
           modal.show();
+
+          // Resetear el closeServiceBox cada vez que se abre el modal
+          document.getElementById("appointmentModal").addEventListener("hidden.bs.modal", function () {
+            const box = document.getElementById("closeServiceBox");
+            if (box) box.style.display = "none";
+          }, { once: true });
         });
     },
 
@@ -395,7 +401,7 @@ function submitCloseService(appointmentId) {
     return;
   }
 
-  fetch(`/appointment/${appointmentId}/close`, {
+  fetch(`/appointments/${appointmentId}/close`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({

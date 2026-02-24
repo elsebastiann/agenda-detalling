@@ -21,6 +21,7 @@
       <th>Placa</th>
       <th>Servicios</th>
       <th>Fin estimado</th>
+      <th>Estado</th>
       <th>Acciones</th>
     </tr>
   </thead>
@@ -40,15 +41,28 @@
       <td>{{ a.services }}</td>
       <td>{{ a.end_datetime.strftime("%H:%M") }}</td>
 
-      <td class="d-flex gap-2">
-        <a href="{{ url_for('edit_appointment', appointment_id=a.id) }}"
-          class="btn btn-sm btn-outline-info">Editar</a>
+      <td>
+        {% if a.status == "completed" %}
+          <span class="badge bg-success">Finalizado</span>
+        {% elif a.status == "cancelled" %}
+          <span class="badge bg-danger">Cancelado</span>
+        {% else %}
+          <span class="badge bg-secondary">Agendado</span>
+        {% endif %}
+      </td>
 
-        <form method="post"
-              action="{{ url_for('delete_appointment', appointment_id=a.id) }}"
-              onsubmit="return confirm('¿Eliminar esta cita?');">
-          <button class="btn btn-sm btn-outline-danger">Eliminar</button>
-        </form>
+      <td class="d-flex gap-2">
+        {% if a.status == "scheduled" %}
+          <a href="{{ url_for('edit_appointment', appointment_id=a.id) }}"
+            class="btn btn-sm btn-outline-info">Editar</a>
+          <form method="post"
+                action="{{ url_for('delete_appointment', appointment_id=a.id) }}"
+                onsubmit="return confirm('¿Eliminar esta cita?');">
+            <button class="btn btn-sm btn-outline-danger">Eliminar</button>
+          </form>
+        {% else %}
+          <span class="text-secondary small">—</span>
+        {% endif %}
       </td>
     </tr>
   {% endfor %}

@@ -946,6 +946,7 @@ def calendar_view():
 def new_appointment():
     services = Service.query.filter_by(is_active=True).order_by(Service.name).all()
     vehicle_types = VehicleType.query.filter_by(is_active=True).order_by(VehicleType.name).all()
+    agreements = Agreement.query.filter_by(is_active=True).order_by(Agreement.name).all()
 
     if request.method == "POST":
         customer_name = request.form.get("customer_name") or "Sin nombre"
@@ -1036,6 +1037,7 @@ def new_appointment():
         "new_appointment.html",
         services=services,
         vehicle_types=vehicle_types,
+        agreements=agreements,
         today=date.today().isoformat()
     )
 

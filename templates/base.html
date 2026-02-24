@@ -29,6 +29,8 @@
   {% block extra_head %}{% endblock %}
 </head>
 
+<body class="bg-dark text-light">
+
 <!-- Modal para mostrar detalles de la cita -->
 <div class="modal fade" id="appointmentModal" tabindex="-1">
   <div class="modal-dialog modal-lg">
@@ -40,11 +42,12 @@
       <div class="modal-body" id="modalBodyContent">
         Cargando...
       </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button>
+      </div>
     </div>
   </div>
 </div>
-
-<body class="bg-dark text-light">
 
 <nav class="navbar navbar-expand-lg navbar-dark bg-secondary mb-3">
   <div class="container-fluid">
@@ -82,6 +85,11 @@
            Lista de gastos
         </a>
 
+        <a class="btn btn-sm btn-outline-light me-2"
+           href="{{ url_for('sales_list') }}">
+           Ingresos
+        </a>
+
         <div class="dropdown me-2">
           <button class="btn btn-sm btn-outline-light dropdown-toggle"
                   type="button"
@@ -108,6 +116,11 @@
             <li>
               <a class="dropdown-item" href="{{ url_for('payment_methods_list') }}">
                 Medios de pago
+              </a>
+            </li>
+            <li>
+              <a class="dropdown-item" href="{{ url_for('agreements_list') }}">
+                Convenios
               </a>
             </li>
           </ul>
