@@ -111,62 +111,57 @@
       </div>
 
       {# ---- Convenio ---- #}
-<div class="mb-3">
-  <label class="form-label">Convenio <small class="text-secondary">(opcional)</small></label>
-  <div class="d-flex gap-2">
-    <select name="agreement_id"
-            id="agreement_id"
-            class="form-select bg-dark text-light border-secondary">
-      <option value="">— Sin convenio —</option>
-      {% for ag in agreements %}
-        <option value="{{ ag.id }}"
-          {% if is_edit and appointment.agreement_id == ag.id %}selected{% endif %}>
-          {{ ag.name }}
-          ({% if ag.discount_type == 'percentage' %}{{ ag.value }}%{% else %}${{ "{:,}".format(ag.value) }}{% endif %})
-        </option>
-      {% endfor %}
-    </select>
-    <button type="button"
-            class="btn btn-outline-secondary text-nowrap"
-            onclick="toggleNewAgreementForm()">
-      + Nuevo
-    </button>
-  </div>
-
-  <div id="newAgreementForm"
-       class="mt-2 p-3 rounded border border-secondary"
-       style="display:none;">
-    <div class="row g-2 align-items-end">
-      <div class="col-sm-4">
-        <label class="form-label small">Nombre</label>
-        <input type="text" id="newAgName"
-               class="form-control form-control-sm bg-dark text-light border-secondary"
-               placeholder="Ej: Empresa XYZ">
-      </div>
-      <div class="col-sm-3">
-        <label class="form-label small">Tipo</label>
-        <select id="newAgType"
-                class="form-select form-select-sm bg-dark text-light border-secondary">
-          <option value="percentage">Porcentaje %</option>
-          <option value="absolute">Valor fijo $</option>
+      <div class="mb-3">
+        <label class="form-label">Convenio <small class="text-secondary">(opcional)</small></label>
+        <select name="agreement_id"
+                id="agreement_id"
+                class="form-select bg-dark text-light border-secondary"
+                onchange="toggleNewAgreementForm()">
+          <option value="">— Sin convenio —</option>
+          {% for ag in agreements %}
+            <option value="{{ ag.id }}"
+              {% if is_edit and appointment.agreement_id == ag.id %}selected{% endif %}>
+              {{ ag.name }}
+              ({% if ag.discount_type == 'percentage' %}{{ ag.value }}%{% else %}${{ "{:,}".format(ag.value) }}{% endif %})
+            </option>
+          {% endfor %}
+          <option value="__new__">+ Crear nuevo convenio...</option>
         </select>
+
+        <div id="newAgreementForm"
+             class="mt-2 p-3 rounded border border-secondary"
+             style="display:none;">
+          <div class="row g-2 align-items-end">
+            <div class="col-sm-4">
+              <label class="form-label small">Nombre</label>
+              <input type="text" id="newAgName"
+                     class="form-control form-control-sm bg-dark text-light border-secondary"
+                     placeholder="Ej: Empresa XYZ">
+            </div>
+            <div class="col-sm-3">
+              <label class="form-label small">Tipo</label>
+              <select id="newAgType"
+                      class="form-select form-select-sm bg-dark text-light border-secondary">
+                <option value="percentage">Porcentaje %</option>
+                <option value="absolute">Valor fijo $</option>
+              </select>
+            </div>
+            <div class="col-sm-2">
+              <label class="form-label small">Valor</label>
+              <input type="number" id="newAgValue"
+                     class="form-control form-control-sm bg-dark text-light border-secondary"
+                     min="1" placeholder="Ej: 10">
+            </div>
+            <div class="col-sm-3">
+              <button type="button"
+                      class="btn btn-sm btn-primary w-100"
+                      onclick="saveNewAgreement()">
+                Guardar convenio
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
-      <div class="col-sm-2">
-        <label class="form-label small">Valor</label>
-        <input type="number" id="newAgValue"
-               class="form-control form-control-sm bg-dark text-light border-secondary"
-               min="1" placeholder="Ej: 10">
-      </div>
-      <div class="col-sm-3">
-        <button type="button"
-                class="btn btn-sm btn-primary w-100"
-                onclick="saveNewAgreement()">
-          Guardar convenio
-        </button>
-      </div>
-    </div>
-  </div>
-</div>
 
       {# ---- Precio estimado (calculado en tiempo real) ---- #}
       <div class="mb-3 p-3 rounded border border-secondary" id="pricePreviewBox" style="display:none;">
@@ -199,7 +194,7 @@
   </div>
 </div>
 
-{# ---- JS: autocompletar por placa + precio en tiempo real ---- #}
+{# ---- JS ---- #}
 <script>
 (function () {
   const plateInput    = document.getElementById("plate");
@@ -243,6 +238,10 @@
   function updatePrice() {
     const vtId = vehicleSelect ? vehicleSelect.value : null;
     const agId = agreementSel ? agreementSel.value : null;
+
+    // Si está en "__new__" no calcular precio todavía
+    if (agId === "__new__") return;
+
     const serviceIds = Array.from(checkboxes)
       .filter(c => c.checked)
       .map(c => parseInt(c.value));
@@ -280,49 +279,52 @@
   {% if is_edit %}
   updatePrice();
   {% endif %}
-
-  function toggleNewAgreementForm() {
-    const form = document.getElementById("newAgreementForm");
-    form.style.display = form.style.display === "none" ? "block" : "none";
-  }
-
-  function saveNewAgreement() {
-    const name  = document.getElementById("newAgName").value.trim();
-    const type  = document.getElementById("newAgType").value;
-    const value = document.getElementById("newAgValue").value;
-
-    if (!name || !value) {
-      alert("Completa nombre y valor del convenio.");
-      return;
-    }
-
-    fetch("/api/agreements/quick-create", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, discount_type: type, discount_value: value })
-    })
-    .then(r => r.json())
-    .then(data => {
-      if (!data.ok) { alert(data.error || "Error al crear convenio."); return; }
-
-      // Agregar al select y seleccionarlo automáticamente
-      const sel = document.getElementById("agreement_id");
-      const opt = document.createElement("option");
-      opt.value = data.agreement.id;
-      opt.textContent = data.agreement.name +
-        (data.agreement.discount_type === "percentage"
-          ? ` (${data.agreement.value}%)`
-          : ` ($${Number(data.agreement.value).toLocaleString("es-CO")})`);
-      sel.appendChild(opt);
-      sel.value = data.agreement.id;
-      sel.dispatchEvent(new Event("change"));
-
-      // Cerrar y limpiar el mini formulario
-      document.getElementById("newAgreementForm").style.display = "none";
-      document.getElementById("newAgName").value  = "";
-      document.getElementById("newAgValue").value = "";
-    })
-    .catch(() => alert("Error de red al crear convenio."));
-  }
 })();
+
+function toggleNewAgreementForm() {
+  const sel  = document.getElementById("agreement_id");
+  const form = document.getElementById("newAgreementForm");
+  form.style.display = sel.value === "__new__" ? "block" : "none";
+}
+
+function saveNewAgreement() {
+  const name  = document.getElementById("newAgName").value.trim();
+  const type  = document.getElementById("newAgType").value;
+  const value = document.getElementById("newAgValue").value;
+
+  if (!name || !value) {
+    alert("Completa nombre y valor del convenio.");
+    return;
+  }
+
+  fetch("/api/agreements/quick-create", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name, discount_type: type, discount_value: value })
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (!data.ok) { alert(data.error || "Error al crear convenio."); return; }
+
+    // Insertar la nueva opción antes de "__new__" y seleccionarla
+    const sel = document.getElementById("agreement_id");
+    const opt = document.createElement("option");
+    opt.value = data.agreement.id;
+    opt.textContent = data.agreement.name +
+      (data.agreement.discount_type === "percentage"
+        ? ` (${data.agreement.value}%)`
+        : ` ($${Number(data.agreement.value).toLocaleString("es-CO")})`);
+
+    const newOpt = sel.querySelector("option[value='__new__']");
+    sel.insertBefore(opt, newOpt);
+    sel.value = data.agreement.id;
+    sel.dispatchEvent(new Event("change"));
+
+    // Ocultar y limpiar el formulario
+    document.getElementById("newAgreementForm").style.display = "none";
+    document.getElementById("newAgName").value  = "";
+    document.getElementById("newAgValue").value = "";
+  })
+  .catch(() => alert("Error de red al crear convenio."));
+}
 </script>
