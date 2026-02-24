@@ -7,16 +7,18 @@ import io
 from decimal import Decimal
 
 COLORS = {
-    "wash amarillo": "#FFEAA7",
-    "wash rosa": "#FFCAD4",
-    "wash morado": "#DCD0FF",
-    "chasis": "#D9E4F5",
-    "motor": "#FFFFFF",
-    "desmanchado interno": "#C3E5FF",
-    "porcelanizado": "#D6F5D6",
-    "efecto bross": "#E7D5C6",
-    "enjuague": "#8BF9FB"
-
+    "wash essential":           "#FFF3B0",
+    "wash shine":               "#FFD6E0",
+    "wash chasis":              "#D9E4F5",
+    "wash motor":               "#FFFFFF",
+    "detallado exterior":       "#B5EAD7",
+    "detallado interior":       "#C3E5FF",
+    "detallado llanta a llanta":"#E2D9F3",
+    "polichado":                "#DCD0FF",
+    "correccion de wrap":       "#FFE8CC",
+    "porcelanizado":            "#D6F5D6",
+    "coating ceramico 7h+":     "#C0392B",
+    "coating ceramico 9h":      "#7B0000",
 }
 
 
@@ -1922,6 +1924,141 @@ with app.app_context():
     seed_expense_categories()
     seed_agreements()
 
+@app.route("/seed-new-services")
+def seed_new_services():
+    # ---- 1. Eliminar servicios viejos y sus precios ----
+    to_delete = [
+        "Wash Amarillo", "Wash Rosa", "Efecto Bross", "Enjuague",
+        "Wash Morado", "Desmanchado Interno", "Chasis", "Motor"
+    ]
+    for name in to_delete:
+        svc = Service.query.filter_by(name=name).first()
+        if svc:
+            ServicePrice.query.filter_by(service_id=svc.id).delete()
+            db.session.delete(svc)
+
+    # Renombrar Porcelanizado por si acaso tiene nombre distinto (lo dejamos igual)
+
+    db.session.commit()
+
+    # ---- 2. Crear servicios nuevos ----
+    new_services = [
+        "Wash Essential",
+        "Wash Shine",
+        "Wash Chasis",
+        "Wash Motor",
+        "Detallado Exterior",
+        "Detallado Interior",
+        "Detallado Llanta a Llanta",
+        "Polichado",
+        "Correccion de Wrap",
+        "Porcelanizado",        # ya existe, se omite si está
+        "Coating Ceramico 7H+",
+        "Coating Ceramico 9H",
+    ]
+    for name in new_services:
+        if not Service.query.filter_by(name=name).first():
+            db.session.add(Service(name=name, duration_minutes=60, is_active=True))
+
+    db.session.commit()
+
+    # ---- 3. Insertar precios ----
+    # Mapa nombre -> id de vehículo (Auto=1, SUV=2, Camioneta=3, Moto=4)
+    # Los IDs reales se buscan por nombre para no depender del orden
+    def vid(name):
+        vt = VehicleType.query.filter_by(name=name).first()
+        return vt.id if vt else None
+
+    def sid(name):
+        s = Service.query.filter_by(name=name).first()
+        return s.id if s else None
+
+    auto      = vid("Automovil")
+    suv       = vid("SUV")
+    camioneta = vid("Camioneta")
+    moto      = vid("Moto")
+
+    # (service_name, vehicle_name, price, duration_minutes)
+    prices = [
+        # Wash Essential
+        ("Wash Essential",              "Automovil",   40000,  40),
+        ("Wash Essential",              "SUV",         45000,  50),
+        ("Wash Essential",              "Camioneta",   50000,  50),
+        ("Wash Essential",              "Moto",        20000,  30),
+        # Wash Shine
+        ("Wash Shine",                  "Automovil",   60000,  60),
+        ("Wash Shine",                  "SUV",         65000,  70),
+        ("Wash Shine",                  "Camioneta",   75000,  70),
+        ("Wash Shine",                  "Moto",        35000,  40),
+        # Wash Chasis
+        ("Wash Chasis",                 "Automovil",   80000,  60),
+        ("Wash Chasis",                 "SUV",         90000,  70),
+        ("Wash Chasis",                 "Camioneta",  100000,  70),
+        # Wash Motor
+        ("Wash Motor",                  "Automovil",   80000,  60),
+        ("Wash Motor",                  "SUV",         90000,  70),
+        ("Wash Motor",                  "Camioneta",  100000,  70),
+        # Detallado Exterior
+        ("Detallado Exterior",          "Automovil",   90000,  90),
+        ("Detallado Exterior",          "SUV",        110000, 110),
+        ("Detallado Exterior",          "Camioneta",  150000, 120),
+        ("Detallado Exterior",          "Moto",        45000,  50),
+        # Detallado Interior
+        ("Detallado Interior",          "Automovil",  240000, 240),
+        ("Detallado Interior",          "SUV",        310000, 300),
+        ("Detallado Interior",          "Camioneta",  370000, 360),
+        # Detallado Llanta a Llanta
+        ("Detallado Llanta a Llanta",   "Automovil",  110000, 120),
+        ("Detallado Llanta a Llanta",   "SUV",        110000, 130),
+        ("Detallado Llanta a Llanta",   "Camioneta",  110000, 130),
+        # Polichado
+        ("Polichado",                   "Automovil",  180000, 180),
+        ("Polichado",                   "SUV",        230000, 210),
+        ("Polichado",                   "Camioneta",  280000, 240),
+        ("Polichado",                   "Moto",        55000,  60),
+        # Correccion de Wrap
+        ("Correccion de Wrap",          "Automovil",  180000, 180),
+        ("Correccion de Wrap",          "SUV",        230000, 210),
+        ("Correccion de Wrap",          "Camioneta",  280000, 240),
+        ("Correccion de Wrap",          "Moto",        55000,  60),
+        # Porcelanizado
+        ("Porcelanizado",               "Automovil",  290000, 240),
+        ("Porcelanizado",               "SUV",        340000, 270),
+        ("Porcelanizado",               "Camioneta",  390000, 300),
+        ("Porcelanizado",               "Moto",       100000,  90),
+        # Coating Ceramico 7H+
+        ("Coating Ceramico 7H+",        "Automovil",  899000, 480),
+        ("Coating Ceramico 7H+",        "SUV",       1099000, 540),
+        ("Coating Ceramico 7H+",        "Camioneta", 1299000, 600),
+        ("Coating Ceramico 7H+",        "Moto",       399000, 300),
+        # Coating Ceramico 9H
+        ("Coating Ceramico 9H",         "Automovil", 1899000, 600),
+        ("Coating Ceramico 9H",         "SUV",       2199000, 660),
+        ("Coating Ceramico 9H",         "Camioneta", 2499000, 720),
+        ("Coating Ceramico 9H",         "Moto",       799000, 360),
+    ]
+
+    for svc_name, vt_name, price, duration in prices:
+        s_id = sid(svc_name)
+        v_id = vid(vt_name)
+        if not s_id or not v_id:
+            continue
+        existing = ServicePrice.query.filter_by(service_id=s_id, vehicle_type_id=v_id).first()
+        if existing:
+            existing.price = price
+            existing.duration_minutes = duration
+            existing.is_active = True
+        else:
+            db.session.add(ServicePrice(
+                service_id=s_id,
+                vehicle_type_id=v_id,
+                price=price,
+                duration_minutes=duration,
+                is_active=True
+            ))
+
+    db.session.commit()
+    return "<h2>✅ Servicios y precios actualizados correctamente. Ya puedes eliminar esta ruta.</h2>"
 
 if __name__ == "__main__":
     app.run(debug=True, port=5001)
