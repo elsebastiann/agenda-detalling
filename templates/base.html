@@ -215,6 +215,36 @@
     .badge.bg-warning { background-color: rgba(212,180,108,0.2) !important; color: #d4b46c !important; }
     .badge.bg-info    { background-color: rgba(23,162,184,0.2)  !important; color: #5bc0de !important; }
 
+    /* Quitar fondos grises de Bootstrap en cards y bg-secondary */
+    .card {
+      background-color: #0a0a0a !important;
+      border: 1px solid rgba(212,180,108,0.12) !important;
+      color: #e8e8e8 !important;
+    }
+    .bg-secondary:not(.badge) {
+      background-color: #0a0a0a !important;
+    }
+    .bg-dark {
+      background-color: #000000 !important;
+    }
+    .btn-dark {
+      background-color: transparent !important;
+      border: 1px solid rgba(212,180,108,0.4) !important;
+      color: #d4b46c !important;
+    }
+    .btn-outline-light {
+      border-color: rgba(255,255,255,0.15) !important;
+      color: #888 !important;
+      background: transparent !important;
+    }
+    .btn-outline-light:hover {
+      background-color: rgba(255,255,255,0.06) !important;
+      color: #e8e8e8 !important;
+    }
+    .form-text {
+      color: #444 !important;
+    }
+
     /* ── Logo centrado en móvil ── */
     .mobile-logo-bar {
       display: none;
