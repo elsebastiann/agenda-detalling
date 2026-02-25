@@ -162,6 +162,7 @@ def agreements_new():
         existing.value = value
         existing.is_active = True
         db.session.commit()
+        flash("El convenio ya existía y fue actualizado.", "info")
         return redirect(url_for("agreements_list"))
 
     db.session.add(
@@ -173,6 +174,7 @@ def agreements_new():
         )
     )
     db.session.commit()
+    flash("Convenio creado.", "success")
     return redirect(url_for("agreements_list"))
 
 
@@ -181,6 +183,7 @@ def agreements_toggle(agreement_id):
     ag = Agreement.query.get_or_404(agreement_id)
     ag.is_active = not ag.is_active
     db.session.commit()
+    flash("Convenio actualizado.", "info")
     return redirect(url_for("agreements_list"))
 
 # --- BACKWARD-COMPATIBLE AGREEMENT CREATE ENDPOINT ---
@@ -829,10 +832,12 @@ def payment_methods_new():
     if existing:
         existing.is_active = True
         db.session.commit()
+        flash("El medio de pago ya existía y fue activado.", "info")
         return redirect(url_for("payment_methods_list"))
 
     db.session.add(PaymentMethod(name=name, is_active=True))
     db.session.commit()
+    flash("Medio de pago creado.", "success")
     return redirect(url_for("payment_methods_list"))
 
 
@@ -841,6 +846,7 @@ def payment_methods_toggle(method_id):
     pm = PaymentMethod.query.get_or_404(method_id)
     pm.is_active = not pm.is_active
     db.session.commit()
+    flash("Medio de pago actualizado.", "info")
     return redirect(url_for("payment_methods_list"))
 
 # -----------------------
@@ -870,10 +876,12 @@ def vehicle_types_new():
     if existing:
         existing.is_active = True
         db.session.commit()
+        flash("El tipo de vehículo ya existía y fue activado.", "info")
         return redirect(url_for("vehicle_types_list"))
 
     db.session.add(VehicleType(name=name, is_active=True))
     db.session.commit()
+    flash("Tipo de vehículo creado.", "success")
     return redirect(url_for("vehicle_types_list"))
 
 
@@ -882,6 +890,7 @@ def vehicle_types_toggle(vehicle_type_id):
     vt = VehicleType.query.get_or_404(vehicle_type_id)
     vt.is_active = not vt.is_active
     db.session.commit()
+    flash("Tipo de vehículo actualizado.", "info")
     return redirect(url_for("vehicle_types_list"))
 
 # -----------------------
@@ -936,6 +945,7 @@ def service_prices_new():
         existing.price = price
         existing.duration_minutes = duration
         existing.is_active = True
+        flash("Precio actualizado para esta combinación.", "info")
     else:
         sp = ServicePrice(
             service_id=service_id,
@@ -945,6 +955,7 @@ def service_prices_new():
             is_active=True
         )
         db.session.add(sp)
+        flash("Precio creado.", "success")
 
     db.session.commit()
     return redirect(url_for("service_prices_list"))
@@ -955,6 +966,7 @@ def service_prices_toggle(price_id):
     sp = ServicePrice.query.get_or_404(price_id)
     sp.is_active = not sp.is_active
     db.session.commit()
+    flash("Registro actualizado.", "info")
     return redirect(url_for("service_prices_list"))
 
 # -----------------------
@@ -1070,6 +1082,7 @@ def new_appointment():
         db.session.add(appt)
         db.session.commit()
 
+        flash("Cita creada correctamente.", "success")
         return redirect(url_for("calendar_view"))
 
     return render_template(
@@ -1093,6 +1106,7 @@ def delete_appointment(appointment_id):
     appt = Appointment.query.get_or_404(appointment_id)
     db.session.delete(appt)
     db.session.commit()
+    flash("Cita eliminada.", "info")
     return redirect(url_for("calendar_view"))
 
 @app.route("/appointment/<int:appointment_id>/edit", methods=["GET", "POST"])
@@ -1176,6 +1190,7 @@ def edit_appointment(appointment_id):
         )
 
         db.session.commit()
+        flash("Cita actualizada correctamente.", "success")
         return redirect(url_for("calendar_view"))
 
     return render_template(
@@ -1204,6 +1219,7 @@ def services_view():
                 s = Service(name=name, duration_minutes=duration, is_active=True)
                 db.session.add(s)
                 db.session.commit()
+                flash("Servicio creado.", "success")
             except ValueError:
                 flash("La duración debe ser un número entero de minutos.", "danger")
 
@@ -1218,6 +1234,7 @@ def toggle_service(service_id):
     s = Service.query.get_or_404(service_id)
     s.is_active = not s.is_active
     db.session.commit()
+    flash("Servicio actualizado.", "info")
     return redirect(url_for("services_view"))
 
 
@@ -1488,6 +1505,7 @@ def expenses_new():
         db.session.add(exp)
         db.session.commit()
 
+        flash("Gasto registrado.", "success")
         return redirect(url_for("expenses_list"))
 
     # Precargar fecha con hoy (editable)
@@ -1555,6 +1573,7 @@ def expenses_edit(expense_id):
         exp.notes = notes or None
 
         db.session.commit()
+        flash("Gasto actualizado.", "success")
         return redirect(url_for("expenses_list"))
 
     return render_template(
@@ -1579,6 +1598,7 @@ def expenses_toggle_void(expense_id):
     if exp.is_void:
         flash("Gasto anulado.", "warning")
     else:
+        flash("Gasto reactivado.", "success")
 
     db.session.commit()
     return redirect(url_for("expenses_list"))
@@ -1671,10 +1691,12 @@ def expense_categories_new():
     if existing:
         existing.is_active = True
         db.session.commit()
+        flash("La categoría ya existía y fue activada.", "info")
         return redirect(url_for("expenses_list"))
 
     db.session.add(ExpenseCategory(name=name, is_active=True))
     db.session.commit()
+    flash("Categoría creada.", "success")
     return redirect(url_for("expenses_list"))
 
 
@@ -1683,6 +1705,7 @@ def expense_categories_toggle(category_id):
     c = ExpenseCategory.query.get_or_404(category_id)
     c.is_active = not c.is_active
     db.session.commit()
+    flash("Categoría actualizada.", "info")
     return redirect(url_for("expenses_list"))
 
 # -----------------------
@@ -2067,6 +2090,7 @@ def parking_new():
     db.session.add(sale)
     db.session.commit()
 
+    flash("Parqueadero registrado.", "success")
     return redirect(url_for("parking_list"))
 
 
@@ -2075,6 +2099,7 @@ def parking_delete(parking_id):
     p = Parking.query.get_or_404(parking_id)
     db.session.delete(p)
     db.session.commit()
+    flash("Registro eliminado.", "info")
     return redirect(url_for("parking_list"))
 
 
