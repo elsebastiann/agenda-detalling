@@ -99,10 +99,10 @@
         font-size: 20px;
       }
 
-      /* Dropdown "más" dentro del bottom bar */
-      .bottom-nav .bn-more-menu {
+      /* Panel "más" */
+      .bn-more-menu {
         position: fixed;
-        bottom: 66px;
+        bottom: 62px;
         left: 0;
         right: 0;
         background: #2c2c2e;
@@ -113,7 +113,7 @@
         display: none;
       }
 
-      .bottom-nav .bn-more-menu.show {
+      .bn-more-menu.show {
         display: block;
       }
 
@@ -138,12 +138,13 @@
         background: #3a3a3c;
       }
 
-      /* Overlay para cerrar el menú "más" */
+      /* Overlay para cerrar el panel "más" */
       .bn-overlay {
         display: none;
         position: fixed;
         inset: 0;
         z-index: 1048;
+        background: rgba(0,0,0,0.4);
       }
 
       .bn-overlay.show {
