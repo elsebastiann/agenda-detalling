@@ -354,6 +354,10 @@ class Appointment(db.Model):
         db.ForeignKey("agreements.id"),
         nullable=True
     )
+    booking_adjustment_type  = db.Column(db.String(20), nullable=True)
+    booking_adjustment_mode  = db.Column(db.String(20), nullable=True)
+    booking_adjustment_value = db.Column(db.Integer,    nullable=True)
+
     agreement = db.relationship("Agreement")
 
     vehicle_type = db.relationship("VehicleType")
