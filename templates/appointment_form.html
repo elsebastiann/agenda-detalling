@@ -165,6 +165,51 @@
         </div>
       </div>
 
+      {# ---- Ajuste al crear (opcional) ---- #}
+      <div class="mb-3">
+        <label class="form-label">Ajuste de precio <small class="text-secondary">(opcional)</small></label>
+        <div class="row g-2">
+          <div class="col-sm-4">
+            <select name="booking_adjustment_type"
+                    id="booking_adjustment_type"
+                    class="form-select bg-dark text-light border-secondary">
+              <option value="">Sin ajuste</option>
+              <option value="discount"
+                {% if is_edit and appointment.booking_adjustment_type == 'discount' %}selected{% endif %}>
+                Descuento
+              </option>
+              <option value="surcharge"
+                {% if is_edit and appointment.booking_adjustment_type == 'surcharge' %}selected{% endif %}>
+                Recargo
+              </option>
+            </select>
+          </div>
+          <div class="col-sm-4" id="adjustmentModeCol" style="display:none;">
+            <select name="booking_adjustment_mode"
+                    id="booking_adjustment_mode"
+                    class="form-select bg-dark text-light border-secondary">
+              <option value="fixed"
+                {% if is_edit and appointment.booking_adjustment_mode == 'fixed' %}selected{% endif %}>
+                Valor fijo $
+              </option>
+              <option value="percentage"
+                {% if is_edit and appointment.booking_adjustment_mode == 'percentage' %}selected{% endif %}>
+                Porcentaje %
+              </option>
+            </select>
+          </div>
+          <div class="col-sm-4" id="adjustmentValueCol" style="display:none;">
+            <input type="number"
+                   name="booking_adjustment_value"
+                   id="booking_adjustment_value"
+                   class="form-control bg-dark text-light border-secondary"
+                   min="1" step="1"
+                   placeholder="Valor"
+                   value="{{ appointment.booking_adjustment_value or '' if is_edit else '' }}">
+          </div>
+        </div>
+      </div>
+
       {# ---- Precio estimado (calculado en tiempo real) ---- #}
       <div class="mb-3 p-3 rounded border border-secondary" id="pricePreviewBox" style="display:none;">
         <div class="d-flex justify-content-between align-items-center">
@@ -278,7 +323,10 @@
       body: JSON.stringify({
         service_ids: serviceIds,
         vehicle_type_id: parseInt(vtId),
-        agreement_id: agId ? parseInt(agId) : null
+        agreement_id: agId ? parseInt(agId) : null,
+        booking_adjustment_type:  document.getElementById("booking_adjustment_type")?.value || null,
+        booking_adjustment_mode:  document.getElementById("booking_adjustment_mode")?.value || null,
+        booking_adjustment_value: parseInt(document.getElementById("booking_adjustment_value")?.value) || null,
       })
     })
     .then(r => r.json())
@@ -296,8 +344,21 @@
   if (vehicleSelect) vehicleSelect.addEventListener("change", updatePrice);
   if (agreementSel)  agreementSel.addEventListener("change", updatePrice);
 
+  // Mostrar/ocultar campos de ajuste
+  function toggleAdjustmentFields() {
+    const type = document.getElementById("booking_adjustment_type").value;
+    const show = type !== "";
+    document.getElementById("adjustmentModeCol").style.display  = show ? "block" : "none";
+    document.getElementById("adjustmentValueCol").style.display = show ? "block" : "none";
+    updatePrice();
+  }
+  document.getElementById("booking_adjustment_type")?.addEventListener("change", toggleAdjustmentFields);
+  document.getElementById("booking_adjustment_mode")?.addEventListener("change", updatePrice);
+  document.getElementById("booking_adjustment_value")?.addEventListener("input", updatePrice);
+
   // Trigger inicial en edición
   {% if is_edit %}
+  toggleAdjustmentFields();
   updatePrice();
   {% endif %}
 })();

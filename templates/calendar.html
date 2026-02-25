@@ -192,6 +192,14 @@ document.addEventListener('DOMContentLoaded', function() {
   <p><b>Inicio:</b> ${data.start}</p>
   <p><b>Fin:</b> ${data.end}</p>
   <p><b>Notas:</b> ${data.notes || 'Sin notas'}</p>
+  ${data.booking_adjustment_type ? `
+  <p><b>Ajuste al agendar:</b>
+    <span class="badge ${data.booking_adjustment_type === 'discount' ? 'bg-warning text-dark' : 'bg-info text-dark'}">
+      ${data.booking_adjustment_type === 'discount' ? 'Descuento' : 'Recargo'}
+      ${data.booking_adjustment_value}
+      ${data.booking_adjustment_mode === 'percentage' ? '%' : '($' + Number(data.booking_adjustment_value).toLocaleString('es-CO') + ')'}
+    </span>
+  </p>` : ''}
   <p>
     <b>Valor estimado:</b>
     <span class="fw-semibold">

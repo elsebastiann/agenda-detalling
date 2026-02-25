@@ -388,6 +388,9 @@ def ensure_appointments_close_schema():
             ("adjustment_value", "INTEGER"),
             ("adjustment_reason", "TEXT"),
             ("final_amount", "INTEGER"),
+            ("booking_adjustment_type", "VARCHAR(20)"),
+            ("booking_adjustment_mode", "VARCHAR(20)"),
+            ("booking_adjustment_value", "INTEGER"),
         ]
 
         for col, ddl in cols:
@@ -739,7 +742,7 @@ def calculate_estimated_amount_for_appointment(appt: Appointment) -> int:
     Calcula el valor estimado de una cita:
     - Precio real por servicios + tipo de vehículo
     - Aplica convenio si existe
-    - NO aplica ajustes manuales (eso es solo al cierre)
+    - Aplica ajuste al crear (booking_adjustment) si existe
     """
     if not appt.vehicle_type_id:
         return 0
@@ -753,7 +756,24 @@ def calculate_estimated_amount_for_appointment(appt: Appointment) -> int:
         vehicle_type_id=appt.vehicle_type_id
     )
 
-    return apply_agreement_discount(base_price, appt.agreement)
+    after_agreement = apply_agreement_discount(base_price, appt.agreement)
+
+    # Aplicar ajuste al crear (booking adjustment)
+    b_type  = getattr(appt, "booking_adjustment_type", None)
+    b_mode  = getattr(appt, "booking_adjustment_mode", None)
+    b_value = int(getattr(appt, "booking_adjustment_value", None) or 0)
+
+    if b_type and b_value > 0:
+        if b_mode == "percentage":
+            b_amount = int(round(after_agreement * (b_value / 100)))
+        else:
+            b_amount = b_value
+        if b_type == "discount":
+            after_agreement = max(after_agreement - b_amount, 0)
+        elif b_type == "surcharge":
+            after_agreement = after_agreement + b_amount
+
+    return after_agreement
 
 # -----------------------
 # HELPER: Verificar si la cita ya fue cerrada (ServiceSale existe para appointment_id)
@@ -1017,6 +1037,14 @@ def new_appointment():
             agreement_id=agreement_id
         )
 
+        booking_adjustment_type  = request.form.get("booking_adjustment_type") or None
+        booking_adjustment_mode  = request.form.get("booking_adjustment_mode") or None
+        booking_adjustment_value = request.form.get("booking_adjustment_value")
+        try:
+            booking_adjustment_value = int(booking_adjustment_value) if booking_adjustment_value else None
+        except Exception:
+            booking_adjustment_value = None
+
         appt = Appointment(
             customer_name=customer_name,
             plate=plate,
@@ -1027,7 +1055,10 @@ def new_appointment():
             notes=notes,
             vehicle_type_id=int(vehicle_type_id),
             status="scheduled",
-            agreement_id=agreement_id
+            agreement_id=agreement_id,
+            booking_adjustment_type=booking_adjustment_type,
+            booking_adjustment_mode=booking_adjustment_mode,
+            booking_adjustment_value=booking_adjustment_value,
         )
         db.session.add(appt)
         db.session.commit()
@@ -1123,6 +1154,12 @@ def edit_appointment(appointment_id):
 
         # Asignar nueva hora final
         appointment.end_datetime = appointment.start_datetime + timedelta(minutes=total_duration)
+
+        # Guardar ajuste al crear
+        appointment.booking_adjustment_type  = request.form.get("booking_adjustment_type") or None
+        appointment.booking_adjustment_mode  = request.form.get("booking_adjustment_mode") or None
+        bav = request.form.get("booking_adjustment_value")
+        appointment.booking_adjustment_value = int(bav) if bav else None
 
         # Guardar/actualizar datos del cliente por placa (si hay placa)
         upsert_client_from_appointment(
@@ -1729,6 +1766,9 @@ def appointment_json(appointment_id):
         "end": appt.end_datetime.strftime("%Y-%m-%d %H:%M"),
         "estimated_amount": estimated_amount,
         "status": appt.status,
+        "booking_adjustment_type":  getattr(appt, "booking_adjustment_type", None),
+        "booking_adjustment_mode":  getattr(appt, "booking_adjustment_mode", None),
+        "booking_adjustment_value": getattr(appt, "booking_adjustment_value", None),
     })
 
 
@@ -1829,6 +1869,22 @@ def api_estimate_price():
     agreement = Agreement.query.get(agreement_id) if agreement_id else None
 
     final_price = apply_agreement_discount(base_price, agreement)
+
+    # Ajuste al crear (booking adjustment)
+    b_type  = data.get("booking_adjustment_type")
+    b_mode  = data.get("booking_adjustment_mode")
+    b_value = int(data.get("booking_adjustment_value") or 0)
+
+    if b_type and b_value > 0:
+        if b_mode == "percentage":
+            b_amount = int(round(final_price * (b_value / 100)))
+        else:
+            b_amount = b_value
+        if b_type == "discount":
+            final_price = max(final_price - b_amount, 0)
+        elif b_type == "surcharge":
+            final_price = final_price + b_amount
+
     discount_amount = base_price - final_price
 
     return jsonify({
@@ -1873,7 +1929,22 @@ def close_appointment(appointment_id):
 
     base_amount = apply_agreement_discount(base_price, appt.agreement)
 
-    # Ajuste manual (descuento/recargo)
+    # Aplicar ajuste hecho al crear la cita (booking adjustment)
+    b_type  = getattr(appt, "booking_adjustment_type", None)
+    b_mode  = getattr(appt, "booking_adjustment_mode", None)
+    b_value = int(getattr(appt, "booking_adjustment_value", None) or 0)
+
+    if b_type and b_value > 0:
+        if b_mode == "percentage":
+            b_amount = int(round(base_amount * (b_value / 100)))
+        else:
+            b_amount = b_value
+        if b_type == "discount":
+            base_amount = max(base_amount - b_amount, 0)
+        elif b_type == "surcharge":
+            base_amount = base_amount + b_amount
+
+    # Ajuste manual al cierre (descuento/recargo)
     adjustment_type = data.get("adjustment_type")  # discount | surcharge | None
     adjustment_mode = data.get("adjustment_mode")  # percentage | fixed
     adjustment_value = int(data.get("adjustment_value") or 0)
