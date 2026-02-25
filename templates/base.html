@@ -4,303 +4,308 @@
   <meta charset="utf-8">
   <title>Agenda Detailing</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <!-- Barra de estado negra en Safari PWA / Chrome Android -->
-  <meta name="theme-color" content="#000000">
+  <meta name="theme-color" content="#111111">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 
-  <!-- Bootstrap -->
-  <link
-    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
-    rel="stylesheet">
-
-  <!-- Bootstrap Icons -->
-  <link
-    href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
-    rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
 
   <style>
-    /* Fondo negro global */
-    :root { color-scheme: dark; }
+    /* ═══════════════════════════════════════════
+       SISTEMA DE DISEÑO — AGENDA DETAILING
+       Base: gris carbón #111 (menos fatiga visual)
+       Acento: #d4b46c solo en interacciones clave
+    ═══════════════════════════════════════════ */
+    :root {
+      color-scheme: dark;
+      --bg:        #111111;
+      --surface:   #1a1a1a;
+      --surface2:  #222222;
+      --border:    #2a2a2a;
+      --border2:   rgba(212,180,108,0.15);
+      --text:      #f0f0f0;
+      --text2:     #888888;
+      --text3:     #444444;
+      --accent:    #d4b46c;
+      --accent-bg: rgba(212,180,108,0.08);
+      --danger:    rgba(220,53,69,0.8);
+      --success:   rgba(80,180,100,0.8);
+      --radius:    10px;
+      --radius-sm: 7px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; }
+
     html, body {
-      background-color: #000000 !important;
-      color: #e8e8e8;
+      margin: 0; padding: 0;
+      background-color: var(--bg) !important;
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      -webkit-font-smoothing: antialiased;
     }
 
-    /* Quitar cualquier fondo de Bootstrap en los contenedores */
-    .container-fluid,
-    .container {
-      background-color: transparent !important;
+    /* Contenedores transparentes */
+    .container-fluid, .container {
+      background: transparent !important;
     }
 
-    /* Navbar logo */
+    /* Títulos */
+    h1, h2, h3, h4, h5, h6 { color: var(--text); font-weight: 600; }
+    h2 { font-size: 1.1rem; }
+    h4 { font-size: 1rem; }
+
+    /* ── NAVBAR DESKTOP ── */
     .navbar-logo {
-      height: 40px;
-      width: auto;
-      display: block;
-      filter: drop-shadow(0 0 1px rgba(0,0,0,0.45));
+      height: 38px; width: auto; display: block;
     }
+    .navbar-brand-text { font-weight: 700; color: var(--accent); }
 
-    .navbar-brand-text {
-      font-weight: 700;
-      letter-spacing: 0.2px;
-      color: #d4b46c;
-    }
-
-    /* ── Nav links desktop ── */
     .nav-link-custom {
-      color: #888888;
+      color: var(--text2);
       text-decoration: none;
       font-size: 0.82rem;
       font-weight: 500;
       padding: 6px 12px;
-      border-radius: 8px;
-      transition: color 0.15s;
-      letter-spacing: 0.2px;
-      cursor: pointer;
-    }
-    .nav-link-custom:hover {
-      color: #d4b46c;
-    }
-    .nav-link-accent {
-      color: #d4b46c !important;
-    }
-
-    /* Dropdown desktop */
-    .dropdown-item-custom {
-      display: block;
-      padding: 10px 18px;
-      color: #e8e8e8;
-      text-decoration: none;
-      font-size: 0.85rem;
+      border-radius: var(--radius-sm);
       transition: color 0.15s, background 0.15s;
+      letter-spacing: 0.1px;
+      cursor: pointer;
+      white-space: nowrap;
     }
-    .dropdown-item-custom:hover {
-      color: #d4b46c;
-      background: rgba(212,180,108,0.06);
+    .nav-link-custom:hover { color: var(--text); background: var(--surface2); }
+    .nav-link-accent { color: var(--accent) !important; }
+    .nav-link-accent:hover { color: var(--accent) !important; background: var(--accent-bg) !important; }
+
+    .dropdown-item-custom {
+      display: flex; align-items: center; gap: 10px;
+      padding: 9px 16px;
+      color: var(--text2);
+      text-decoration: none;
+      font-size: 0.83rem;
+      transition: color 0.12s, background 0.12s;
+      border-radius: 6px;
+      margin: 1px 6px;
     }
+    .dropdown-item-custom i { color: var(--accent); font-size: 0.95rem; width: 16px; text-align: center; }
+    .dropdown-item-custom:hover { color: var(--text); background: var(--surface2); }
 
-    /* ══════════════════════════════════════
-       OVERRIDES GLOBALES DE BOOTSTRAP
-       Aplican a todos los templates
-    ══════════════════════════════════════ */
-
-    /* Botones — quitar azul, usar dorado */
+    /* ── BOTONES — sistema unificado ── */
+    .btn {
+      font-size: 0.8rem !important;
+      font-weight: 500 !important;
+      border-radius: var(--radius-sm) !important;
+      padding: 6px 14px !important;
+      transition: all 0.15s !important;
+      box-shadow: none !important;
+      letter-spacing: 0.1px;
+    }
+    /* Primario: acento */
     .btn-primary {
-      background-color: transparent !important;
-      border: 1px solid rgba(212,180,108,0.4) !important;
-      color: #d4b46c !important;
+      background: var(--accent-bg) !important;
+      border: 1px solid rgba(212,180,108,0.3) !important;
+      color: var(--accent) !important;
     }
     .btn-primary:hover, .btn-primary:focus, .btn-primary:active {
-      background-color: rgba(212,180,108,0.1) !important;
-      border-color: #d4b46c !important;
-      color: #d4b46c !important;
-      box-shadow: none !important;
+      background: rgba(212,180,108,0.15) !important;
+      border-color: var(--accent) !important;
+      color: var(--accent) !important;
     }
     .btn-outline-primary {
-      border-color: rgba(212,180,108,0.4) !important;
-      color: #d4b46c !important;
       background: transparent !important;
+      border: 1px solid rgba(212,180,108,0.3) !important;
+      color: var(--accent) !important;
     }
     .btn-outline-primary:hover {
-      background-color: rgba(212,180,108,0.1) !important;
-      color: #d4b46c !important;
+      background: var(--accent-bg) !important;
+      border-color: var(--accent) !important;
     }
-    .btn-outline-secondary {
-      border-color: rgba(255,255,255,0.12) !important;
-      color: #666 !important;
+    /* Secundario: neutro */
+    .btn-secondary, .btn-outline-secondary {
       background: transparent !important;
+      border: 1px solid var(--border) !important;
+      color: var(--text2) !important;
     }
-    .btn-outline-secondary:hover {
-      background-color: rgba(255,255,255,0.06) !important;
-      color: #e8e8e8 !important;
+    .btn-secondary:hover, .btn-outline-secondary:hover {
+      background: var(--surface2) !important;
+      border-color: var(--border) !important;
+      color: var(--text) !important;
     }
-    .btn-outline-danger {
-      border-color: rgba(220,53,69,0.4) !important;
+    /* Peligro */
+    .btn-danger, .btn-outline-danger {
+      background: transparent !important;
+      border: 1px solid rgba(220,53,69,0.3) !important;
       color: #e05c6a !important;
+    }
+    .btn-danger:hover, .btn-outline-danger:hover {
+      background: rgba(220,53,69,0.08) !important;
+      border-color: rgba(220,53,69,0.5) !important;
+    }
+    /* Éxito */
+    .btn-success, .btn-outline-success {
       background: transparent !important;
+      border: 1px solid rgba(80,180,100,0.3) !important;
+      color: #5cb87a !important;
     }
-    .btn-outline-danger:hover {
-      background-color: rgba(220,53,69,0.1) !important;
+    .btn-success:hover, .btn-outline-success:hover {
+      background: rgba(80,180,100,0.08) !important;
     }
-    .btn-success {
-      background-color: transparent !important;
-      border: 1px solid rgba(40,167,69,0.4) !important;
-      color: #5cb85c !important;
+    /* Dark / light legados */
+    .btn-dark {
+      background: var(--accent-bg) !important;
+      border: 1px solid rgba(212,180,108,0.3) !important;
+      color: var(--accent) !important;
     }
-    .btn-success:hover {
-      background-color: rgba(40,167,69,0.1) !important;
-      box-shadow: none !important;
+    .btn-outline-light {
+      background: transparent !important;
+      border: 1px solid var(--border) !important;
+      color: var(--text2) !important;
     }
-    .btn-secondary {
-      background-color: transparent !important;
-      border: 1px solid rgba(255,255,255,0.1) !important;
-      color: #555 !important;
+    .btn-outline-light:hover {
+      background: var(--surface2) !important;
+      color: var(--text) !important;
     }
+    .btn-sm { padding: 4px 10px !important; font-size: 0.75rem !important; }
 
-    /* Form controls — sin marco azul Bootstrap */
-    .form-control,
-    .form-select {
-      background-color: #0f0f0f !important;
-      border: 1px solid rgba(255,255,255,0.1) !important;
-      color: #e8e8e8 !important;
-      border-radius: 8px !important;
+    /* ── FORM CONTROLS ── */
+    .form-control, .form-select {
+      background-color: var(--surface) !important;
+      border: 1px solid var(--border) !important;
+      color: var(--text) !important;
+      border-radius: var(--radius-sm) !important;
       box-shadow: none !important;
+      font-size: 0.85rem !important;
+      padding: 8px 12px !important;
       transition: border-color 0.15s !important;
     }
-    .form-control:focus,
-    .form-select:focus {
-      background-color: #0f0f0f !important;
-      border-color: rgba(212,180,108,0.5) !important;
-      color: #e8e8e8 !important;
+    .form-control:focus, .form-select:focus {
+      border-color: rgba(212,180,108,0.4) !important;
+      background-color: var(--surface) !important;
+      color: var(--text) !important;
       box-shadow: none !important;
       outline: none !important;
     }
-    .form-control::placeholder {
-      color: #444 !important;
-    }
-    /* Fix color picker y date input en iOS/Safari */
-    input[type="date"],
-    input[type="time"] {
-      color-scheme: dark;
-    }
-
-    /* Labels */
-    .form-label {
-      color: #666 !important;
+    .form-control::placeholder { color: var(--text3) !important; }
+    .form-control-sm, .form-select-sm {
+      padding: 5px 10px !important;
       font-size: 0.78rem !important;
-      margin-bottom: 4px !important;
     }
+    input[type="date"], input[type="time"] { color-scheme: dark; }
+    textarea.form-control { resize: vertical; min-height: 80px; }
 
-    /* Tablas */
+    .form-label {
+      color: var(--text2) !important;
+      font-size: 0.75rem !important;
+      font-weight: 500 !important;
+      margin-bottom: 5px !important;
+      letter-spacing: 0.2px;
+    }
+    .form-text { color: var(--text3) !important; font-size: 0.72rem !important; }
+
+    /* Formulario / sección contenedora */
+    .section-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+    }
+    /* Para los forms legacy con .border o .card */
+    .card, .bg-secondary:not(.badge) {
+      background: var(--surface) !important;
+      border: 1px solid var(--border) !important;
+      color: var(--text) !important;
+      border-radius: var(--radius) !important;
+    }
+    .card-body { background: transparent !important; }
+    form.rounded.border, .p-3.rounded.border {
+      background: var(--surface) !important;
+      border: 1px solid var(--border) !important;
+      border-radius: var(--radius) !important;
+    }
+    .border, .border-secondary { border-color: var(--border) !important; }
+    .bg-dark { background-color: var(--bg) !important; }
+
+    /* ── TABLAS ── */
     .table-dark {
-      --bs-table-bg: #0d0d0d !important;
-      --bs-table-hover-bg: rgba(212,180,108,0.05) !important;
-      --bs-table-border-color: rgba(255,255,255,0.06) !important;
-      color: #e8e8e8 !important;
+      --bs-table-bg: var(--surface) !important;
+      --bs-table-hover-bg: rgba(212,180,108,0.04) !important;
+      --bs-table-border-color: var(--border) !important;
+      color: var(--text) !important;
+      font-size: 0.83rem;
     }
     .table-dark thead th {
-      color: #555 !important;
-      font-weight: 500 !important;
-      font-size: 0.78rem !important;
+      color: var(--text3) !important;
+      font-weight: 600 !important;
+      font-size: 0.7rem !important;
       text-transform: uppercase !important;
-      letter-spacing: 0.4px !important;
-      border-bottom: 1px solid rgba(212,180,108,0.15) !important;
+      letter-spacing: 0.6px !important;
+      border-bottom: 1px solid var(--border2) !important;
+      padding: 10px 12px !important;
     }
+    .table-dark td { padding: 10px 12px !important; vertical-align: middle !important; }
+    .table-responsive { border-radius: var(--radius); overflow: hidden; }
 
-    /* Formularios con borde: quitar border-secondary, reemplazar */
-    .border, .border-secondary {
-      border-color: rgba(255,255,255,0.08) !important;
-    }
-    form.rounded.border,
-    .p-3.rounded.border {
-      background: #0a0a0a !important;
-      border: 1px solid rgba(212,180,108,0.12) !important;
-      border-radius: 12px !important;
-    }
+    /* ── BADGES ── */
+    .badge.bg-success  { background: rgba(80,180,100,0.15)  !important; color: #6dba82 !important; font-weight: 500; }
+    .badge.bg-danger   { background: rgba(220,53,69,0.15)   !important; color: #e07080 !important; font-weight: 500; }
+    .badge.bg-secondary{ background: var(--surface2)        !important; color: var(--text2) !important; font-weight: 500; }
+    .badge.bg-warning  { background: rgba(212,180,108,0.15) !important; color: var(--accent) !important; font-weight: 500; }
+    .badge.bg-info     { background: rgba(23,162,184,0.15)  !important; color: #5bc0de !important; font-weight: 500; }
 
-    /* Titles */
-    h1, h2, h3, h4, h5, h6 {
-      color: #e8e8e8;
-    }
+    /* text helpers */
+    .text-success { color: var(--accent) !important; }
+    .text-secondary { color: var(--text2) !important; }
+    .text-muted { color: var(--text3) !important; }
 
-    /* text-success en totales */
-    .text-success {
-      color: #d4b46c !important;
-    }
+    /* Alerts */
+    .alert { border-radius: var(--radius) !important; font-size: 0.83rem; border: 1px solid var(--border) !important; }
 
-    /* Badges */
-    .badge.bg-success { background-color: rgba(40,167,69,0.2) !important; color: #5cb85c !important; }
-    .badge.bg-danger  { background-color: rgba(220,53,69,0.2)  !important; color: #e05c6a !important; }
-    .badge.bg-secondary { background-color: rgba(255,255,255,0.08) !important; color: #888 !important; }
-    .badge.bg-warning { background-color: rgba(212,180,108,0.2) !important; color: #d4b46c !important; }
-    .badge.bg-info    { background-color: rgba(23,162,184,0.2)  !important; color: #5bc0de !important; }
+    /* ── MOBILE LOGO BAR ── */
+    .mobile-logo-bar { display: none; }
 
-    /* Quitar fondos grises de Bootstrap en cards y bg-secondary */
-    .card {
-      background-color: #0a0a0a !important;
-      border: 1px solid rgba(212,180,108,0.12) !important;
-      color: #e8e8e8 !important;
-    }
-    .bg-secondary:not(.badge) {
-      background-color: #0a0a0a !important;
-    }
-    .bg-dark {
-      background-color: #000000 !important;
-    }
-    .btn-dark {
-      background-color: transparent !important;
-      border: 1px solid rgba(212,180,108,0.4) !important;
-      color: #d4b46c !important;
-    }
-    .btn-outline-light {
-      border-color: rgba(255,255,255,0.15) !important;
-      color: #888 !important;
-      background: transparent !important;
-    }
-    .btn-outline-light:hover {
-      background-color: rgba(255,255,255,0.06) !important;
-      color: #e8e8e8 !important;
-    }
-    .form-text {
-      color: #444 !important;
-    }
-
-    /* ── Logo centrado en móvil ── */
-    .mobile-logo-bar {
-      display: none;
-    }
-
-    /* Quitar margin-top del primer hijo en móvil para no dejar gap */
+    /* ── BOTTOM NAV — solo móvil ── */
     @media (max-width: 991.98px) {
-      .container-fluid > *:first-child {
-        margin-top: 0 !important;
-      }
-    }
+      body { padding-bottom: 74px; padding-top: 0; }
+      nav.navbar { display: none !important; }
 
-    /* ── Bottom nav (solo móvil) ── */
-    @media (max-width: 991.98px) {
+      /* Sin margin-top en el primer hijo */
+      .container-fluid > *:first-child { margin-top: 0 !important; }
 
-      /* Espacio para que el contenido no quede tapado */
-      body {
-        padding-bottom: 70px;
-        padding-top: 0;
-      }
-
-      /* Ocultar navbar superior en móvil */
-      nav.navbar {
-        display: none !important;
-      }
-
-      /* Logo centrado arriba en móvil — fondo translúcido con blur */
+      /* Logo bar */
       .mobile-logo-bar {
         display: flex;
         justify-content: center;
         align-items: center;
-        padding: 12px 0 8px;
-        background-color: rgba(0, 0, 0, 0.6);
-        backdrop-filter: saturate(180%) blur(20px);
-        -webkit-backdrop-filter: saturate(180%) blur(20px);
+        padding: 10px 0 8px;
+        background: rgba(17,17,17,0.75);
+        backdrop-filter: saturate(160%) blur(24px);
+        -webkit-backdrop-filter: saturate(160%) blur(24px);
         position: sticky;
         top: 0;
-        z-index: 100;
+        z-index: 200;
+        border-bottom: 1px solid var(--border);
       }
+      .mobile-logo-bar img { height: 32px; width: auto; }
 
-      .mobile-logo-bar img {
-        height: 36px;
-        width: auto;
-        filter: drop-shadow(0 0 1px rgba(0,0,0,0.45));
+      /* Fecha arriba derecha */
+      #mobile-date-label {
+        position: absolute;
+        right: 16px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: var(--accent);
+        letter-spacing: 0.3px;
       }
 
       /* Bottom bar */
       .bottom-nav {
         display: flex;
         position: fixed;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        height: 62px;
-        background: #0a0a0a;
-        border-top: 1px solid rgba(212,180,108,0.15);
+        bottom: 0; left: 0; right: 0;
+        height: 60px;
+        background: rgba(17,17,17,0.92);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border-top: 1px solid var(--border);
         z-index: 1050;
         align-items: stretch;
         padding-bottom: env(safe-area-inset-bottom);
@@ -308,206 +313,164 @@
 
       .bottom-nav .bn-item {
         flex: 1;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
+        display: flex; flex-direction: column;
+        align-items: center; justify-content: center;
         gap: 3px;
-        color: #555555;
+        color: var(--text3);
         text-decoration: none;
-        font-size: 10px;
+        font-size: 9.5px;
         font-weight: 500;
         cursor: pointer;
-        background: none;
-        border: none;
-        padding: 0;
+        background: none; border: none; padding: 0;
         -webkit-tap-highlight-color: transparent;
         transition: color 0.15s;
+        letter-spacing: 0.2px;
       }
+      .bottom-nav .bn-item i { font-size: 21px; line-height: 1; }
+      .bottom-nav .bn-item:active, .bottom-nav .bn-item.active,
+      .bottom-nav .bn-item:hover { color: var(--accent); }
 
-      .bottom-nav .bn-item i {
-        font-size: 22px;
-        line-height: 1;
-      }
-
-      .bottom-nav .bn-item:active,
-      .bottom-nav .bn-item.active {
-        color: #d4b46c;
-      }
-
-      .bottom-nav .bn-item:hover {
-        color: #d4b46c;
-      }
-
-      /* Botón "+" central resaltado */
+      /* Botón + central */
       .bottom-nav .bn-item.bn-primary i {
-        background: #d4b46c;
-        color: #000000;
+        background: var(--accent);
+        color: #111;
         border-radius: 50%;
-        width: 36px;
-        height: 36px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 20px;
+        width: 38px; height: 38px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 22px;
+        box-shadow: 0 2px 12px rgba(212,180,108,0.25);
       }
+      .bottom-nav .bn-item.bn-primary { color: var(--text3); }
 
-      /* Panel "más" — animación slide-up */
+      /* Panel "más" */
       .bn-more-menu {
         position: fixed;
-        bottom: 62px;
-        left: 0;
-        right: 0;
-        background: #0f0f0f;
-        border-top: 1px solid rgba(212,180,108,0.2);
+        bottom: 60px; left: 0; right: 0;
+        background: var(--surface);
+        border-top: 1px solid var(--border2);
         border-radius: 16px 16px 0 0;
-        padding: 12px 0 8px;
+        padding: 8px 0 10px;
         z-index: 1049;
         transform: translateY(100%);
-        transition: transform 0.28s cubic-bezier(0.32, 0.72, 0, 1),
-                    opacity 0.28s ease;
         opacity: 0;
         pointer-events: none;
+        transition: transform 0.26s cubic-bezier(0.32,0.72,0,1), opacity 0.26s ease;
       }
+      .bn-more-menu.show { transform: translateY(0); opacity: 1; pointer-events: auto; }
 
-      .bn-more-menu.show {
-        transform: translateY(0);
-        opacity: 1;
-        pointer-events: auto;
+      /* Handle (pastilla arriba del panel) */
+      .bn-more-menu::before {
+        content: '';
+        display: block;
+        width: 36px; height: 4px;
+        background: var(--border);
+        border-radius: 2px;
+        margin: 6px auto 10px;
       }
 
       .bn-more-menu a {
-        display: flex;
-        align-items: center;
-        gap: 14px;
-        padding: 13px 24px;
-        color: #e8e8e8;
+        display: flex; align-items: center; gap: 14px;
+        padding: 12px 22px;
+        color: var(--text2);
         text-decoration: none;
-        font-size: 15px;
-        transition: background 0.15s;
+        font-size: 0.88rem;
+        font-weight: 500;
+        transition: background 0.12s, color 0.12s;
       }
-
-      .bn-more-menu a i {
-        font-size: 20px;
-        color: #d4b46c;
-        width: 24px;
-        text-align: center;
+      .bn-more-menu a i { font-size: 18px; color: var(--accent); width: 22px; text-align: center; }
+      .bn-more-menu a:active, .bn-more-menu a:hover {
+        background: var(--surface2); color: var(--text);
       }
+      .bn-more-menu hr { border-color: var(--border); margin: 4px 22px; }
 
-      .bn-more-menu a:active,
-      .bn-more-menu a:hover {
-        background: rgba(212,180,108,0.06);
-      }
-
-      .bn-more-menu hr {
-        border-color: rgba(212,180,108,0.15);
-        margin: 4px 24px;
-      }
-
-      /* Overlay — fade in/out */
+      /* Overlay */
       .bn-overlay {
-        position: fixed;
-        inset: 0;
-        z-index: 1048;
-        background: rgba(0,0,0,0.5);
-        opacity: 0;
-        pointer-events: none;
-        transition: opacity 0.28s ease;
+        position: fixed; inset: 0; z-index: 1048;
+        background: rgba(0,0,0,0.55);
+        opacity: 0; pointer-events: none;
+        transition: opacity 0.26s ease;
       }
-
-      .bn-overlay.show {
-        opacity: 1;
-        pointer-events: auto;
-      }
+      .bn-overlay.show { opacity: 1; pointer-events: auto; }
     }
 
-    /* En desktop el bottom nav y logo móvil no existen */
+    /* Desktop: ocultar elementos móvil */
     @media (min-width: 992px) {
-      .bottom-nav,
-      .bn-more-menu,
-      .bn-overlay,
-      .mobile-logo-bar {
-        display: none !important;
-      }
+      .bottom-nav, .bn-more-menu, .bn-overlay, .mobile-logo-bar { display: none !important; }
     }
   </style>
 
   {% block extra_head %}{% endblock %}
 </head>
 
-<body style="background-color:#000000 !important; color:#e8e8e8; margin:0; padding:0;">
+<body>
 
-<!-- Logo + fecha (solo móvil) -->
-<div class="mobile-logo-bar" style="position: relative;">
+<!-- Logo + fecha — solo móvil -->
+<div class="mobile-logo-bar" style="position:relative;">
   <img
     src="{{ url_for('static', filename='img/logotipo.png') }}"
     alt="Agenda Detailing"
-    onerror="this.style.display='none'; this.insertAdjacentHTML('afterend','<span style=\'color:#d4b46c;font-weight:700;font-size:18px\'>Agenda</span>');"
+    onerror="this.style.display='none';this.insertAdjacentHTML('afterend','<span style=\'color:#d4b46c;font-weight:700;font-size:17px\'>Agenda</span>');"
   >
-  <span id="mobile-date-label" style="
-    position: absolute;
-    right: 16px;
-    font-size: 0.8rem;
-    font-weight: 500;
-    color: #d4b46c;
-    letter-spacing: 0.2px;
-  "></span>
+  <span id="mobile-date-label"></span>
 </div>
 <script>
-  (function() {
+  (function(){
     var now = new Date();
-    var label = now.toLocaleDateString('es-CO', { month: 'short', day: 'numeric' });
-    label = label.charAt(0).toUpperCase() + label.slice(1);
+    var label = now.toLocaleDateString('es-CO',{month:'short',day:'numeric'});
+    label = label.charAt(0).toUpperCase()+label.slice(1);
     var el = document.getElementById('mobile-date-label');
-    if (el) el.textContent = label;
+    if(el) el.textContent = label;
   })();
 </script>
 
-<!-- Modal para mostrar detalles de la cita -->
+<!-- Modal detalles de cita -->
 <div class="modal fade" id="appointmentModal" tabindex="-1">
   <div class="modal-dialog modal-lg">
-    <div class="modal-content" style="background:#0f0f0f; border:1px solid rgba(212,180,108,0.15); color:#e8e8e8;">
-      <div class="modal-header" style="border-bottom:1px solid rgba(212,180,108,0.15);">
-        <h5 class="modal-title" style="color:#d4b46c;">Detalles de la Cita</h5>
+    <div class="modal-content" style="background:var(--surface);border:1px solid var(--border);color:var(--text);border-radius:var(--radius);">
+      <div class="modal-header" style="border-bottom:1px solid var(--border);padding:14px 18px;">
+        <h5 class="modal-title" style="color:var(--accent);font-size:0.95rem;">Detalles de la Cita</h5>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
-      <div class="modal-body" id="modalBodyContent" style="color:#e8e8e8;">
-        Cargando...
-      </div>
-      <div class="modal-footer" style="border-top:1px solid rgba(212,180,108,0.15);">
-        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button>
+      <div class="modal-body" id="modalBodyContent" style="padding:16px 18px;">Cargando...</div>
+      <div class="modal-footer" style="border-top:1px solid var(--border);padding:10px 18px;">
+        <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cerrar</button>
       </div>
     </div>
   </div>
 </div>
 
 <!-- Navbar desktop -->
-<nav class="navbar navbar-expand-lg mb-0" style="background: rgba(0,0,0,0.85); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-bottom: 1px solid rgba(212,180,108,0.12);">
-  <div class="container-fluid">
-    <a class="navbar-brand" href="{{ url_for('calendar_view') }}" style="padding: 0;">
+<nav class="navbar navbar-expand-lg mb-0"
+     style="background:rgba(17,17,17,0.88);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border-bottom:1px solid var(--border);">
+  <div class="container-fluid px-3">
+    <a class="navbar-brand" href="{{ url_for('calendar_view') }}" style="padding:0;">
       <img src="{{ url_for('static', filename='img/logotipo.png') }}" alt="Agenda Detailing" class="navbar-logo"
-        onerror="this.style.display='none'; this.insertAdjacentHTML('afterend','<span style=\'color:#d4b46c;font-weight:700;font-size:18px\'>Agenda</span>');">
+        onerror="this.style.display='none';this.insertAdjacentHTML('afterend','<span class=\'navbar-brand-text\'>Agenda</span>');">
     </a>
-    <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent" aria-controls="navbarContent" aria-expanded="false" aria-label="Toggle navigation" style="color:#888;">
-      <i class="bi bi-list" style="font-size:1.4rem;"></i>
+    <button class="navbar-toggler border-0 p-1" type="button"
+            data-bs-toggle="collapse" data-bs-target="#navbarContent"
+            style="color:var(--text2);">
+      <i class="bi bi-list" style="font-size:1.5rem;"></i>
     </button>
     <div class="collapse navbar-collapse justify-content-end" id="navbarContent">
-      <div class="d-flex flex-column flex-lg-row align-items-lg-center gap-1 mt-3 mt-lg-0">
+      <div class="d-flex flex-column flex-lg-row align-items-lg-center gap-1 py-2 py-lg-0">
         <a class="nav-link-custom" href="{{ url_for('calendar_view') }}">Agenda</a>
         <a class="nav-link-custom" href="{{ url_for('parking_list') }}">Parqueaderos</a>
         <a class="nav-link-custom nav-link-accent" href="{{ url_for('new_appointment') }}">+ Nueva</a>
         <a class="nav-link-custom" href="{{ url_for('expenses_new') }}">Gastos</a>
         <div class="dropdown">
-          <button class="nav-link-custom dropdown-toggle border-0 bg-transparent" type="button" data-bs-toggle="dropdown" aria-expanded="false">Más</button>
-          <ul class="dropdown-menu dropdown-menu-end" style="background:#0f0f0f; border:1px solid rgba(212,180,108,0.15); border-radius:12px;">
-            <li><a class="dropdown-item-custom" href="{{ url_for('sales_list') }}"><i class="bi bi-graph-up-arrow me-2" style="color:#d4b46c;"></i>Ingresos</a></li>
-            <li><a class="dropdown-item-custom" href="{{ url_for('appointments_list') }}"><i class="bi bi-card-list me-2" style="color:#d4b46c;"></i>Citas</a></li>
-            <li><hr class="dropdown-divider" style="border-color:rgba(212,180,108,0.15);"></li>
-            <li><a class="dropdown-item-custom" href="{{ url_for('vehicle_types_list') }}"><i class="bi bi-car-front me-2" style="color:#d4b46c;"></i>Tipos de vehículo</a></li>
-            <li><a class="dropdown-item-custom" href="{{ url_for('services_view') }}"><i class="bi bi-tools me-2" style="color:#d4b46c;"></i>Servicios</a></li>
-            <li><a class="dropdown-item-custom" href="{{ url_for('service_prices_list') }}"><i class="bi bi-tag me-2" style="color:#d4b46c;"></i>Detalle de servicios</a></li>
-            <li><a class="dropdown-item-custom" href="{{ url_for('payment_methods_list') }}"><i class="bi bi-credit-card me-2" style="color:#d4b46c;"></i>Medios de pago</a></li>
-            <li><a class="dropdown-item-custom" href="{{ url_for('agreements_list') }}"><i class="bi bi-handshake me-2" style="color:#d4b46c;"></i>Convenios</a></li>
+          <button class="nav-link-custom border-0 bg-transparent dropdown-toggle"
+                  type="button" data-bs-toggle="dropdown" aria-expanded="false">Más</button>
+          <ul class="dropdown-menu dropdown-menu-end py-2"
+              style="background:var(--surface);border:1px solid var(--border);border-radius:12px;min-width:200px;">
+            <li><a class="dropdown-item-custom" href="{{ url_for('sales_list') }}"><i class="bi bi-graph-up-arrow"></i>Ingresos</a></li>
+            <li><a class="dropdown-item-custom" href="{{ url_for('appointments_list') }}"><i class="bi bi-card-list"></i>Citas</a></li>
+            <li><hr style="border-color:var(--border);margin:6px 16px;"></li>
+            <li><a class="dropdown-item-custom" href="{{ url_for('vehicle_types_list') }}"><i class="bi bi-car-front"></i>Tipos de vehículo</a></li>
+            <li><a class="dropdown-item-custom" href="{{ url_for('services_view') }}"><i class="bi bi-tools"></i>Servicios</a></li>
+            <li><a class="dropdown-item-custom" href="{{ url_for('service_prices_list') }}"><i class="bi bi-tag"></i>Detalle de servicios</a></li>
+            <li><a class="dropdown-item-custom" href="{{ url_for('payment_methods_list') }}"><i class="bi bi-credit-card"></i>Medios de pago</a></li>
+            <li><a class="dropdown-item-custom" href="{{ url_for('agreements_list') }}"><i class="bi bi-handshake"></i>Convenios</a></li>
           </ul>
         </div>
       </div>
@@ -515,7 +478,7 @@
   </div>
 </nav>
 
-<div class="container-fluid px-3 px-lg-4">
+<div class="container-fluid px-3 px-lg-4 pt-3">
   {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
       {% for category, message in messages %}
@@ -526,66 +489,53 @@
       {% endfor %}
     {% endif %}
   {% endwith %}
-
   {% block content %}{% endblock %}
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 {% block extra_scripts %}{% endblock %}
 
-<!-- ── Overlay ── -->
+<!-- Overlay -->
 <div class="bn-overlay" id="bnOverlay" onclick="closeBnMenu()"></div>
 
-<!-- ── Panel "más" móvil ── -->
+<!-- Panel "más" móvil -->
 <div class="bn-more-menu" id="bnMoreMenu">
-  <a href="{{ url_for('sales_list') }}"><i class="bi bi-graph-up-arrow"></i> Ingresos</a>
-  <a href="{{ url_for('appointments_list') }}"><i class="bi bi-card-list"></i> Citas</a>
+  <a href="{{ url_for('sales_list') }}"><i class="bi bi-graph-up-arrow"></i>Ingresos</a>
+  <a href="{{ url_for('appointments_list') }}"><i class="bi bi-card-list"></i>Citas</a>
   <hr>
-  <a href="{{ url_for('vehicle_types_list') }}"><i class="bi bi-car-front"></i> Tipos de vehículo</a>
-  <a href="{{ url_for('services_view') }}"><i class="bi bi-tools"></i> Servicios</a>
-  <a href="{{ url_for('service_prices_list') }}"><i class="bi bi-tag"></i> Detalle de servicios</a>
-  <a href="{{ url_for('payment_methods_list') }}"><i class="bi bi-credit-card"></i> Medios de pago</a>
-  <a href="{{ url_for('agreements_list') }}"><i class="bi bi-handshake"></i> Convenios</a>
+  <a href="{{ url_for('vehicle_types_list') }}"><i class="bi bi-car-front"></i>Tipos de vehículo</a>
+  <a href="{{ url_for('services_view') }}"><i class="bi bi-tools"></i>Servicios</a>
+  <a href="{{ url_for('service_prices_list') }}"><i class="bi bi-tag"></i>Detalle de servicios</a>
+  <a href="{{ url_for('payment_methods_list') }}"><i class="bi bi-credit-card"></i>Medios de pago</a>
+  <a href="{{ url_for('agreements_list') }}"><i class="bi bi-handshake"></i>Convenios</a>
 </div>
 
-<!-- ── Bottom nav (solo móvil) ── -->
+<!-- Bottom nav -->
 <nav class="bottom-nav">
   <a class="bn-item" href="{{ url_for('calendar_view') }}">
-    <i class="bi bi-calendar3"></i>
-    <span>Agenda</span>
+    <i class="bi bi-calendar3"></i><span>Agenda</span>
   </a>
   <a class="bn-item" href="{{ url_for('parking_list') }}">
-    <i class="bi bi-p-square"></i>
-    <span>Parqueaderos</span>
+    <i class="bi bi-p-square"></i><span>Parqueaderos</span>
   </a>
   <a class="bn-item bn-primary" href="{{ url_for('new_appointment') }}">
-    <i class="bi bi-plus"></i>
-    <span>Nueva</span>
+    <i class="bi bi-plus"></i><span>Nueva</span>
   </a>
   <a class="bn-item" href="{{ url_for('expenses_new') }}">
-    <i class="bi bi-cash-stack"></i>
-    <span>Gastos</span>
+    <i class="bi bi-cash-stack"></i><span>Gastos</span>
   </a>
   <button class="bn-item" onclick="toggleBnMenu()">
-    <i class="bi bi-grid-3x3-gap"></i>
-    <span>Más</span>
+    <i class="bi bi-grid-3x3-gap"></i><span>Más</span>
   </button>
 </nav>
 
 <script>
-  function toggleBnMenu() {
-    var menu = document.getElementById('bnMoreMenu');
-    var overlay = document.getElementById('bnOverlay');
-    var isOpen = menu.classList.contains('show');
-    if (isOpen) {
-      menu.classList.remove('show');
-      overlay.classList.remove('show');
-    } else {
-      menu.classList.add('show');
-      overlay.classList.add('show');
-    }
+  function toggleBnMenu(){
+    var m=document.getElementById('bnMoreMenu'), o=document.getElementById('bnOverlay');
+    var open=m.classList.contains('show');
+    m.classList.toggle('show',!open); o.classList.toggle('show',!open);
   }
-  function closeBnMenu() {
+  function closeBnMenu(){
     document.getElementById('bnMoreMenu').classList.remove('show');
     document.getElementById('bnOverlay').classList.remove('show');
   }

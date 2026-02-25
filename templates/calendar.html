@@ -4,17 +4,11 @@
 <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/main.min.css" rel="stylesheet">
 
 <style>
-  html, body {
-    height: 100%;
-    margin: 0;
-    padding: 0;
-    background-color: #000000 !important;
-  }
+  html, body { height: 100%; margin: 0; padding: 0; }
 
-  /* ── Contenedor del calendario ── */
+  /* ── Contenedor ── */
   #calendar-container {
-    /* Desktop: resta navbar (~56px) + margen */
-    height: calc(100vh - 72px);
+    height: calc(100vh - 68px); /* desktop: navbar ~56px + pt-3 */
     width: 100%;
     max-width: 1400px;
     margin: 0 auto;
@@ -23,125 +17,80 @@
   #calendar {
     height: 100% !important;
     width: 100%;
-    background-color: #2a2a2a;
+    background-color: #1a1a1a;
     border-radius: 10px;
     padding: 6px 10px 10px;
     overflow: visible !important;
+    border: 1px solid #2a2a2a;
   }
 
-  /* Texto oscuro dentro de los eventos */
-  .fc-event-title,
-  .fc-event-main,
-  .fc-event {
-    color: #000 !important;
-  }
-  .fc-event {
-    line-height: 1.25;
-  }
+  /* Eventos */
+  .fc-event-title, .fc-event-main, .fc-event { color: #000 !important; }
+  .fc-event { line-height: 1.25; border-radius: 5px !important; }
 
-  /* Día actual — toque dorado muy sutil */
+  /* Día actual — toque dorado sutil */
   .fc-timegrid-col.fc-day-today,
   .fc-daygrid-day.fc-day-today,
   .fc .fc-highlight,
   .fc .fc-day-today {
-    background-color: rgba(212,180,108,0.08) !important;
+    background-color: rgba(212,180,108,0.06) !important;
   }
 
-  /* Encabezados de días */
+  /* Encabezados y horas */
   .fc .fc-col-header-cell-cushion {
-    color: #666666 !important;
-    font-weight: 400 !important;
-    text-decoration: none !important;
+    color: #555 !important; font-weight: 500 !important;
+    text-decoration: none !important; font-size: 0.75rem !important;
   }
-
-  /* Números de día y etiquetas de hora */
   .fc .fc-daygrid-day-number,
   .fc .fc-timegrid-axis-cushion {
-    color: #666666 !important;
-    font-weight: 400 !important;
+    color: #444 !important; font-weight: 400 !important; font-size: 0.72rem !important;
   }
+  /* Líneas de separación */
+  .fc .fc-timegrid-slot { border-color: #222 !important; }
+  .fc .fc-col-header { border-color: #2a2a2a !important; }
 
-  /* ===== Toolbar minimalista ===== */
+  /* ── Toolbar ── */
   .fc-header-toolbar {
     display: grid !important;
     grid-template-columns: auto 1fr auto;
     align-items: center;
-    gap: 6px;
-    margin-bottom: 6px !important;
+    gap: 4px;
+    margin-bottom: 8px !important;
     padding: 0 2px;
   }
+  .fc-toolbar-chunk:first-child { display: flex; gap: 2px; justify-content: flex-start; }
+  .fc-toolbar-chunk:last-child  { display: flex; gap: 2px; justify-content: flex-end; }
 
-  .fc-toolbar-chunk:first-child {
-    display: flex;
-    gap: 2px;
-    justify-content: flex-start;
-  }
-
-  .fc-toolbar-chunk:last-child {
-    display: flex;
-    gap: 2px;
-    justify-content: flex-end;
-  }
-
-  /* Título */
   .fc-toolbar-title {
-    font-size: 0.85rem;
-    font-weight: 500;
-    color: #d4b46c;
-    text-align: center;
-    line-height: 1.2;
+    font-size: 0.82rem; font-weight: 500;
+    color: #d4b46c; text-align: center; line-height: 1.2;
   }
 
-  /* Todos los botones del toolbar: estilo fantasma minimalista */
   .fc .fc-button {
-    background: transparent !important;
-    border: none !important;
-    box-shadow: none !important;
-    color: #555555 !important;
-    font-size: 0.72rem !important;
-    font-weight: 500 !important;
-    padding: 3px 7px !important;
-    border-radius: 6px !important;
+    background: transparent !important; border: none !important;
+    box-shadow: none !important; color: #444 !important;
+    font-size: 0.7rem !important; font-weight: 500 !important;
+    padding: 3px 8px !important; border-radius: 6px !important;
     line-height: 1.4 !important;
     transition: color 0.15s, background 0.15s !important;
-    text-transform: uppercase;
-    letter-spacing: 0.3px;
+    text-transform: uppercase; letter-spacing: 0.3px;
   }
-
-  .fc .fc-button:hover,
-  .fc .fc-button:focus {
-    color: #d4b46c !important;
-    background: transparent !important;
+  .fc .fc-button:hover, .fc .fc-button:focus {
+    color: #d4b46c !important; background: rgba(212,180,108,0.06) !important;
     outline: none !important;
   }
-
-  /* Botón activo (vista seleccionada) */
   .fc .fc-button-active,
   .fc .fc-button-primary:not(:disabled).fc-button-active {
-    color: #d4b46c !important;
-    background: rgba(212,180,108,0.1) !important;
+    color: #d4b46c !important; background: rgba(212,180,108,0.1) !important;
   }
+  .fc .fc-icon { font-size: 0.85rem !important; }
 
-  /* Iconos de flechas más pequeños */
-  .fc .fc-icon {
-    font-size: 0.9rem !important;
-  }
-
-  /* ── Ajustes móvil ── */
+  /* ── Móvil ── */
   @media (max-width: 991.98px) {
-    /* En móvil: resta logo-bar (~60px) + bottom-nav (62px) + márgenes */
-    #calendar-container {
-      height: calc(100vh - 130px);
-    }
-
-    .fc-toolbar-title {
-      font-size: 0.78rem;
-    }
-
-    .fc .fc-button {
-      font-size: 0.68rem !important;
-      padding: 2px 5px !important;
-    }
+    /* logo-bar ~52px + bottom-nav 60px + pt-3 ~12px + algo de margen */
+    #calendar-container { height: calc(100vh - 124px); }
+    .fc-toolbar-title { font-size: 0.74rem; }
+    .fc .fc-button { font-size: 0.65rem !important; padding: 2px 5px !important; }
   }
 </style>
 {% endblock %}
