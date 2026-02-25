@@ -13,8 +13,8 @@
 
   /* ── Contenedor del calendario ── */
   #calendar-container {
-    /* Desktop: resta navbar (~56px) + logo-bar (0) + título (~36px) + márgenes */
-    height: calc(100vh - 120px);
+    /* Desktop: resta navbar (~56px) + margen */
+    height: calc(100vh - 72px);
     width: 100%;
     max-width: 1400px;
     margin: 0 auto;
@@ -128,9 +128,9 @@
 
   /* ── Ajustes móvil ── */
   @media (max-width: 991.98px) {
-    /* En móvil: resta logo-bar (~60px) + título (~32px) + bottom-nav (62px) + márgenes */
+    /* En móvil: resta logo-bar (~60px) + bottom-nav (62px) + márgenes */
     #calendar-container {
-      height: calc(100vh - 154px);
+      height: calc(100vh - 130px);
     }
 
     .fc-toolbar-title {
@@ -146,13 +146,6 @@
 {% endblock %}
 
 {% block content %}
-
-<div class="text-center mb-2">
-  <h2 id="calendar-page-title"
-      style="font-size: 1.1rem; font-weight: 400; color: #cccccc;">
-    <!-- Se llena dinámicamente -->
-  </h2>
-</div>
 <div id="calendar-container">
   <div id="calendar"></div>
 </div>
@@ -169,7 +162,7 @@ document.addEventListener('DOMContentLoaded', function() {
   var calendar = new FullCalendar.Calendar(calendarEl, {
     headerToolbar: {
       left: 'prev,next today',
-      center: '',
+      center: 'title',
       right: 'timeGridDay,timeGridWeek'
     },
     initialView: window.innerWidth < 768 ? 'timeGridDay' : 'timeGridWeek',
@@ -186,7 +179,7 @@ document.addEventListener('DOMContentLoaded', function() {
     },
     dayHeaderFormat: { weekday: 'short', day: 'numeric' },
     slotMinTime: '08:00:00',
-    slotMaxTime: '20:00:00',
+    slotMaxTime: '19:00:00',
     nowIndicator: true,
     allDaySlot: false,  
     expandRows: true,
@@ -391,23 +384,6 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
   calendar.render();
-
-  function updatePageTitle() {
-    const date = calendar.getDate();
-    const formatter = new Intl.DateTimeFormat('es-ES', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric'
-    });
-    document.getElementById('calendar-page-title').textContent =
-      formatter.format(date);
-  }
-
-  updatePageTitle();
-
-  calendar.on('datesSet', function() {
-    updatePageTitle();
-  });
 });
 
 function openCloseService(appointmentId) {
