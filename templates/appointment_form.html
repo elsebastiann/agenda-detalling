@@ -48,7 +48,9 @@
                  placeholder="Ej: ABC123"
                  value="{{ appointment.plate or '' if is_edit else '' }}"
                  autocomplete="off"
+                 list="platesSuggestions"
                  style="text-transform: uppercase;">
+          <datalist id="platesSuggestions"></datalist>
         </div>
         <div class="col-sm-6">
           <label class="form-label">Nombre del cliente</label>
@@ -207,11 +209,30 @@
   const priceLabel    = document.getElementById("pricePreview");
 
   // --- Autocompletar por placa ---
+  // --- Autocompletar por placa ---
   let plateTimer = null;
   if (plateInput) {
     plateInput.addEventListener("input", function () {
       clearTimeout(plateTimer);
       const val = this.value.trim();
+
+      // Sugerencias desde 2 caracteres
+      if (val.length >= 2) {
+        fetch(`/api/clients/plates?q=${encodeURIComponent(val)}`)
+          .then(r => r.json())
+          .then(plates => {
+            const dl = document.getElementById("platesSuggestions");
+            dl.innerHTML = "";
+            plates.forEach(p => {
+              const opt = document.createElement("option");
+              opt.value = p;
+              dl.appendChild(opt);
+            });
+          })
+          .catch(() => {});
+      }
+
+      // Autocompletar campos desde 3 caracteres
       if (val.length < 3) return;
       plateTimer = setTimeout(() => {
         fetch(`/api/clients/by-plate?plate=${encodeURIComponent(val)}`)

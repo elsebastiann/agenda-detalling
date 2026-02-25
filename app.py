@@ -1781,6 +1781,18 @@ def ensure_clients_agreement_schema():
 
 
 # -----------------------
+# API: SUGERIR PLACAS
+# -----------------------
+@app.route("/api/clients/plates")
+def api_client_plates():
+    q = (request.args.get("q") or "").strip().upper()
+    query = db.session.query(Client.plate).filter(Client.plate != "")
+    if q:
+        query = query.filter(Client.plate.like(f"{q}%"))
+    plates = [r[0] for r in query.order_by(Client.plate).limit(10).all()]
+    return jsonify(plates)
+
+# -----------------------
 # API: ESTIMAR PRECIO DE CITA
 # -----------------------
 @app.route("/api/estimate-price", methods=["POST"])
