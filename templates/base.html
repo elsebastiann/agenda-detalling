@@ -16,6 +16,9 @@
     rel="stylesheet">
 
   <style>
+    /* 1. Fondo oscuro en toda la barra de estado del navegador (fix borde blanco arriba) */
+    :root { color-scheme: dark; }
+
     /* Navbar logo */
     .navbar-logo {
       height: 40px;
@@ -29,17 +32,43 @@
       letter-spacing: 0.2px;
     }
 
+    /* ── Logo centrado en móvil ── */
+    .mobile-logo-bar {
+      display: none;
+    }
+
     /* ── Bottom nav (solo móvil) ── */
     @media (max-width: 991.98px) {
 
-      /* Espacio para que el contenido no quede tapado por el bottom bar */
+      /* Fix borde blanco: forzar color de fondo en toda la página */
+      html, body {
+        background-color: #212529 !important;
+      }
+
+      /* Espacio para que el contenido no quede tapado */
       body {
         padding-bottom: 70px;
+        padding-top: 0;
       }
 
       /* Ocultar navbar superior en móvil */
       nav.navbar {
         display: none !important;
+      }
+
+      /* Logo centrado arriba en móvil */
+      .mobile-logo-bar {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 12px 0 8px;
+        background-color: #212529;
+      }
+
+      .mobile-logo-bar img {
+        height: 36px;
+        width: auto;
+        filter: drop-shadow(0 0 1px rgba(0,0,0,0.45));
       }
 
       /* Bottom bar */
@@ -54,7 +83,7 @@
         border-top: 1px solid #2c2c2e;
         z-index: 1050;
         align-items: stretch;
-        padding-bottom: env(safe-area-inset-bottom); /* notch de iPhone */
+        padding-bottom: env(safe-area-inset-bottom);
       }
 
       .bottom-nav .bn-item {
@@ -99,7 +128,7 @@
         font-size: 20px;
       }
 
-      /* Panel "más" */
+      /* Panel "más" — animación slide-up */
       .bn-more-menu {
         position: fixed;
         bottom: 62px;
@@ -110,11 +139,17 @@
         border-radius: 16px 16px 0 0;
         padding: 12px 0 8px;
         z-index: 1049;
-        display: none;
+        transform: translateY(100%);
+        transition: transform 0.28s cubic-bezier(0.32, 0.72, 0, 1),
+                    opacity 0.28s ease;
+        opacity: 0;
+        pointer-events: none;
       }
 
       .bn-more-menu.show {
-        display: block;
+        transform: translateY(0);
+        opacity: 1;
+        pointer-events: auto;
       }
 
       .bn-more-menu a {
@@ -138,25 +173,29 @@
         background: #3a3a3c;
       }
 
-      /* Overlay para cerrar el panel "más" */
+      /* Overlay — fade in/out */
       .bn-overlay {
-        display: none;
         position: fixed;
         inset: 0;
         z-index: 1048;
         background: rgba(0,0,0,0.4);
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.28s ease;
       }
 
       .bn-overlay.show {
-        display: block;
+        opacity: 1;
+        pointer-events: auto;
       }
     }
 
-    /* En desktop el bottom nav no existe */
+    /* En desktop el bottom nav y logo móvil no existen */
     @media (min-width: 992px) {
       .bottom-nav,
       .bn-more-menu,
-      .bn-overlay {
+      .bn-overlay,
+      .mobile-logo-bar {
         display: none !important;
       }
     }
@@ -166,6 +205,15 @@
 </head>
 
 <body class="bg-dark text-light">
+
+<!-- Logo centrado (solo móvil) -->
+<div class="mobile-logo-bar">
+  <img
+    src="{{ url_for('static', filename='img/logotipo.png') }}"
+    alt="Agenda Detailing"
+    onerror="this.style.display='none'; this.insertAdjacentHTML('afterend','<span style=\'color:#fff;font-weight:700;font-size:18px\'>Agenda</span>');"
+  >
+</div>
 
 <!-- Modal para mostrar detalles de la cita -->
 <div class="modal fade" id="appointmentModal" tabindex="-1">
