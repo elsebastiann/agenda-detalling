@@ -21,11 +21,13 @@
   <style>
     /* Fondo negro global — aplica siempre, en todos los breakpoints */
     :root { color-scheme: dark; }
-    html {
+    html, body {
       background-color: #000000 !important;
     }
-    body {
-      background-color: #000000 !important;
+    /* Quitar cualquier fondo de Bootstrap en los contenedores */
+    .container-fluid,
+    .container {
+      background-color: transparent !important;
     }
 
     /* Navbar logo */
@@ -208,7 +210,7 @@
   {% block extra_head %}{% endblock %}
 </head>
 
-<body class="bg-dark text-light">
+<body class="text-light" style="background-color:#000000 !important;">
 
 <!-- Logo centrado (solo móvil) -->
 <div class="mobile-logo-bar">
