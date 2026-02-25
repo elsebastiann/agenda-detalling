@@ -6,91 +6,83 @@
 <style>
   html, body { height: 100%; margin: 0; padding: 0; }
 
-  /* ── Contenedor ── */
   #calendar-container {
-    height: calc(100vh - 68px); /* desktop: navbar ~56px + pt-3 */
-    width: 100%;
-    max-width: 1400px;
-    margin: 0 auto;
+    height: calc(100vh - 68px);
+    width: 100%; max-width: 1400px; margin: 0 auto;
   }
 
   #calendar {
-    height: 100% !important;
-    width: 100%;
-    background-color: #1a1a1a;
-    border-radius: 10px;
+    height: 100% !important; width: 100%;
+    background-color: #ffffff;
+    border-radius: 12px;
     padding: 6px 10px 10px;
     overflow: visible !important;
-    border: 1px solid #2a2a2a;
+    border: 1px solid #e4dbd0;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 4px 12px rgba(0,0,0,0.04);
   }
 
   /* Eventos */
-  .fc-event-title, .fc-event-main, .fc-event { color: #000 !important; }
-  .fc-event { line-height: 1.25; border-radius: 5px !important; }
+  .fc-event-title, .fc-event-main, .fc-event { color: #fff !important; }
+  .fc-event { line-height: 1.25; border-radius: 6px !important; border: none !important; }
 
-  /* Día actual — toque dorado sutil */
+  /* Día actual — dorado cálido sutil */
   .fc-timegrid-col.fc-day-today,
   .fc-daygrid-day.fc-day-today,
   .fc .fc-highlight,
   .fc .fc-day-today {
-    background-color: rgba(212,180,108,0.06) !important;
+    background-color: rgba(212,180,108,0.1) !important;
   }
 
   /* Encabezados y horas */
   .fc .fc-col-header-cell-cushion {
-    color: #555 !important; font-weight: 500 !important;
-    text-decoration: none !important; font-size: 0.75rem !important;
+    color: #b0a898 !important; font-weight: 600 !important;
+    text-decoration: none !important; font-size: 0.72rem !important;
+    text-transform: uppercase; letter-spacing: 0.4px;
   }
   .fc .fc-daygrid-day-number,
   .fc .fc-timegrid-axis-cushion {
-    color: #444 !important; font-weight: 400 !important; font-size: 0.72rem !important;
+    color: #b0a898 !important; font-weight: 400 !important; font-size: 0.7rem !important;
   }
-  /* Líneas de separación */
-  .fc .fc-timegrid-slot { border-color: #222 !important; }
-  .fc .fc-col-header { border-color: #2a2a2a !important; }
+  .fc .fc-timegrid-slot { border-color: #f0ebe4 !important; }
+  .fc .fc-col-header   { border-color: #e4dbd0 !important; }
 
   /* ── Toolbar ── */
   .fc-header-toolbar {
     display: grid !important;
     grid-template-columns: auto 1fr auto;
     align-items: center;
-    gap: 4px;
-    margin-bottom: 8px !important;
-    padding: 0 2px;
+    gap: 4px; margin-bottom: 8px !important; padding: 0 2px;
   }
   .fc-toolbar-chunk:first-child { display: flex; gap: 2px; justify-content: flex-start; }
   .fc-toolbar-chunk:last-child  { display: flex; gap: 2px; justify-content: flex-end; }
 
   .fc-toolbar-title {
-    font-size: 0.82rem; font-weight: 500;
-    color: #d4b46c; text-align: center; line-height: 1.2;
+    font-size: 0.82rem; font-weight: 700;
+    color: #1a1a1a; text-align: center; line-height: 1.2;
   }
 
   .fc .fc-button {
     background: transparent !important; border: none !important;
-    box-shadow: none !important; color: #444 !important;
-    font-size: 0.7rem !important; font-weight: 500 !important;
+    box-shadow: none !important; color: #b0a898 !important;
+    font-size: 0.68rem !important; font-weight: 600 !important;
     padding: 3px 8px !important; border-radius: 6px !important;
     line-height: 1.4 !important;
     transition: color 0.15s, background 0.15s !important;
     text-transform: uppercase; letter-spacing: 0.3px;
   }
   .fc .fc-button:hover, .fc .fc-button:focus {
-    color: #d4b46c !important; background: rgba(212,180,108,0.06) !important;
-    outline: none !important;
+    color: #1a1a1a !important; background: #f5efe6 !important; outline: none !important;
   }
   .fc .fc-button-active,
   .fc .fc-button-primary:not(:disabled).fc-button-active {
-    color: #d4b46c !important; background: rgba(212,180,108,0.1) !important;
+    color: #b8963e !important; background: rgba(212,180,108,0.12) !important;
   }
   .fc .fc-icon { font-size: 0.85rem !important; }
 
-  /* ── Móvil ── */
   @media (max-width: 991.98px) {
-    /* logo-bar ~52px + bottom-nav 60px + pt-3 ~12px + algo de margen */
     #calendar-container { height: calc(100vh - 124px); }
     .fc-toolbar-title { font-size: 0.74rem; }
-    .fc .fc-button { font-size: 0.65rem !important; padding: 2px 5px !important; }
+    .fc .fc-button { font-size: 0.62rem !important; padding: 2px 5px !important; }
   }
 </style>
 {% endblock %}
