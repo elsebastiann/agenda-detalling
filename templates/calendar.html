@@ -23,7 +23,7 @@
   #calendar {
     height: 100% !important;
     width: 100%;
-    background-color: #383838;
+    background-color: #2a2a2a;
     border-radius: 10px;
     padding: 6px 10px 10px;
     overflow: visible !important;
@@ -39,24 +39,25 @@
     line-height: 1.25;
   }
 
-  /* Día actual — gris oscuro, sutil, sobre el fondo del calendario */
+  /* Día actual — toque dorado muy sutil */
   .fc-timegrid-col.fc-day-today,
   .fc-daygrid-day.fc-day-today,
   .fc .fc-highlight,
   .fc .fc-day-today {
-    background-color: #2e2e2e !important;
+    background-color: rgba(212,180,108,0.08) !important;
   }
 
   /* Encabezados de días */
   .fc .fc-col-header-cell-cushion {
-    color: #cccccc !important;
+    color: #666666 !important;
     font-weight: 400 !important;
     text-decoration: none !important;
   }
 
+  /* Números de día y etiquetas de hora */
   .fc .fc-daygrid-day-number,
   .fc .fc-timegrid-axis-cushion {
-    color: #cccccc !important;
+    color: #666666 !important;
     font-weight: 400 !important;
   }
 
@@ -85,8 +86,8 @@
   /* Título */
   .fc-toolbar-title {
     font-size: 0.85rem;
-    font-weight: 400;
-    color: #aaaaaa;
+    font-weight: 500;
+    color: #d4b46c;
     text-align: center;
     line-height: 1.2;
   }
@@ -96,7 +97,7 @@
     background: transparent !important;
     border: none !important;
     box-shadow: none !important;
-    color: #888888 !important;
+    color: #555555 !important;
     font-size: 0.72rem !important;
     font-weight: 500 !important;
     padding: 3px 7px !important;
@@ -109,16 +110,16 @@
 
   .fc .fc-button:hover,
   .fc .fc-button:focus {
-    color: #ffffff !important;
-    background: rgba(255,255,255,0.07) !important;
+    color: #d4b46c !important;
+    background: transparent !important;
     outline: none !important;
   }
 
   /* Botón activo (vista seleccionada) */
   .fc .fc-button-active,
   .fc .fc-button-primary:not(:disabled).fc-button-active {
-    color: #ffffff !important;
-    background: rgba(255,255,255,0.12) !important;
+    color: #d4b46c !important;
+    background: rgba(212,180,108,0.1) !important;
   }
 
   /* Iconos de flechas más pequeños */
@@ -181,7 +182,7 @@ document.addEventListener('DOMContentLoaded', function() {
     slotMinTime: '08:00:00',
     slotMaxTime: '19:00:00',
     nowIndicator: true,
-    allDaySlot: false,  
+    allDaySlot: false,
     expandRows: true,
     height: '100%',
     handleWindowResize: true,

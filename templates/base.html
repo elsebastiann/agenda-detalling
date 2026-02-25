@@ -19,11 +19,13 @@
     rel="stylesheet">
 
   <style>
-    /* Fondo negro global — aplica siempre, en todos los breakpoints */
+    /* Fondo negro global */
     :root { color-scheme: dark; }
     html, body {
       background-color: #000000 !important;
+      color: #e8e8e8;
     }
+
     /* Quitar cualquier fondo de Bootstrap en los contenedores */
     .container-fluid,
     .container {
@@ -41,6 +43,40 @@
     .navbar-brand-text {
       font-weight: 700;
       letter-spacing: 0.2px;
+      color: #d4b46c;
+    }
+
+    /* ── Nav links desktop ── */
+    .nav-link-custom {
+      color: #888888;
+      text-decoration: none;
+      font-size: 0.82rem;
+      font-weight: 500;
+      padding: 6px 12px;
+      border-radius: 8px;
+      transition: color 0.15s;
+      letter-spacing: 0.2px;
+      cursor: pointer;
+    }
+    .nav-link-custom:hover {
+      color: #d4b46c;
+    }
+    .nav-link-accent {
+      color: #d4b46c !important;
+    }
+
+    /* Dropdown desktop */
+    .dropdown-item-custom {
+      display: block;
+      padding: 10px 18px;
+      color: #e8e8e8;
+      text-decoration: none;
+      font-size: 0.85rem;
+      transition: color 0.15s, background 0.15s;
+    }
+    .dropdown-item-custom:hover {
+      color: #d4b46c;
+      background: rgba(212,180,108,0.06);
     }
 
     /* ── Logo centrado en móvil ── */
@@ -90,8 +126,8 @@
         left: 0;
         right: 0;
         height: 62px;
-        background: #1c1c1e;
-        border-top: 1px solid #2c2c2e;
+        background: #0a0a0a;
+        border-top: 1px solid rgba(212,180,108,0.15);
         z-index: 1050;
         align-items: stretch;
         padding-bottom: env(safe-area-inset-bottom);
@@ -104,7 +140,7 @@
         align-items: center;
         justify-content: center;
         gap: 3px;
-        color: #8e8e93;
+        color: #555555;
         text-decoration: none;
         font-size: 10px;
         font-weight: 500;
@@ -123,13 +159,17 @@
 
       .bottom-nav .bn-item:active,
       .bottom-nav .bn-item.active {
-        color: #ffffff;
+        color: #d4b46c;
       }
 
-      /* Botón "+" resaltado */
+      .bottom-nav .bn-item:hover {
+        color: #d4b46c;
+      }
+
+      /* Botón "+" central resaltado */
       .bottom-nav .bn-item.bn-primary i {
-        background: #0a84ff;
-        color: #fff;
+        background: #d4b46c;
+        color: #000000;
         border-radius: 50%;
         width: 36px;
         height: 36px;
@@ -145,8 +185,8 @@
         bottom: 62px;
         left: 0;
         right: 0;
-        background: #2c2c2e;
-        border-top: 1px solid #3a3a3c;
+        background: #0f0f0f;
+        border-top: 1px solid rgba(212,180,108,0.2);
         border-radius: 16px 16px 0 0;
         padding: 12px 0 8px;
         z-index: 1049;
@@ -168,20 +208,27 @@
         align-items: center;
         gap: 14px;
         padding: 13px 24px;
-        color: #ebebf5;
+        color: #e8e8e8;
         text-decoration: none;
         font-size: 15px;
+        transition: background 0.15s;
       }
 
       .bn-more-menu a i {
         font-size: 20px;
-        color: #8e8e93;
+        color: #d4b46c;
         width: 24px;
         text-align: center;
       }
 
-      .bn-more-menu a:active {
-        background: #3a3a3c;
+      .bn-more-menu a:active,
+      .bn-more-menu a:hover {
+        background: rgba(212,180,108,0.06);
+      }
+
+      .bn-more-menu hr {
+        border-color: rgba(212,180,108,0.15);
+        margin: 4px 24px;
       }
 
       /* Overlay — fade in/out */
@@ -189,7 +236,7 @@
         position: fixed;
         inset: 0;
         z-index: 1048;
-        background: rgba(0,0,0,0.4);
+        background: rgba(0,0,0,0.5);
         opacity: 0;
         pointer-events: none;
         transition: opacity 0.28s ease;
@@ -215,21 +262,21 @@
   {% block extra_head %}{% endblock %}
 </head>
 
-<body class="text-light" style="background-color:#000000 !important;">
+<body style="background-color:#000000 !important; color:#e8e8e8;">
 
 <!-- Logo + fecha (solo móvil) -->
 <div class="mobile-logo-bar" style="position: relative;">
   <img
     src="{{ url_for('static', filename='img/logotipo.png') }}"
     alt="Agenda Detailing"
-    onerror="this.style.display='none'; this.insertAdjacentHTML('afterend','<span style=\'color:#fff;font-weight:700;font-size:18px\'>Agenda</span>');"
+    onerror="this.style.display='none'; this.insertAdjacentHTML('afterend','<span style=\'color:#d4b46c;font-weight:700;font-size:18px\'>Agenda</span>');"
   >
   <span id="mobile-date-label" style="
     position: absolute;
     right: 16px;
     font-size: 0.8rem;
     font-weight: 500;
-    color: #888888;
+    color: #d4b46c;
     letter-spacing: 0.2px;
   "></span>
 </div>
@@ -246,100 +293,48 @@
 <!-- Modal para mostrar detalles de la cita -->
 <div class="modal fade" id="appointmentModal" tabindex="-1">
   <div class="modal-dialog modal-lg">
-    <div class="modal-content bg-dark text-light">
-      <div class="modal-header">
-        <h5 class="modal-title">Detalles de la Cita</h5>
+    <div class="modal-content" style="background:#0f0f0f; border:1px solid rgba(212,180,108,0.15); color:#e8e8e8;">
+      <div class="modal-header" style="border-bottom:1px solid rgba(212,180,108,0.15);">
+        <h5 class="modal-title" style="color:#d4b46c;">Detalles de la Cita</h5>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
-      <div class="modal-body" id="modalBodyContent">
+      <div class="modal-body" id="modalBodyContent" style="color:#e8e8e8;">
         Cargando...
       </div>
-      <div class="modal-footer">
+      <div class="modal-footer" style="border-top:1px solid rgba(212,180,108,0.15);">
         <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button>
       </div>
     </div>
   </div>
 </div>
 
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-3">
+<!-- Navbar desktop -->
+<nav class="navbar navbar-expand-lg mb-0" style="background: rgba(0,0,0,0.85); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-bottom: 1px solid rgba(212,180,108,0.12);">
   <div class="container-fluid">
-    <a class="navbar-brand d-flex align-items-center gap-2"
-       href="{{ url_for('calendar_view') }}"
-       style="padding-top: 0; padding-bottom: 0;">
-      <img
-        src="{{ url_for('static', filename='img/logotipo.png') }}"
-        alt="Agenda Detailing"
-        class="navbar-logo"
-        onerror="this.style.display='none'; this.insertAdjacentHTML('afterend','<span class=\'navbar-brand-text\'>Agenda</span>');"
-      >
+    <a class="navbar-brand" href="{{ url_for('calendar_view') }}" style="padding: 0;">
+      <img src="{{ url_for('static', filename='img/logotipo.png') }}" alt="Agenda Detailing" class="navbar-logo"
+        onerror="this.style.display='none'; this.insertAdjacentHTML('afterend','<span style=\'color:#d4b46c;font-weight:700;font-size:18px\'>Agenda</span>');">
     </a>
-
-    <button class="navbar-toggler ms-auto" type="button"
-            data-bs-toggle="collapse"
-            data-bs-target="#navbarContent"
-            aria-controls="navbarContent"
-            aria-expanded="false"
-            aria-label="Toggle navigation">
-      <span class="navbar-toggler-icon"></span>
+    <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent" aria-controls="navbarContent" aria-expanded="false" aria-label="Toggle navigation" style="color:#888;">
+      <i class="bi bi-list" style="font-size:1.4rem;"></i>
     </button>
     <div class="collapse navbar-collapse justify-content-end" id="navbarContent">
-      <div class="d-flex flex-column flex-lg-row gap-2 mt-3 mt-lg-0">
-        <a class="btn btn-sm btn-outline-light me-2" href="{{ url_for('new_appointment') }}">+ Nueva cita</a>
-        <a class="btn btn-sm btn-outline-light me-2" href="{{ url_for('appointments_list') }}">Lista de citas</a>
-
-        <a class="btn btn-sm btn-outline-light me-2"
-           href="{{ url_for('expenses_new') }}">
-           + Nuevo gasto
-        </a>
-
-        <a class="btn btn-sm btn-outline-light me-2"
-           href="{{ url_for('expenses_list') }}">
-           Lista de gastos
-        </a>
-
-        <a class="btn btn-sm btn-outline-light me-2"
-           href="{{ url_for('sales_list') }}">
-           Ingresos
-        </a>
-
-        <a class="btn btn-sm btn-outline-light me-2"
-           href="{{ url_for('parking_list') }}">
-           Parqueaderos
-        </a>
-
-        <div class="dropdown me-2">
-          <button class="btn btn-sm btn-outline-light dropdown-toggle"
-                  type="button"
-                  data-bs-toggle="dropdown"
-                  aria-expanded="false">
-            Parametrización
-          </button>
-          <ul class="dropdown-menu dropdown-menu-end">
-            <li>
-              <a class="dropdown-item" href="{{ url_for('vehicle_types_list') }}">
-                Tipos de vehículo
-              </a>
-            </li>
-            <li>
-              <a class="dropdown-item" href="{{ url_for('services_view') }}">
-                Servicios
-              </a>
-            </li>
-            <li>
-              <a class="dropdown-item" href="{{ url_for('service_prices_list') }}">
-                Detalle de servicios
-              </a>
-            </li>
-            <li>
-              <a class="dropdown-item" href="{{ url_for('payment_methods_list') }}">
-                Medios de pago
-              </a>
-            </li>
-            <li>
-              <a class="dropdown-item" href="{{ url_for('agreements_list') }}">
-                Convenios
-              </a>
-            </li>
+      <div class="d-flex flex-column flex-lg-row align-items-lg-center gap-1 mt-3 mt-lg-0">
+        <a class="nav-link-custom" href="{{ url_for('calendar_view') }}">Agenda</a>
+        <a class="nav-link-custom" href="{{ url_for('parking_list') }}">Parqueaderos</a>
+        <a class="nav-link-custom nav-link-accent" href="{{ url_for('new_appointment') }}">+ Nueva</a>
+        <a class="nav-link-custom" href="{{ url_for('expenses_new') }}">Gastos</a>
+        <div class="dropdown">
+          <button class="nav-link-custom dropdown-toggle border-0 bg-transparent" type="button" data-bs-toggle="dropdown" aria-expanded="false">Más</button>
+          <ul class="dropdown-menu dropdown-menu-end" style="background:#0f0f0f; border:1px solid rgba(212,180,108,0.15); border-radius:12px;">
+            <li><a class="dropdown-item-custom" href="{{ url_for('sales_list') }}"><i class="bi bi-graph-up-arrow me-2" style="color:#d4b46c;"></i>Ingresos</a></li>
+            <li><a class="dropdown-item-custom" href="{{ url_for('appointments_list') }}"><i class="bi bi-card-list me-2" style="color:#d4b46c;"></i>Citas</a></li>
+            <li><hr class="dropdown-divider" style="border-color:rgba(212,180,108,0.15);"></li>
+            <li><a class="dropdown-item-custom" href="{{ url_for('vehicle_types_list') }}"><i class="bi bi-car-front me-2" style="color:#d4b46c;"></i>Tipos de vehículo</a></li>
+            <li><a class="dropdown-item-custom" href="{{ url_for('services_view') }}"><i class="bi bi-tools me-2" style="color:#d4b46c;"></i>Servicios</a></li>
+            <li><a class="dropdown-item-custom" href="{{ url_for('service_prices_list') }}"><i class="bi bi-tag me-2" style="color:#d4b46c;"></i>Detalle de servicios</a></li>
+            <li><a class="dropdown-item-custom" href="{{ url_for('payment_methods_list') }}"><i class="bi bi-credit-card me-2" style="color:#d4b46c;"></i>Medios de pago</a></li>
+            <li><a class="dropdown-item-custom" href="{{ url_for('agreements_list') }}"><i class="bi bi-handshake me-2" style="color:#d4b46c;"></i>Convenios</a></li>
           </ul>
         </div>
       </div>
@@ -365,15 +360,14 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 {% block extra_scripts %}{% endblock %}
 
-<!-- ── Bottom nav (solo móvil) ── -->
+<!-- ── Overlay ── -->
 <div class="bn-overlay" id="bnOverlay" onclick="closeBnMenu()"></div>
 
+<!-- ── Panel "más" móvil ── -->
 <div class="bn-more-menu" id="bnMoreMenu">
-  <a href="{{ url_for('expenses_new') }}"><i class="bi bi-cash-stack"></i> Nuevo gasto</a>
-  <a href="{{ url_for('expenses_list') }}"><i class="bi bi-list-ul"></i> Lista de gastos</a>
   <a href="{{ url_for('sales_list') }}"><i class="bi bi-graph-up-arrow"></i> Ingresos</a>
-  <a href="{{ url_for('parking_list') }}"><i class="bi bi-p-square"></i> Parqueaderos</a>
-  <hr style="border-color:#3a3a3c; margin: 4px 24px;">
+  <a href="{{ url_for('appointments_list') }}"><i class="bi bi-card-list"></i> Citas</a>
+  <hr>
   <a href="{{ url_for('vehicle_types_list') }}"><i class="bi bi-car-front"></i> Tipos de vehículo</a>
   <a href="{{ url_for('services_view') }}"><i class="bi bi-tools"></i> Servicios</a>
   <a href="{{ url_for('service_prices_list') }}"><i class="bi bi-tag"></i> Detalle de servicios</a>
@@ -381,22 +375,23 @@
   <a href="{{ url_for('agreements_list') }}"><i class="bi bi-handshake"></i> Convenios</a>
 </div>
 
+<!-- ── Bottom nav (solo móvil) ── -->
 <nav class="bottom-nav">
   <a class="bn-item" href="{{ url_for('calendar_view') }}">
     <i class="bi bi-calendar3"></i>
     <span>Agenda</span>
   </a>
-  <a class="bn-item" href="{{ url_for('appointments_list') }}">
-    <i class="bi bi-card-list"></i>
-    <span>Citas</span>
+  <a class="bn-item" href="{{ url_for('parking_list') }}">
+    <i class="bi bi-p-square"></i>
+    <span>Parqueaderos</span>
   </a>
   <a class="bn-item bn-primary" href="{{ url_for('new_appointment') }}">
     <i class="bi bi-plus"></i>
     <span>Nueva</span>
   </a>
-  <a class="bn-item" href="{{ url_for('sales_list') }}">
-    <i class="bi bi-graph-up-arrow"></i>
-    <span>Ingresos</span>
+  <a class="bn-item" href="{{ url_for('expenses_new') }}">
+    <i class="bi bi-cash-stack"></i>
+    <span>Gastos</span>
   </a>
   <button class="bn-item" onclick="toggleBnMenu()">
     <i class="bi bi-grid-3x3-gap"></i>
