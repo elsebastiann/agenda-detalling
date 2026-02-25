@@ -416,7 +416,7 @@ class ServiceSale(db.Model):
     appointment_id = db.Column(
         db.Integer,
         db.ForeignKey("appointments.id"),
-        nullable=False
+        nullable=True
     )
 
     # Fecha del servicio (día en que se cerró)
@@ -497,6 +497,21 @@ class ExpenseCategory(db.Model):
 
     def __repr__(self):
         return f"<ExpenseCategory {self.name} active={self.is_active}>"
+
+# -----------------------
+# PARKING MODEL
+# -----------------------
+class Parking(db.Model):
+    __tablename__ = "parkings"
+    id           = db.Column(db.Integer, primary_key=True)
+    customer_name = db.Column(db.String(120), nullable=True)
+    plate        = db.Column(db.String(20), nullable=False)
+    parking_date = db.Column(db.Date, nullable=False, default=date.today)
+    amount       = db.Column(db.Integer, nullable=False, default=7000)
+    created_at   = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    def __repr__(self):
+        return f"<Parking {self.parking_date} {self.plate}>"
 
 # -----------------------
 # Helper: Get list of existing vendors (for expense forms)
@@ -1995,6 +2010,99 @@ def close_appointment(appointment_id):
     return jsonify({"ok": True})
 
 # -----------------------
+# -----------------------
+# PARKING (PARQUEADEROS)
+# -----------------------
+PARKING_AMOUNT = 7000
+
+@app.route("/parking")
+def parking_list():
+    from_str = request.args.get("from")
+    to_str   = request.args.get("to")
+    plate_q  = (request.args.get("plate") or "").strip().upper()
+
+    date_from = _parse_date(from_str)
+    date_to   = _parse_date(to_str)
+
+    query = Parking.query
+    if date_from:
+        query = query.filter(Parking.parking_date >= date_from)
+    if date_to:
+        query = query.filter(Parking.parking_date <= date_to)
+    if plate_q:
+        query = query.filter(Parking.plate.like(f"%{plate_q}%"))
+
+    parkings = query.order_by(Parking.parking_date.desc(), Parking.created_at.desc()).all()
+    total    = sum(p.amount for p in parkings)
+
+    return render_template(
+        "parking_list.html",
+        parkings=parkings,
+        total=total,
+        today=date.today().isoformat(),
+        filters={
+            "from":  from_str or "",
+            "to":    to_str or "",
+            "plate": plate_q,
+        }
+    )
+
+
+@app.route("/parking/new", methods=["POST"])
+def parking_new():
+    customer_name = (request.form.get("customer_name") or "").strip() or None
+    plate         = normalize_plate(request.form.get("plate") or "")
+    date_str      = request.form.get("parking_date")
+
+    if not plate:
+        flash("La placa es obligatoria.", "danger")
+        return redirect(url_for("parking_list"))
+
+    parking_date = _parse_date(date_str)
+    if not parking_date:
+        flash("Fecha inválida.", "danger")
+        return redirect(url_for("parking_list"))
+
+    p = Parking(
+        customer_name=customer_name,
+        plate=plate,
+        parking_date=parking_date,
+        amount=PARKING_AMOUNT,
+    )
+    db.session.add(p)
+    db.session.flush()  # para obtener p.id
+
+    # Registrar como venta
+    sale = ServiceSale(
+        appointment_id=None,
+        service_date=parking_date,
+        vehicle_type="N/A",
+        plate=plate,
+        customer_name=customer_name,
+        services="Parqueadero",
+        base_amount=PARKING_AMOUNT,
+        discount_amount=0,
+        final_amount=PARKING_AMOUNT,
+        payment_method=None,
+        status="completed",
+        notes=None
+    )
+    db.session.add(sale)
+    db.session.commit()
+
+    flash("Parqueadero registrado.", "success")
+    return redirect(url_for("parking_list"))
+
+
+@app.route("/parking/<int:parking_id>/delete", methods=["POST"])
+def parking_delete(parking_id):
+    p = Parking.query.get_or_404(parking_id)
+    db.session.delete(p)
+    db.session.commit()
+    flash("Registro eliminado.", "info")
+    return redirect(url_for("parking_list"))
+
+
 # INICIALIZACIÓN
 # -----------------------
 with app.app_context():

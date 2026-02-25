@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="mb-0">Parqueaderos nocturnos</h4>
+  </div>
+
+  {# ---- Formulario nuevo registro ---- #}
+  <form method="POST" action="{{ url_for('parking_new') }}"
+        class="row g-2 align-items-end mb-4 p-3 rounded border border-secondary">
+
+    <div class="col-sm-3">
+      <label class="form-label small">Placa *</label>
+      <input type="text"
+             name="plate"
+             class="form-control bg-dark text-light border-secondary"
+             placeholder="Ej: ABC123"
+             style="text-transform:uppercase;"
+             required>
+    </div>
+
+    <div class="col-sm-4">
+      <label class="form-label small">Cliente</label>
+      <input type="text"
+             name="customer_name"
+             class="form-control bg-dark text-light border-secondary"
+             placeholder="Nombre (opcional)">
+    </div>
+
+    <div class="col-sm-3">
+      <label class="form-label small">Fecha *</label>
+      <input type="date"
+             name="parking_date"
+             class="form-control bg-dark text-light border-secondary"
+             value="{{ today }}"
+             required>
+    </div>
+
+    <div class="col-sm-2">
+      <button type="submit" class="btn btn-primary w-100">
+        + Registrar
+      </button>
+    </div>
+
+  </form>
+
+  {# ---- Filtros ---- #}
+  <form method="GET" class="row g-2 align-items-end mb-3">
+    <div class="col-sm-3">
+      <label class="form-label small">Desde</label>
+      <input type="date" name="from"
+             class="form-control form-control-sm bg-dark text-light border-secondary"
+             value="{{ filters.from }}">
+    </div>
+    <div class="col-sm-3">
+      <label class="form-label small">Hasta</label>
+      <input type="date" name="to"
+             class="form-control form-control-sm bg-dark text-light border-secondary"
+             value="{{ filters.to }}">
+    </div>
+    <div class="col-sm-3">
+      <label class="form-label small">Placa</label>
+      <input type="text" name="plate"
+             class="form-control form-control-sm bg-dark text-light border-secondary"
+             placeholder="Buscar placa"
+             value="{{ filters.plate }}">
+    </div>
+    <div class="col-sm-2">
+      <button type="submit" class="btn btn-sm btn-primary w-100">Filtrar</button>
+    </div>
+    <div class="col-sm-1">
+      <a href="{{ url_for('parking_list') }}" class="btn btn-sm btn-outline-secondary w-100">✕</a>
+    </div>
+  </form>
+
+  {# ---- Total ---- #}
+  <div class="d-flex justify-content-end mb-2">
+    <span class="text-secondary me-2">Total filtrado:</span>
+    <span class="fw-bold text-success">$ {{ "{:,}".format(total).replace(",", ".") }}</span>
+  </div>
+
+  {# ---- Tabla ---- #}
+  <div class="table-responsive">
+    <table class="table table-dark table-hover table-sm align-middle">
+      <thead>
+        <tr>
+          <th>Fecha</th>
+          <th>Placa</th>
+          <th>Cliente</th>
+          <th class="text-end">Valor</th>
+          <th class="text-center">Acción</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in parkings %}
+        <tr>
+          <td>{{ p.parking_date.strftime("%Y-%m-%d") }}</td>
+          <td>{{ p.plate }}</td>
+          <td>{{ p.customer_name or "—" }}</td>
+          <td class="text-end">$ {{ "{:,}".format(p.amount).replace(",", ".") }}</td>
+          <td class="text-center">
+            <form method="POST"
+                  action="{{ url_for('parking_delete', parking_id=p.id) }}"
+                  onsubmit="return confirm('¿Eliminar este registro?');">
+              <button class="btn btn-sm btn-outline-danger">Eliminar</button>
+            </form>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="5" class="text-center text-secondary py-4">
+            No hay registros con los filtros aplicados.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+</div>
+{% endblock %}
