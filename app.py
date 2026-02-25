@@ -1578,7 +1578,6 @@ def expenses_toggle_void(expense_id):
 
     if exp.is_void:
         flash("Gasto anulado.", "warning")
-    else:
 
     db.session.commit()
     return redirect(url_for("expenses_list"))
