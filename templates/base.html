@@ -79,9 +79,152 @@
       background: rgba(212,180,108,0.06);
     }
 
+    /* ══════════════════════════════════════
+       OVERRIDES GLOBALES DE BOOTSTRAP
+       Aplican a todos los templates
+    ══════════════════════════════════════ */
+
+    /* Botones — quitar azul, usar dorado */
+    .btn-primary {
+      background-color: transparent !important;
+      border: 1px solid rgba(212,180,108,0.4) !important;
+      color: #d4b46c !important;
+    }
+    .btn-primary:hover, .btn-primary:focus, .btn-primary:active {
+      background-color: rgba(212,180,108,0.1) !important;
+      border-color: #d4b46c !important;
+      color: #d4b46c !important;
+      box-shadow: none !important;
+    }
+    .btn-outline-primary {
+      border-color: rgba(212,180,108,0.4) !important;
+      color: #d4b46c !important;
+      background: transparent !important;
+    }
+    .btn-outline-primary:hover {
+      background-color: rgba(212,180,108,0.1) !important;
+      color: #d4b46c !important;
+    }
+    .btn-outline-secondary {
+      border-color: rgba(255,255,255,0.12) !important;
+      color: #666 !important;
+      background: transparent !important;
+    }
+    .btn-outline-secondary:hover {
+      background-color: rgba(255,255,255,0.06) !important;
+      color: #e8e8e8 !important;
+    }
+    .btn-outline-danger {
+      border-color: rgba(220,53,69,0.4) !important;
+      color: #e05c6a !important;
+      background: transparent !important;
+    }
+    .btn-outline-danger:hover {
+      background-color: rgba(220,53,69,0.1) !important;
+    }
+    .btn-success {
+      background-color: transparent !important;
+      border: 1px solid rgba(40,167,69,0.4) !important;
+      color: #5cb85c !important;
+    }
+    .btn-success:hover {
+      background-color: rgba(40,167,69,0.1) !important;
+      box-shadow: none !important;
+    }
+    .btn-secondary {
+      background-color: transparent !important;
+      border: 1px solid rgba(255,255,255,0.1) !important;
+      color: #555 !important;
+    }
+
+    /* Form controls — sin marco azul Bootstrap */
+    .form-control,
+    .form-select {
+      background-color: #0f0f0f !important;
+      border: 1px solid rgba(255,255,255,0.1) !important;
+      color: #e8e8e8 !important;
+      border-radius: 8px !important;
+      box-shadow: none !important;
+      transition: border-color 0.15s !important;
+    }
+    .form-control:focus,
+    .form-select:focus {
+      background-color: #0f0f0f !important;
+      border-color: rgba(212,180,108,0.5) !important;
+      color: #e8e8e8 !important;
+      box-shadow: none !important;
+      outline: none !important;
+    }
+    .form-control::placeholder {
+      color: #444 !important;
+    }
+    /* Fix color picker y date input en iOS/Safari */
+    input[type="date"],
+    input[type="time"] {
+      color-scheme: dark;
+    }
+
+    /* Labels */
+    .form-label {
+      color: #666 !important;
+      font-size: 0.78rem !important;
+      margin-bottom: 4px !important;
+    }
+
+    /* Tablas */
+    .table-dark {
+      --bs-table-bg: #0d0d0d !important;
+      --bs-table-hover-bg: rgba(212,180,108,0.05) !important;
+      --bs-table-border-color: rgba(255,255,255,0.06) !important;
+      color: #e8e8e8 !important;
+    }
+    .table-dark thead th {
+      color: #555 !important;
+      font-weight: 500 !important;
+      font-size: 0.78rem !important;
+      text-transform: uppercase !important;
+      letter-spacing: 0.4px !important;
+      border-bottom: 1px solid rgba(212,180,108,0.15) !important;
+    }
+
+    /* Formularios con borde: quitar border-secondary, reemplazar */
+    .border, .border-secondary {
+      border-color: rgba(255,255,255,0.08) !important;
+    }
+    form.rounded.border,
+    .p-3.rounded.border {
+      background: #0a0a0a !important;
+      border: 1px solid rgba(212,180,108,0.12) !important;
+      border-radius: 12px !important;
+    }
+
+    /* Titles */
+    h1, h2, h3, h4, h5, h6 {
+      color: #e8e8e8;
+    }
+
+    /* text-success en totales */
+    .text-success {
+      color: #d4b46c !important;
+    }
+
+    /* Badges */
+    .badge.bg-success { background-color: rgba(40,167,69,0.2) !important; color: #5cb85c !important; }
+    .badge.bg-danger  { background-color: rgba(220,53,69,0.2)  !important; color: #e05c6a !important; }
+    .badge.bg-secondary { background-color: rgba(255,255,255,0.08) !important; color: #888 !important; }
+    .badge.bg-warning { background-color: rgba(212,180,108,0.2) !important; color: #d4b46c !important; }
+    .badge.bg-info    { background-color: rgba(23,162,184,0.2)  !important; color: #5bc0de !important; }
+
     /* ── Logo centrado en móvil ── */
     .mobile-logo-bar {
       display: none;
+    }
+
+    /* Quitar margin-top del primer hijo en móvil para no dejar gap */
+    @media (max-width: 991.98px) {
+      .container-fluid > *:first-child {
+        margin-top: 0 !important;
+      }
     }
 
     /* ── Bottom nav (solo móvil) ── */
@@ -262,7 +405,7 @@
   {% block extra_head %}{% endblock %}
 </head>
 
-<body style="background-color:#000000 !important; color:#e8e8e8;">
+<body style="background-color:#000000 !important; color:#e8e8e8; margin:0; padding:0;">
 
 <!-- Logo + fecha (solo móvil) -->
 <div class="mobile-logo-bar" style="position: relative;">
@@ -342,7 +485,7 @@
   </div>
 </nav>
 
-<div class="container-fluid px-4">
+<div class="container-fluid px-3 px-lg-4">
   {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
       {% for category, message in messages %}
