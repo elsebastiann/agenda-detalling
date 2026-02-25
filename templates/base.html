@@ -4,6 +4,9 @@
   <meta charset="utf-8">
   <title>Agenda Detailing</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- Barra de estado negra en Safari PWA / Chrome Android -->
+  <meta name="theme-color" content="#000000">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 
   <!-- Bootstrap -->
   <link
@@ -16,8 +19,14 @@
     rel="stylesheet">
 
   <style>
-    /* 1. Fondo oscuro en toda la barra de estado del navegador (fix borde blanco arriba) */
+    /* Fondo negro global — aplica siempre, en todos los breakpoints */
     :root { color-scheme: dark; }
+    html {
+      background-color: #000000 !important;
+    }
+    body {
+      background-color: #000000 !important;
+    }
 
     /* Navbar logo */
     .navbar-logo {
@@ -39,11 +48,6 @@
 
     /* ── Bottom nav (solo móvil) ── */
     @media (max-width: 991.98px) {
-
-      /* Fix borde blanco: fondo 100% negro en móvil */
-      html, body {
-        background-color: #000000 !important;
-      }
 
       /* Espacio para que el contenido no quede tapado */
       body {
