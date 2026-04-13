@@ -499,7 +499,13 @@
             <span style="font-size:0.68rem;padding:2px 7px;border-radius:20px;background:var(--accent-bg);color:var(--accent-dk);font-weight:700;text-transform:uppercase;letter-spacing:0.3px;">{{ current_user.role }}</span>
           </button>
           <ul class="dropdown-menu dropdown-menu-end py-2"
-              style="background:var(--surface);border:1px solid var(--border);border-radius:14px;min-width:160px;box-shadow:0 8px 24px rgba(0,0,0,0.15);">
+              style="background:var(--surface);border:1px solid var(--border);border-radius:14px;min-width:180px;box-shadow:0 8px 24px rgba(0,0,0,0.15);">
+            <li>
+              <a class="dropdown-item-custom" href="{{ url_for('change_password') }}">
+                <i class="bi bi-key-fill"></i>Cambiar contraseña
+              </a>
+            </li>
+            <li><hr style="border-color:var(--border);margin:4px 14px;"></li>
             <li>
               <form method="POST" action="{{ url_for('logout') }}" class="m-0">
                 <button type="submit" class="dropdown-item-custom w-100 text-start border-0 bg-transparent" style="color:#e07060;">

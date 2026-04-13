@@ -477,6 +477,9 @@ class User(db.Model):
     is_active    = db.Column(db.Boolean, default=True)
     created_at   = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 
+    # True = debe cambiar contraseña en el próximo login
+    must_change_password = db.Column(db.Boolean, default=False)
+
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
 
@@ -2329,11 +2332,11 @@ def users_new():
         flash(f"El usuario '{username}' ya existe.", "danger")
         return redirect(url_for("users_list"))
 
-    u = User(username=username, role=role, is_active=True)
+    u = User(username=username, role=role, is_active=True, must_change_password=True)
     u.set_password(password)
     db.session.add(u)
     db.session.commit()
-    flash(f"Usuario '{username}' creado correctamente.", "success")
+    flash(f"Usuario '{username}' creado. Deberá cambiar su contraseña en el primer acceso.", "success")
     return redirect(url_for("users_list"))
 
 
@@ -2392,6 +2395,14 @@ def users_toggle(user_id):
 def ensure_users_schema():
     with app.app_context():
         db.create_all()  # crea solo las tablas que faltan
+        # Migración: agregar must_change_password si no existe
+        try:
+            db.session.execute(text("SELECT must_change_password FROM users LIMIT 1"))
+        except Exception:
+            db.session.execute(text(
+                "ALTER TABLE users ADD COLUMN must_change_password BOOLEAN DEFAULT 0"
+            ))
+            db.session.commit()
 
 ensure_users_schema()
 
@@ -2407,7 +2418,8 @@ def seed_superadmin():
 seed_superadmin()
 
 # --- Endpoints que NO requieren sesión ---
-PUBLIC_ENDPOINTS = {"login", "logout", "static"}
+PUBLIC_ENDPOINTS  = {"login", "logout", "static"}
+CHANGE_PWD_ENDPOINTS = {"change_password", "logout", "static"}
 
 # --- Endpoints accesibles por operario (además de los públicos) ---
 OPERARIO_ENDPOINTS = {
@@ -2436,6 +2448,11 @@ def require_login():
 
     g.current_user = user
 
+    # Forzar cambio de contraseña en primer login
+    if user.must_change_password and endpoint not in CHANGE_PWD_ENDPOINTS:
+        flash("Debes cambiar tu contraseña antes de continuar.", "warning")
+        return redirect(url_for("change_password"))
+
     # Restricción por rol
     if user.role == "operario" and endpoint not in OPERARIO_ENDPOINTS:
         flash("No tienes permiso para acceder a esa sección.", "danger")
@@ -2445,6 +2462,41 @@ def require_login():
 @app.context_processor
 def inject_user():
     return {"current_user": getattr(g, "current_user", None)}
+
+
+# --- Cambiar contraseña ---
+@app.route("/change-password", methods=["GET", "POST"])
+def change_password():
+    user_id = session.get("user_id")
+    if not user_id:
+        return redirect(url_for("login"))
+    user = User.query.get(user_id)
+    if not user:
+        session.clear()
+        return redirect(url_for("login"))
+    g.current_user = user
+
+    error = None
+    if request.method == "POST":
+        current_pwd = request.form.get("current_password") or ""
+        new_pwd     = request.form.get("new_password") or ""
+        confirm_pwd = request.form.get("confirm_password") or ""
+
+        if not user.check_password(current_pwd):
+            error = "La contraseña actual es incorrecta."
+        elif len(new_pwd) < 6:
+            error = "La nueva contraseña debe tener al menos 6 caracteres."
+        elif new_pwd != confirm_pwd:
+            error = "Las contraseñas nuevas no coinciden."
+        else:
+            user.set_password(new_pwd)
+            user.must_change_password = False
+            db.session.commit()
+            flash("Contraseña actualizada correctamente.", "success")
+            return redirect(url_for("calendar_view"))
+
+    return render_template("change_password.html", error=error,
+                           forced=user.must_change_password)
 
 
 # --- Login ---
