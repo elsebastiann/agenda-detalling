@@ -483,7 +483,11 @@
             <li><a class="dropdown-item-custom" href="{{ url_for('services_view') }}"><i class="bi bi-tools"></i>Servicios</a></li>
             <li><a class="dropdown-item-custom" href="{{ url_for('service_prices_list') }}"><i class="bi bi-tag"></i>Detalle de servicios</a></li>
             <li><a class="dropdown-item-custom" href="{{ url_for('payment_methods_list') }}"><i class="bi bi-credit-card"></i>Medios de pago</a></li>
-            <li><a class="dropdown-item-custom" href="{{ url_for('agreements_list') }}"><i class="bi bi-handshake"></i>Convenios</a></li>
+            <li><a class="dropdown-item-custom" href="{{ url_for('agreements_list') }}"><i class="bi bi-handshake-fill"></i>Convenios</a></li>
+            {% if current_user and current_user.role == 'admin' %}
+            <li><hr style="border-color:var(--border);margin:6px 14px;"></li>
+            <li><a class="dropdown-item-custom" href="{{ url_for('users_list') }}"><i class="bi bi-people-fill"></i>Usuarios</a></li>
+            {% endif %}
           </ul>
         </div>
         {% if current_user %}

@@ -2298,6 +2298,93 @@ def seed_new_services():
     return "<h2>✅ Servicios y precios actualizados correctamente. Ya puedes eliminar esta ruta.</h2>"
 
 # ============================================================
+# GESTIÓN DE USUARIOS (solo admin)
+# ============================================================
+
+@app.route("/users")
+def users_list():
+    if not getattr(g, "current_user", None) or g.current_user.role != "admin":
+        flash("Acceso restringido a administradores.", "danger")
+        return redirect(url_for("calendar_view"))
+    users = User.query.order_by(User.created_at.asc()).all()
+    return render_template("users.html", users=users)
+
+
+@app.route("/users/new", methods=["POST"])
+def users_new():
+    if not getattr(g, "current_user", None) or g.current_user.role != "admin":
+        return redirect(url_for("calendar_view"))
+
+    username = (request.form.get("username") or "").strip()
+    password = request.form.get("password") or ""
+    role     = request.form.get("role") or "operario"
+
+    if not username or not password:
+        flash("Usuario y contraseña son obligatorios.", "danger")
+        return redirect(url_for("users_list"))
+    if role not in ("admin", "lider", "operario"):
+        flash("Rol inválido.", "danger")
+        return redirect(url_for("users_list"))
+    if User.query.filter_by(username=username).first():
+        flash(f"El usuario '{username}' ya existe.", "danger")
+        return redirect(url_for("users_list"))
+
+    u = User(username=username, role=role, is_active=True)
+    u.set_password(password)
+    db.session.add(u)
+    db.session.commit()
+    flash(f"Usuario '{username}' creado correctamente.", "success")
+    return redirect(url_for("users_list"))
+
+
+@app.route("/users/<int:user_id>/edit", methods=["POST"])
+def users_edit(user_id):
+    if not getattr(g, "current_user", None) or g.current_user.role != "admin":
+        return redirect(url_for("calendar_view"))
+
+    user = User.query.get_or_404(user_id)
+    new_username = (request.form.get("username") or "").strip()
+    new_role     = request.form.get("role") or user.role
+    new_password = request.form.get("password") or ""
+
+    if not new_username:
+        flash("El nombre de usuario no puede estar vacío.", "danger")
+        return redirect(url_for("users_list"))
+    if new_role not in ("admin", "lider", "operario"):
+        flash("Rol inválido.", "danger")
+        return redirect(url_for("users_list"))
+
+    existing = User.query.filter(User.username == new_username, User.id != user_id).first()
+    if existing:
+        flash(f"El nombre '{new_username}' ya está en uso.", "danger")
+        return redirect(url_for("users_list"))
+
+    user.username = new_username
+    user.role     = new_role
+    if new_password:
+        user.set_password(new_password)
+    db.session.commit()
+    flash(f"Usuario '{new_username}' actualizado.", "success")
+    return redirect(url_for("users_list"))
+
+
+@app.route("/users/<int:user_id>/toggle", methods=["POST"])
+def users_toggle(user_id):
+    if not getattr(g, "current_user", None) or g.current_user.role != "admin":
+        return redirect(url_for("calendar_view"))
+
+    user = User.query.get_or_404(user_id)
+    if user.id == g.current_user.id:
+        flash("No puedes desactivarte a ti mismo.", "danger")
+        return redirect(url_for("users_list"))
+    user.is_active = not user.is_active
+    db.session.commit()
+    estado = "activado" if user.is_active else "desactivado"
+    flash(f"Usuario '{user.username}' {estado}.", "success")
+    return redirect(url_for("users_list"))
+
+
+# ============================================================
 # AUTENTICACIÓN
 # ============================================================
 

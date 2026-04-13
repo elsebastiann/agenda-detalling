@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="container mt-4" style="max-width:860px;">
+
+  <div class="d-flex align-items-center justify-content-between mb-4">
+    <h2 class="mb-0">Gestión de usuarios</h2>
+    <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalNewUser">
+      <i class="bi bi-person-plus-fill me-1"></i>Nuevo usuario
+    </button>
+  </div>
+
+  <!-- Tabla de usuarios -->
+  <div class="table-responsive">
+    <table class="table table-dark table-hover align-middle">
+      <thead>
+        <tr>
+          <th>Usuario</th>
+          <th class="text-center">Rol</th>
+          <th class="text-center">Estado</th>
+          <th class="text-center">Creado</th>
+          <th class="text-center">Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for u in users %}
+        <tr>
+          <td class="fw-bold">{{ u.username }}</td>
+          <td class="text-center">
+            {% if u.role == 'admin' %}
+              <span class="badge bg-warning">Admin</span>
+            {% elif u.role == 'lider' %}
+              <span class="badge bg-info">Líder</span>
+            {% else %}
+              <span class="badge bg-secondary">Operario</span>
+            {% endif %}
+          </td>
+          <td class="text-center">
+            {% if u.is_active %}
+              <span class="badge bg-success">Activo</span>
+            {% else %}
+              <span class="badge bg-danger">Inactivo</span>
+            {% endif %}
+          </td>
+          <td class="text-center" style="font-size:0.78rem;color:var(--text2);">
+            {{ u.created_at.strftime('%d/%m/%Y') }}
+          </td>
+          <td class="text-center">
+            <div class="d-flex gap-2 justify-content-center">
+              <!-- Editar -->
+              <button class="btn btn-sm btn-outline-secondary"
+                      data-bs-toggle="modal"
+                      data-bs-target="#modalEditUser"
+                      data-id="{{ u.id }}"
+                      data-username="{{ u.username }}"
+                      data-role="{{ u.role }}">
+                <i class="bi bi-pencil"></i>
+              </button>
+              <!-- Activar / Desactivar -->
+              {% if u.id != current_user.id %}
+              <form method="POST" action="{{ url_for('users_toggle', user_id=u.id) }}" class="m-0">
+                {% if u.is_active %}
+                  <button type="submit" class="btn btn-sm btn-outline-danger"
+                          title="Desactivar">
+                    <i class="bi bi-person-x"></i>
+                  </button>
+                {% else %}
+                  <button type="submit" class="btn btn-sm btn-outline-success"
+                          title="Activar">
+                    <i class="bi bi-person-check"></i>
+                  </button>
+                {% endif %}
+              </form>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{# ── Modal: Nuevo usuario ── #}
+<div class="modal fade" id="modalNewUser" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);">
+      <div class="modal-header" style="border-bottom:1px solid var(--border);">
+        <h5 class="modal-title" style="font-size:0.95rem;">Nuevo usuario</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="POST" action="{{ url_for('users_new') }}">
+        <div class="modal-body" style="display:flex;flex-direction:column;gap:14px;">
+          <div>
+            <label class="form-label">Usuario *</label>
+            <input type="text" name="username" class="form-control"
+                   placeholder="Ej: juan.perez" required autocomplete="off">
+          </div>
+          <div>
+            <label class="form-label">Contraseña *</label>
+            <input type="password" name="password" class="form-control"
+                   placeholder="Mínimo 6 caracteres" required>
+          </div>
+          <div>
+            <label class="form-label">Rol *</label>
+            <select name="role" class="form-select">
+              <option value="operario">Operario</option>
+              <option value="lider">Líder</option>
+              <option value="admin">Admin</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer" style="border-top:1px solid var(--border);">
+          <button type="button" class="btn btn-outline-secondary btn-sm"
+                  data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary btn-sm">Crear usuario</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{# ── Modal: Editar usuario ── #}
+<div class="modal fade" id="modalEditUser" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);">
+      <div class="modal-header" style="border-bottom:1px solid var(--border);">
+        <h5 class="modal-title" style="font-size:0.95rem;">Editar usuario</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="POST" id="editUserForm" action="">
+        <div class="modal-body" style="display:flex;flex-direction:column;gap:14px;">
+          <div>
+            <label class="form-label">Usuario *</label>
+            <input type="text" name="username" id="editUsername" class="form-control" required>
+          </div>
+          <div>
+            <label class="form-label">Nueva contraseña <small class="text-muted">(dejar vacío para no cambiar)</small></label>
+            <input type="password" name="password" class="form-control"
+                   placeholder="••••••••" autocomplete="new-password">
+          </div>
+          <div>
+            <label class="form-label">Rol *</label>
+            <select name="role" id="editRole" class="form-select">
+              <option value="operario">Operario</option>
+              <option value="lider">Líder</option>
+              <option value="admin">Admin</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer" style="border-top:1px solid var(--border);">
+          <button type="button" class="btn btn-outline-secondary btn-sm"
+                  data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary btn-sm">Guardar cambios</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Rellena el modal de edición con los datos del usuario seleccionado
+  document.getElementById('modalEditUser').addEventListener('show.bs.modal', function (e) {
+    const btn = e.relatedTarget;
+    const id       = btn.getAttribute('data-id');
+    const username = btn.getAttribute('data-username');
+    const role     = btn.getAttribute('data-role');
+
+    document.getElementById('editUsername').value = username;
+    document.getElementById('editRole').value     = role;
+    document.getElementById('editUserForm').action = `/users/${id}/edit`;
+  });
+</script>
+
+{% endblock %}
