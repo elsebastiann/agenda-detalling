@@ -1,5 +1,7 @@
 from datetime import datetime, timedelta, date
-from flask import Flask, render_template, request, redirect, url_for, jsonify, flash, Response
+from flask import Flask, render_template, request, redirect, url_for, jsonify, flash, Response, session, g
+from werkzeug.security import generate_password_hash, check_password_hash
+from functools import wraps
 from flask_sqlalchemy import SQLAlchemy
 import os
 import csv
@@ -460,6 +462,29 @@ class Client(db.Model):
 
     def __repr__(self):
         return f"<Client {self.plate} {self.full_name}>"
+
+
+# -----------------------
+# USER MODEL
+# -----------------------
+class User(db.Model):
+    __tablename__ = "users"
+    id           = db.Column(db.Integer, primary_key=True)
+    username     = db.Column(db.String(80), nullable=False, unique=True)
+    password_hash= db.Column(db.String(256), nullable=False)
+    # admin | lider | operario
+    role         = db.Column(db.String(20), nullable=False, default="operario")
+    is_active    = db.Column(db.Boolean, default=True)
+    created_at   = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    def set_password(self, password):
+        self.password_hash = generate_password_hash(password)
+
+    def check_password(self, password):
+        return check_password_hash(self.password_hash, password)
+
+    def __repr__(self):
+        return f"<User {self.username} role={self.role}>"
 
 
 class Expense(db.Model):
@@ -2271,6 +2296,99 @@ def seed_new_services():
 
     db.session.commit()
     return "<h2>✅ Servicios y precios actualizados correctamente. Ya puedes eliminar esta ruta.</h2>"
+
+# ============================================================
+# AUTENTICACIÓN
+# ============================================================
+
+# --- Migración: crear tabla users si no existe ---
+def ensure_users_schema():
+    with app.app_context():
+        db.create_all()  # crea solo las tablas que faltan
+
+ensure_users_schema()
+
+# --- Seed: crear super admin si no existe ningún usuario ---
+def seed_superadmin():
+    with app.app_context():
+        if User.query.count() == 0:
+            u = User(username="sa", role="admin", is_active=True)
+            u.set_password("Slm2026$$")
+            db.session.add(u)
+            db.session.commit()
+
+seed_superadmin()
+
+# --- Endpoints que NO requieren sesión ---
+PUBLIC_ENDPOINTS = {"login", "logout", "static"}
+
+# --- Endpoints accesibles por operario (además de los públicos) ---
+OPERARIO_ENDPOINTS = {
+    "calendar_view", "new_appointment", "edit_appointment",
+    "appointments_list", "appointment_delete", "appointment_json",
+    "close_appointment",
+    "parking_list", "parking_new", "parking_delete",
+    "api_events", "api_client_by_plate", "api_client_plates",
+    "api_client_names", "api_client_by_name", "api_estimate_price",
+}
+
+@app.before_request
+def require_login():
+    endpoint = request.endpoint
+    if endpoint in PUBLIC_ENDPOINTS:
+        return
+
+    user_id = session.get("user_id")
+    if not user_id:
+        return redirect(url_for("login", next=request.path))
+
+    user = User.query.get(user_id)
+    if not user or not user.is_active:
+        session.clear()
+        return redirect(url_for("login"))
+
+    g.current_user = user
+
+    # Restricción por rol
+    if user.role == "operario" and endpoint not in OPERARIO_ENDPOINTS:
+        flash("No tienes permiso para acceder a esa sección.", "danger")
+        return redirect(url_for("calendar_view"))
+
+
+@app.context_processor
+def inject_user():
+    return {"current_user": getattr(g, "current_user", None)}
+
+
+# --- Login ---
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if session.get("user_id"):
+        return redirect(url_for("calendar_view"))
+
+    error = None
+    if request.method == "POST":
+        username = (request.form.get("username") or "").strip()
+        password = request.form.get("password") or ""
+        user = User.query.filter_by(username=username, is_active=True).first()
+        if user and user.check_password(password):
+            session.clear()
+            session["user_id"] = user.id
+            session["user_role"] = user.role
+            session.permanent = True
+            next_url = request.form.get("next") or url_for("calendar_view")
+            return redirect(next_url)
+        error = "Usuario o contraseña incorrectos."
+
+    return render_template("login.html", error=error, next=request.args.get("next", ""))
+
+
+# --- Logout ---
+@app.route("/logout", methods=["POST"])
+def logout():
+    session.clear()
+    return redirect(url_for("login"))
+
 
 if __name__ == "__main__":
     app.run(debug=True, port=5001)
