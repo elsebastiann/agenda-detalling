@@ -2449,7 +2449,7 @@ def require_login():
     g.current_user = user
 
     # Forzar cambio de contraseña en primer login
-    if user.must_change_password and endpoint not in CHANGE_PWD_ENDPOINTS:
+    if bool(user.must_change_password) and endpoint not in CHANGE_PWD_ENDPOINTS:
         flash("Debes cambiar tu contraseña antes de continuar.", "warning")
         return redirect(url_for("change_password"))
 
@@ -2515,6 +2515,9 @@ def login():
             session["user_id"] = user.id
             session["user_role"] = user.role
             session.permanent = True
+            # Si debe cambiar contraseña, ignorar el 'next' y forzar el cambio
+            if bool(user.must_change_password):
+                return redirect(url_for("change_password"))
             next_url = request.form.get("next") or url_for("calendar_view")
             return redirect(next_url)
         error = "Usuario o contraseña incorrectos."
