@@ -59,7 +59,10 @@
                  id="customer_name"
                  class="form-control bg-dark text-light border-secondary"
                  placeholder="Nombre completo"
-                 value="{{ appointment.customer_name or '' if is_edit else '' }}">
+                 value="{{ appointment.customer_name or '' if is_edit else '' }}"
+                 autocomplete="off"
+                 list="namesSuggestions">
+          <datalist id="namesSuggestions"></datalist>
         </div>
         <div class="col-sm-3">
           <label class="form-label">Teléfono</label>
@@ -253,7 +256,63 @@
   const priceBox      = document.getElementById("pricePreviewBox");
   const priceLabel    = document.getElementById("pricePreview");
 
-  // --- Autocompletar por placa ---
+  // --- Autocompletar por nombre ---
+  let nameTimer = null;
+  if (nameInput) {
+    nameInput.addEventListener("input", function () {
+      clearTimeout(nameTimer);
+      const val = this.value.trim();
+
+      // Sugerencias desde 2 caracteres
+      if (val.length >= 2) {
+        fetch(`/api/clients/names?q=${encodeURIComponent(val)}`)
+          .then(r => r.json())
+          .then(names => {
+            const dl = document.getElementById("namesSuggestions");
+            dl.innerHTML = "";
+            names.forEach(n => {
+              const opt = document.createElement("option");
+              opt.value = n;
+              dl.appendChild(opt);
+            });
+          })
+          .catch(() => {});
+      }
+
+      // Autocompletar campos al escribir nombre completo (debounce)
+      if (val.length < 2) return;
+      nameTimer = setTimeout(() => {
+        fetch(`/api/clients/by-name?name=${encodeURIComponent(val)}`)
+          .then(r => r.json())
+          .then(data => {
+            if (!data.found) return;
+            if (phoneInput && !phoneInput.value) phoneInput.value = data.phone || "";
+            if (vehicleSelect && !vehicleSelect.value && data.vehicle_type_id) {
+              vehicleSelect.value = data.vehicle_type_id;
+              vehicleSelect.dispatchEvent(new Event("change"));
+            }
+            if (agreementSel && !agreementSel.value && data.agreement_id) {
+              agreementSel.value = data.agreement_id;
+            }
+            // Llenar sugerencias de placas con las del cliente
+            const plateDl = document.getElementById("platesSuggestions");
+            plateDl.innerHTML = "";
+            (data.plates || []).forEach(p => {
+              const opt = document.createElement("option");
+              opt.value = p;
+              plateDl.appendChild(opt);
+            });
+            // Si solo tiene una placa, autocompletar el campo
+            if (data.plates && data.plates.length === 1 && plateInput && !plateInput.value) {
+              plateInput.value = data.plates[0];
+            }
+            updatePrice();
+          })
+          .catch(() => {});
+      }, 400);
+    });
+  }
+
   // --- Autocompletar por placa ---
   let plateTimer = null;
   if (plateInput) {

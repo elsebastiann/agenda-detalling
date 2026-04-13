@@ -1828,6 +1828,49 @@ def api_client_plates():
     return jsonify(plates)
 
 # -----------------------
+# API: SUGERIR NOMBRES
+# -----------------------
+@app.route("/api/clients/names")
+def api_client_names():
+    q = (request.args.get("q") or "").strip()
+    query = db.session.query(Client.full_name).filter(
+        Client.full_name != None, Client.full_name != ""
+    )
+    if q:
+        query = query.filter(Client.full_name.ilike(f"%{q}%"))
+    names = list({r[0] for r in query.limit(20).all()})
+    names.sort()
+    return jsonify(names[:10])
+
+# -----------------------
+# API: DATOS DE CLIENTE POR NOMBRE
+# -----------------------
+@app.route("/api/clients/by-name")
+def api_client_by_name():
+    name = (request.args.get("name") or "").strip()
+    if not name:
+        return jsonify({"found": False}), 400
+
+    clients = Client.query.filter(
+        Client.full_name.ilike(name)
+    ).order_by(Client.created_at.asc()).all()
+
+    if not clients:
+        return jsonify({"found": False, "name": name})
+
+    first = clients[0]
+    plates = [c.plate for c in clients if c.plate]
+
+    return jsonify({
+        "found": True,
+        "full_name": first.full_name or "",
+        "phone": first.phone or "",
+        "vehicle_type_id": first.vehicle_type_id,
+        "agreement_id": first.agreement_id,
+        "plates": plates,
+    })
+
+# -----------------------
 # API: ESTIMAR PRECIO DE CITA
 # -----------------------
 @app.route("/api/estimate-price", methods=["POST"])
