@@ -406,6 +406,10 @@
     @media (min-width: 992px) {
       .bottom-nav, .bn-more-menu, .bn-overlay, .mobile-logo-bar { display: none !important; }
     }
+
+    /* ── NAVBAR Z-INDEX (por encima de eventos de calendario) ── */
+    nav.navbar { position: relative; z-index: 1040; }
+    nav.navbar .dropdown-menu { z-index: 1041; }
   </style>
 
   {% block extra_head %}{% endblock %}
