@@ -44,6 +44,7 @@
       <th>Operarios</th>
       <th>Convenio</th>
       <th>Fin estimado</th>
+      <th>Precio estimado</th>
       <th>Estado</th>
       <th>Trabajo</th>
       <th>Acciones</th>
@@ -81,6 +82,7 @@
         </select>
       </th>
       <th></th>{# Fin estimado #}
+      <th></th>{# Precio estimado — no filtrable #}
       <th>
         <select id="filterEstado">
           <option value="">Todos</option>
@@ -132,6 +134,15 @@
       </td>
 
       <td>{{ a.end_datetime.strftime("%H:%M") }}</td>
+
+      <td class="text-end">
+        {% set precio = estimated_prices.get(a.id, 0) %}
+        {% if precio %}
+          ${{ "{:,}".format(precio).replace(",", ".") }}
+        {% else %}
+          <span class="text-muted small">—</span>
+        {% endif %}
+      </td>
 
       <td>
         {% if a.status == "completed" %}
@@ -241,7 +252,7 @@ $(document).ready(function() {
   });
 
   // Columnas a exportar (excluye Timestamp oculto y Acciones)
-  var exportCols = [0, 1, 3, 4, 5, 6, 7, 8, 9, 10, 11];
+  var exportCols = [0, 1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
 
   var table = $("#appointmentsTable").DataTable({
     pageLength: 50,
@@ -267,8 +278,8 @@ $(document).ready(function() {
     columnDefs: [
       { targets: 2,  visible: false },   // Timestamp (sort key)
       { targets: 9,  orderable: false }, // Fin estimado
-      { targets: 11, orderable: false }, // Trabajo
-      { targets: 12, orderable: false }, // Acciones
+      { targets: 12, orderable: false }, // Trabajo
+      { targets: 13, orderable: false }, // Acciones
     ],
     language: {
       search: "Buscar en todo:",
@@ -299,14 +310,14 @@ $(document).ready(function() {
         api.column(8).search(this.value).draw();
       });
 
-      // Select estado → col 10
+      // Select estado → col 11
       $('#filterEstado').on('change', function() {
-        api.column(10).search(this.value).draw();
+        api.column(11).search(this.value).draw();
       });
 
-      // Select trabajo → col 11
+      // Select trabajo → col 12
       $('#filterTrabajo').on('change', function() {
-        api.column(11).search(this.value).draw();
+        api.column(12).search(this.value).draw();
       });
     }
   });
