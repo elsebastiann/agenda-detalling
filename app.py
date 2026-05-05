@@ -1186,7 +1186,8 @@ def new_appointment():
 def appointments_list():
     """Lista simple en tabla de las próximas citas."""
     appointments = Appointment.query.order_by(Appointment.start_datetime.asc()).all()
-    return render_template("appointments_list.html", appointments=appointments)
+    agreements   = Agreement.query.filter_by(is_active=True).order_by(Agreement.name).all()
+    return render_template("appointments_list.html", appointments=appointments, agreements=agreements)
 
 
 @app.route("/appointments/<int:appointment_id>/delete", methods=["POST"])

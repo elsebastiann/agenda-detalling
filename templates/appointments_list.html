@@ -17,6 +17,10 @@
   #appointmentsTable thead tr.filters th select option {
     background: #2b2b2b;
   }
+  /* ajuste para que los dos date inputs no rompan el layout */
+  .date-range-filter { display: flex; flex-direction: column; gap: 2px; }
+  .date-range-filter input { font-size: 0.7rem !important; }
+  .date-range-filter label { font-size: 0.65rem; color: #999; margin: 0; }
 </style>
 {% endblock %}
 
@@ -26,7 +30,7 @@
 <table id="appointmentsTable"
        class="table table-dark table-striped table-sm align-middle mt-4">
   <thead>
-    {# ---- Fila de encabezados ---- #}
+    {# ---- Encabezados ---- #}
     <tr>
       <th>Fecha</th>
       <th>Hora</th>
@@ -43,20 +47,40 @@
       <th>Acciones</th>
     </tr>
 
-    {# ---- Fila de filtros por columna ---- #}
+    {# ---- Filtros por columna ---- #}
     <tr class="filters">
-      <th><input type="text"  placeholder="Fecha…"></th>
-      <th><input type="text"  placeholder="Hora…"></th>
+      {# Fecha: rango desde/hasta con date picker #}
+      <th colspan="2">
+        <div class="date-range-filter">
+          <div>
+            <label>Desde</label>
+            <input type="date" id="filterDesde">
+          </div>
+          <div>
+            <label>Hasta</label>
+            <input type="date" id="filterHasta">
+          </div>
+        </div>
+      </th>
       <th></th>{# Timestamp oculto #}
-      <th><input type="text"  placeholder="Cliente…"></th>
-      <th><input type="text"  placeholder="Teléfono…"></th>
-      <th><input type="text"  placeholder="Placa…"></th>
-      <th><input type="text"  placeholder="Servicio…"></th>
-      <th><input type="text"  placeholder="Operario…"></th>
-      <th><input type="text"  placeholder="Convenio…"></th>
-      <th></th>{# Fin estimado — no filtrable #}
+      <th><input type="text" placeholder="Cliente…"></th>
+      <th><input type="text" placeholder="Teléfono…"></th>
+      <th><input type="text" placeholder="Placa…"></th>
+      <th><input type="text" placeholder="Servicio…"></th>
+      <th><input type="text" placeholder="Operario…"></th>
+      {# Convenio: lista desplegable con los convenios activos #}
       <th>
-        <select>
+        <select id="filterConvenio">
+          <option value="">Todos</option>
+          <option value="—">Sin convenio</option>
+          {% for ag in agreements %}
+            <option value="{{ ag.name }}">{{ ag.name }}</option>
+          {% endfor %}
+        </select>
+      </th>
+      <th></th>{# Fin estimado #}
+      <th>
+        <select id="filterEstado">
           <option value="">Todos</option>
           <option value="Agendado">Agendado</option>
           <option value="Finalizado">Finalizado</option>
@@ -64,7 +88,7 @@
         </select>
       </th>
       <th>
-        <select>
+        <select id="filterTrabajo">
           <option value="">Todos</option>
           <option value="Iniciar">Pendiente</option>
           <option value="En curso">En curso</option>
@@ -101,7 +125,7 @@
         {% if a.agreement %}
           {{ a.agreement.name }}
         {% else %}
-          <span class="text-muted small">—</span>
+          —
         {% endif %}
       </td>
 
@@ -198,48 +222,73 @@
 
 <script>
 $(document).ready(function() {
-    var table = $("#appointmentsTable").DataTable({
-        pageLength: 50,
-        order: [[2, "desc"]],
-        columnDefs: [
-            { targets: 2,  visible: false },   // Timestamp (sort key)
-            { targets: 9,  orderable: false }, // Fin estimado
-            { targets: 11, orderable: false }, // Trabajo
-            { targets: 12, orderable: false }, // Acciones
-        ],
-        language: {
-            search: "Buscar en todo:",
-            lengthMenu: "Mostrar _MENU_ registros",
-            info: "Mostrando _START_ a _END_ de _TOTAL_ citas",
-            infoEmpty: "Sin resultados",
-            zeroRecords: "Ninguna cita coincide con el filtro",
-            paginate: { previous: "Anterior", next: "Siguiente" }
-        },
-        // Wiring de filtros por columna
-        initComplete: function() {
-            var api = this.api();
 
-            // Columnas con input de texto
-            var textCols = [0, 1, 3, 4, 5, 6, 7, 8];
-            textCols.forEach(function(i) {
-                var input = $("thead tr.filters th").eq(i).find("input");
-                input.on("keyup change clear", function() {
-                    var val = this.value;
-                    if (api.column(i).search() !== val) {
-                        api.column(i).search(val).draw();
-                    }
-                });
-            });
+  // ── Filtro de rango de fechas (columna 0) ───────────────────────────────
+  $.fn.dataTable.ext.search.push(function(settings, data) {
+    var desde = $('#filterDesde').val();
+    var hasta  = $('#filterHasta').val();
+    var fecha  = data[0]; // "YYYY-MM-DD"
+    if (!desde && !hasta) return true;
+    if (desde && fecha < desde) return false;
+    if (hasta && fecha > hasta) return false;
+    return true;
+  });
 
-            // Columnas con select (Estado col 10, Trabajo col 11)
-            [10, 11].forEach(function(i) {
-                var sel = $("thead tr.filters th").eq(i).find("select");
-                sel.on("change", function() {
-                    api.column(i).search(this.value).draw();
-                });
-            });
-        }
-    });
+  var table = $("#appointmentsTable").DataTable({
+    pageLength: 50,
+    order: [[2, "desc"]],
+    columnDefs: [
+      { targets: 2,  visible: false },   // Timestamp (sort key)
+      { targets: 9,  orderable: false }, // Fin estimado
+      { targets: 11, orderable: false }, // Trabajo
+      { targets: 12, orderable: false }, // Acciones
+    ],
+    language: {
+      search: "Buscar en todo:",
+      lengthMenu: "Mostrar _MENU_ registros",
+      info: "Mostrando _START_ a _END_ de _TOTAL_ citas",
+      infoEmpty: "Sin resultados",
+      zeroRecords: "Ninguna cita coincide con el filtro",
+      paginate: { previous: "Anterior", next: "Siguiente" }
+    },
+    initComplete: function() {
+      var api = this.api();
+
+      // Inputs de texto: cols 3-8
+      [3, 4, 5, 6, 7, 8].forEach(function(i) {
+        // Los th de la fila filters están desplazados porque cols 0-1 tienen colspan=2
+        // Usamos el índice visual menos 1 (por el colspan que fusiona Fecha+Hora)
+        var filterIdx = i - 1;
+        var input = $("thead tr.filters th").eq(filterIdx).find("input");
+        input.on("keyup change clear", function() {
+          if (api.column(i).search() !== this.value) {
+            api.column(i).search(this.value).draw();
+          }
+        });
+      });
+
+      // Select convenio → col 8
+      $('#filterConvenio').on('change', function() {
+        api.column(8).search(this.value).draw();
+      });
+
+      // Select estado → col 10
+      $('#filterEstado').on('change', function() {
+        api.column(10).search(this.value).draw();
+      });
+
+      // Select trabajo → col 11
+      $('#filterTrabajo').on('change', function() {
+        api.column(11).search(this.value).draw();
+      });
+    }
+  });
+
+  // Rango de fechas dispara redraw
+  $('#filterDesde, #filterHasta').on('change', function() {
+    table.draw();
+  });
+
 });
 
 function workAction(id, action, btn) {
