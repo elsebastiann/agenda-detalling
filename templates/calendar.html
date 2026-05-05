@@ -374,10 +374,12 @@ function calWorkAction(id, action, btn) {
         btn.disabled = false;
         return;
       }
-      // Recargar los datos del modal sin cerrar
-      fetch(`/appointment/${id}/json`)
-        .then(r => r.json())
-        .then(() => location.reload());
+      if (action === 'end') {
+        // Cronómetro terminado → abrir directamente el formulario de cierre
+        openCloseService(id);
+      } else {
+        location.reload();
+      }
     })
     .catch(() => { alert("Error de red."); btn.disabled = false; });
 }

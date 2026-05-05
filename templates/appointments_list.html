@@ -169,7 +169,12 @@ function workAction(id, action, btn) {
         btn.disabled = false;
         return;
       }
-      location.reload();
+      if (action === 'end') {
+        // Redirigir al calendario para completar el cierre del servicio
+        window.location.href = '/calendar';
+      } else {
+        location.reload();
+      }
     })
     .catch(() => {
       alert("Error de red.");
