@@ -221,6 +221,32 @@
         </div>
       </div>
 
+      {# ---- Operarios ---- #}
+      {% if operators_list %}
+      <div class="mb-3">
+        <label class="form-label">Operarios <small class="text-secondary">(opcional)</small></label>
+        <div class="row g-2">
+          {% set assigned_ids = appointment.operator_assignments | map(attribute='user_id') | list if is_edit else [] %}
+          {% for op in operators_list %}
+            <div class="col-sm-4 col-6">
+              <div class="form-check">
+                <input class="form-check-input"
+                       type="checkbox"
+                       name="operator_ids"
+                       id="op_{{ op.id }}"
+                       value="{{ op.id }}"
+                       {% if op.id in assigned_ids %}checked{% endif %}>
+                <label class="form-check-label" for="op_{{ op.id }}">
+                  {{ op.username }}
+                  <span class="badge bg-secondary ms-1" style="font-size:0.65rem;">{{ op.role }}</span>
+                </label>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
       {# ---- Notas ---- #}
       <div class="mb-4">
         <label class="form-label">Notas</label>

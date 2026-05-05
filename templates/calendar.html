@@ -156,6 +156,38 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(res => res.json())
         .then(data => {
 
+          // Helpers
+          const operatorsHtml = data.operators && data.operators.length
+            ? data.operators.map(o => `<span class="badge bg-secondary me-1">${o.username}</span>`).join("")
+            : '<span class="text-muted">—</span>';
+
+          const workStatusBadge = {
+            pending:     "<span class='badge bg-secondary'>Pendiente</span>",
+            in_progress: "<span class='badge bg-primary'>En curso</span>",
+            paused:      "<span class='badge bg-warning text-dark'>Pausado</span>",
+            done:        "<span class='badge bg-info text-dark'>Terminado</span>",
+          }[data.work_status] || "";
+
+          const workDurationHtml = data.work_duration_minutes !== null && data.work_duration_minutes !== undefined
+            ? `<span class="ms-2 text-muted small">(${data.work_duration_minutes} min reales)</span>`
+            : "";
+
+          // Botones de control de trabajo (solo si scheduled)
+          let workBtns = "";
+          if (data.status === "scheduled") {
+            if (data.work_status === "pending") {
+              workBtns = `<button class="btn btn-success btn-sm" onclick="calWorkAction(${data.id},'start',this)">Iniciar</button>`;
+            } else if (data.work_status === "in_progress") {
+              workBtns = `
+                <button class="btn btn-warning btn-sm" onclick="calWorkAction(${data.id},'pause',this)">Pausar</button>
+                <button class="btn btn-danger btn-sm" onclick="calWorkAction(${data.id},'end',this)">Terminar</button>`;
+            } else if (data.work_status === "paused") {
+              workBtns = `
+                <button class="btn btn-primary btn-sm" onclick="calWorkAction(${data.id},'pause',this)">Reanudar</button>
+                <button class="btn btn-danger btn-sm" onclick="calWorkAction(${data.id},'end',this)">Terminar</button>`;
+            }
+          }
+
           document.getElementById("modalBodyContent").innerHTML = `
   <p><b>Cliente:</b> ${data.customer_name}</p>
   <p><b>Placa:</b> ${data.plate || 'Sin placa'}</p>
@@ -164,6 +196,7 @@ document.addEventListener('DOMContentLoaded', function() {
   <p><b>Inicio:</b> ${data.start}</p>
   <p><b>Fin:</b> ${data.end}</p>
   <p><b>Notas:</b> ${data.notes || 'Sin notas'}</p>
+  <p><b>Operarios:</b> ${operatorsHtml}</p>
   ${data.booking_adjustment_type ? `
   <p><b>Ajuste al agendar:</b>
     <span class="badge ${data.booking_adjustment_type === 'discount' ? 'bg-warning text-dark' : 'bg-info text-dark'}">
@@ -188,8 +221,11 @@ document.addEventListener('DOMContentLoaded', function() {
           : "<span class='badge bg-secondary'>Agendado</span>"
     }
   </p>
+  <p><b>Trabajo:</b> ${workStatusBadge}${workDurationHtml}</p>
 
-  <div class="d-flex gap-2 mt-3 flex-wrap">
+  ${workBtns ? `<div class="d-flex gap-2 mb-3 flex-wrap">${workBtns}</div>` : ""}
+
+  <div class="d-flex gap-2 mt-2 flex-wrap">
 
     ${
       data.status === "scheduled"
@@ -327,6 +363,24 @@ document.addEventListener('DOMContentLoaded', function() {
 
   calendar.render();
 });
+
+function calWorkAction(id, action, btn) {
+  btn.disabled = true;
+  fetch(`/appointments/${id}/work/${action}`, { method: "POST" })
+    .then(r => r.json())
+    .then(data => {
+      if (!data.ok) {
+        alert(data.error || "Error al actualizar el estado de trabajo.");
+        btn.disabled = false;
+        return;
+      }
+      // Recargar los datos del modal sin cerrar
+      fetch(`/appointment/${id}/json`)
+        .then(r => r.json())
+        .then(() => location.reload());
+    })
+    .catch(() => { alert("Error de red."); btn.disabled = false; });
+}
 
 function openCloseService(appointmentId) {
   const box = document.getElementById("closeServiceBox");

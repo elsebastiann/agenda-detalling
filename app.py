@@ -364,6 +364,17 @@ class Appointment(db.Model):
     # Estado de la cita: scheduled | completed | cancelled
     status = db.Column(db.String(20), nullable=False, default="scheduled")
 
+    # Timing real del trabajo: pending | in_progress | paused | done
+    work_status         = db.Column(db.String(20), nullable=False, default="pending")
+    work_started_at     = db.Column(db.DateTime, nullable=True)
+    work_paused_at      = db.Column(db.DateTime, nullable=True)
+    work_ended_at       = db.Column(db.DateTime, nullable=True)
+    total_pause_seconds = db.Column(db.Integer, nullable=False, default=0)
+
+    operator_assignments = db.relationship(
+        "AppointmentOperator", cascade="all, delete-orphan", lazy="joined"
+    )
+
     def __repr__(self):
         return f"<Appointment {self.customer_name} - {self.services}>"
 
@@ -404,6 +415,44 @@ def ensure_appointments_close_schema():
                     text(f"ALTER TABLE appointments ADD COLUMN {col} {ddl}")
                 )
         db.session.commit()
+
+# --- Migración: columnas de timing de trabajo en appointments ---
+def ensure_appointment_work_schema():
+    with app.app_context():
+        cols = [
+            ("work_status",         "VARCHAR(20) DEFAULT 'pending'"),
+            ("work_started_at",     "DATETIME"),
+            ("work_paused_at",      "DATETIME"),
+            ("work_ended_at",       "DATETIME"),
+            ("total_pause_seconds", "INTEGER DEFAULT 0"),
+        ]
+        for col, ddl in cols:
+            try:
+                db.session.execute(text(f"SELECT {col} FROM appointments LIMIT 1"))
+            except Exception:
+                db.session.execute(
+                    text(f"ALTER TABLE appointments ADD COLUMN {col} {ddl}")
+                )
+        db.session.commit()
+
+ensure_appointment_work_schema()
+
+# --- Migración: tabla appointment_operators ---
+def ensure_appointment_operators_schema():
+    with app.app_context():
+        try:
+            db.session.execute(text("SELECT id FROM appointment_operators LIMIT 1"))
+        except Exception:
+            db.session.execute(text("""
+                CREATE TABLE IF NOT EXISTS appointment_operators (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    appointment_id INTEGER NOT NULL REFERENCES appointments(id),
+                    user_id INTEGER NOT NULL REFERENCES users(id)
+                )
+            """))
+            db.session.commit()
+
+ensure_appointment_operators_schema()
 
 # -----------------------
 # SERVICE SALES (INGRESOS / BI)
@@ -488,6 +537,17 @@ class User(db.Model):
 
     def __repr__(self):
         return f"<User {self.username} role={self.role}>"
+
+
+class AppointmentOperator(db.Model):
+    __tablename__ = "appointment_operators"
+    id             = db.Column(db.Integer, primary_key=True)
+    appointment_id = db.Column(db.Integer, db.ForeignKey("appointments.id"), nullable=False)
+    user_id        = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    user           = db.relationship("User")
+
+    def __repr__(self):
+        return f"<AppointmentOperator appt={self.appointment_id} user={self.user_id}>"
 
 
 class Expense(db.Model):
@@ -1004,6 +1064,10 @@ def new_appointment():
     services = Service.query.filter_by(is_active=True).order_by(Service.name).all()
     vehicle_types = VehicleType.query.filter_by(is_active=True).order_by(VehicleType.name).all()
     agreements = Agreement.query.filter_by(is_active=True).order_by(Agreement.name).all()
+    operators_list = User.query.filter(
+        User.is_active == True,
+        User.role.in_(["operario", "lider", "admin"])
+    ).order_by(User.username).all()
 
     if request.method == "POST":
         customer_name = request.form.get("customer_name") or "Sin nombre"
@@ -1096,6 +1160,14 @@ def new_appointment():
             booking_adjustment_value=booking_adjustment_value,
         )
         db.session.add(appt)
+        db.session.flush()
+
+        for uid in request.form.getlist("operator_ids"):
+            try:
+                db.session.add(AppointmentOperator(appointment_id=appt.id, user_id=int(uid)))
+            except Exception:
+                pass
+
         db.session.commit()
 
         return redirect(url_for("calendar_view"))
@@ -1105,6 +1177,7 @@ def new_appointment():
         services=services,
         vehicle_types=vehicle_types,
         agreements=agreements,
+        operators_list=operators_list,
         today=date.today().isoformat()
     )
 
@@ -1130,6 +1203,10 @@ def edit_appointment(appointment_id):
     services = Service.query.filter_by(is_active=True).order_by(Service.name).all()
     vehicle_types = VehicleType.query.filter_by(is_active=True).order_by(VehicleType.name).all()
     agreements = Agreement.query.filter_by(is_active=True).order_by(Agreement.name).all()
+    operators_list = User.query.filter(
+        User.is_active == True,
+        User.role.in_(["operario", "lider", "admin"])
+    ).order_by(User.username).all()
 
     if request.method == "POST":
         # Campos básicos
@@ -1203,6 +1280,14 @@ def edit_appointment(appointment_id):
             agreement_id=appointment.agreement_id
         )
 
+        # Actualizar operarios asignados
+        AppointmentOperator.query.filter_by(appointment_id=appointment.id).delete()
+        for uid in request.form.getlist("operator_ids"):
+            try:
+                db.session.add(AppointmentOperator(appointment_id=appointment.id, user_id=int(uid)))
+            except Exception:
+                pass
+
         db.session.commit()
         return redirect(url_for("calendar_view"))
 
@@ -1212,6 +1297,7 @@ def edit_appointment(appointment_id):
         services=services,
         vehicle_types=vehicle_types,
         agreements=agreements,
+        operators_list=operators_list,
         mode="edit",
         today=appointment.start_datetime.date().isoformat()
     )
@@ -1778,6 +1864,18 @@ def api_events():
 def appointment_json(appointment_id):
     appt = Appointment.query.get_or_404(appointment_id)
     estimated_amount = calculate_estimated_amount_for_appointment(appt)
+
+    operators = [
+        {"id": ao.user_id, "username": ao.user.username}
+        for ao in appt.operator_assignments
+    ]
+
+    work_duration_minutes = None
+    if appt.work_started_at and appt.work_ended_at:
+        total_secs = int((appt.work_ended_at - appt.work_started_at).total_seconds())
+        net_secs = max(0, total_secs - (appt.total_pause_seconds or 0))
+        work_duration_minutes = net_secs // 60
+
     return jsonify({
         "id": appt.id,
         "customer_name": appt.customer_name,
@@ -1792,6 +1890,11 @@ def appointment_json(appointment_id):
         "booking_adjustment_type":  getattr(appt, "booking_adjustment_type", None),
         "booking_adjustment_mode":  getattr(appt, "booking_adjustment_mode", None),
         "booking_adjustment_value": getattr(appt, "booking_adjustment_value", None),
+        "operators": operators,
+        "work_status": appt.work_status or "pending",
+        "work_started_at": appt.work_started_at.strftime("%Y-%m-%d %H:%M") if appt.work_started_at else None,
+        "work_ended_at": appt.work_ended_at.strftime("%Y-%m-%d %H:%M") if appt.work_ended_at else None,
+        "work_duration_minutes": work_duration_minutes,
     })
 
 
@@ -2056,7 +2159,57 @@ def close_appointment(appointment_id):
 
     return jsonify({"ok": True})
 
+
 # -----------------------
+# CONTROL DE TRABAJO (START / PAUSE / END)
+# -----------------------
+
+@app.route("/appointments/<int:appointment_id>/work/start", methods=["POST"])
+def work_start(appointment_id):
+    appt = Appointment.query.get_or_404(appointment_id)
+    if appt.work_status != "pending":
+        return jsonify({"ok": False, "error": "El servicio ya fue iniciado"}), 400
+    appt.work_status = "in_progress"
+    appt.work_started_at = datetime.utcnow()
+    db.session.commit()
+    return jsonify({"ok": True, "work_status": appt.work_status})
+
+
+@app.route("/appointments/<int:appointment_id>/work/pause", methods=["POST"])
+def work_pause(appointment_id):
+    appt = Appointment.query.get_or_404(appointment_id)
+    now = datetime.utcnow()
+    if appt.work_status == "in_progress":
+        appt.work_status = "paused"
+        appt.work_paused_at = now
+    elif appt.work_status == "paused":
+        if appt.work_paused_at:
+            pause_secs = int((now - appt.work_paused_at).total_seconds())
+            appt.total_pause_seconds = (appt.total_pause_seconds or 0) + pause_secs
+        appt.work_paused_at = None
+        appt.work_status = "in_progress"
+    else:
+        return jsonify({"ok": False, "error": "Estado inválido para pausar/reanudar"}), 400
+    db.session.commit()
+    return jsonify({"ok": True, "work_status": appt.work_status})
+
+
+@app.route("/appointments/<int:appointment_id>/work/end", methods=["POST"])
+def work_end(appointment_id):
+    appt = Appointment.query.get_or_404(appointment_id)
+    if appt.work_status not in ("in_progress", "paused"):
+        return jsonify({"ok": False, "error": "El servicio no está en curso"}), 400
+    now = datetime.utcnow()
+    if appt.work_status == "paused" and appt.work_paused_at:
+        pause_secs = int((now - appt.work_paused_at).total_seconds())
+        appt.total_pause_seconds = (appt.total_pause_seconds or 0) + pause_secs
+        appt.work_paused_at = None
+    appt.work_status = "done"
+    appt.work_ended_at = now
+    db.session.commit()
+    return jsonify({"ok": True, "work_status": appt.work_status})
+
+
 # -----------------------
 # PARKING (PARQUEADEROS)
 # -----------------------

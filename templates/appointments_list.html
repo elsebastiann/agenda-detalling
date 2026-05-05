@@ -1,7 +1,6 @@
 {% extends "base.html" %}
 
 {% block extra_head %}
-<!-- DataTables CSS -->
 <link rel="stylesheet"
       href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
 {% endblock %}
@@ -20,8 +19,10 @@
       <th>Teléfono</th>
       <th>Placa</th>
       <th>Servicios</th>
+      <th>Operarios</th>
       <th>Fin estimado</th>
       <th>Estado</th>
+      <th>Trabajo</th>
       <th>Acciones</th>
     </tr>
   </thead>
@@ -31,14 +32,22 @@
     <tr>
       <td>{{ a.start_datetime.strftime("%Y-%m-%d") }}</td>
       <td>{{ a.start_datetime.strftime("%H:%M") }}</td>
-
-      <!-- Timestamp -->
       <td>{{ a.start_datetime.strftime("%Y-%m-%d %H:%M") }}</td>
-
       <td>{{ a.customer_name }}</td>
       <td>{{ a.phone or "-" }}</td>
       <td>{{ a.plate or "-" }}</td>
       <td>{{ a.services }}</td>
+
+      <td>
+        {% if a.operator_assignments %}
+          {% for ao in a.operator_assignments %}
+            <span class="badge bg-secondary">{{ ao.user.username }}</span>
+          {% endfor %}
+        {% else %}
+          <span class="text-muted small">—</span>
+        {% endif %}
+      </td>
+
       <td>{{ a.end_datetime.strftime("%H:%M") }}</td>
 
       <td>
@@ -48,6 +57,60 @@
           <span class="badge bg-danger">Cancelado</span>
         {% else %}
           <span class="badge bg-secondary">Agendado</span>
+        {% endif %}
+      </td>
+
+      {# ---- Columna de control de trabajo ---- #}
+      <td>
+        {% if a.status == "scheduled" %}
+          {% set ws = a.work_status or "pending" %}
+
+          {% if ws == "pending" %}
+            <button class="btn btn-sm btn-success"
+                    onclick="workAction({{ a.id }}, 'start', this)">
+              Iniciar
+            </button>
+
+          {% elif ws == "in_progress" %}
+            <span class="badge bg-primary me-1">En curso</span>
+            <button class="btn btn-sm btn-warning"
+                    onclick="workAction({{ a.id }}, 'pause', this)">
+              Pausar
+            </button>
+            <button class="btn btn-sm btn-danger ms-1"
+                    onclick="workAction({{ a.id }}, 'end', this)">
+              Terminar
+            </button>
+
+          {% elif ws == "paused" %}
+            <span class="badge bg-warning text-dark me-1">Pausado</span>
+            <button class="btn btn-sm btn-primary"
+                    onclick="workAction({{ a.id }}, 'pause', this)">
+              Reanudar
+            </button>
+            <button class="btn btn-sm btn-danger ms-1"
+                    onclick="workAction({{ a.id }}, 'end', this)">
+              Terminar
+            </button>
+
+          {% elif ws == "done" %}
+            {% if a.work_started_at and a.work_ended_at %}
+              {% set total_secs = (a.work_ended_at - a.work_started_at).total_seconds() | int %}
+              {% set net_secs = [0, total_secs - (a.total_pause_seconds or 0)] | max %}
+              {% set mins = (net_secs // 60) | int %}
+              <span class="badge bg-info text-dark">{{ mins }} min</span>
+            {% else %}
+              <span class="badge bg-info text-dark">Listo</span>
+            {% endif %}
+          {% endif %}
+
+        {% elif a.status == "completed" and a.work_ended_at and a.work_started_at %}
+          {% set total_secs = (a.work_ended_at - a.work_started_at).total_seconds() | int %}
+          {% set net_secs = [0, total_secs - (a.total_pause_seconds or 0)] | max %}
+          {% set mins = (net_secs // 60) | int %}
+          <span class="badge bg-info text-dark">{{ mins }} min</span>
+        {% else %}
+          <span class="text-muted small">—</span>
         {% endif %}
       </td>
 
@@ -72,7 +135,6 @@
 {% endblock %}
 
 {% block extra_scripts %}
-<!-- DataTables JS -->
 <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
@@ -81,9 +143,9 @@
 $(document).ready(function() {
     $("#appointmentsTable").DataTable({
         pageLength: 50,
-        order: [[2, "desc"]], // Ordenar por timestamp
+        order: [[2, "desc"]],
         columnDefs: [
-            { targets: 2, visible: false },  // Ocultar columna Timestamp (pero sirve para ordenamiento)
+            { targets: 2, visible: false },
         ],
         language: {
             search: "Filtrar:",
@@ -96,5 +158,23 @@ $(document).ready(function() {
         }
     });
 });
+
+function workAction(id, action, btn) {
+  btn.disabled = true;
+  fetch(`/appointments/${id}/work/${action}`, { method: "POST" })
+    .then(r => r.json())
+    .then(data => {
+      if (!data.ok) {
+        alert(data.error || "Error al actualizar el estado de trabajo.");
+        btn.disabled = false;
+        return;
+      }
+      location.reload();
+    })
+    .catch(() => {
+      alert("Error de red.");
+      btn.disabled = false;
+    });
+}
 </script>
 {% endblock %}
