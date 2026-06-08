@@ -1038,6 +1038,23 @@ def service_prices_new():
     return redirect(url_for("service_prices_list"))
 
 
+@app.route("/service-prices/<int:price_id>/update", methods=["POST"])
+def service_prices_update(price_id):
+    sp = ServicePrice.query.get_or_404(price_id)
+    data = request.get_json()
+    if not data:
+        return {"error": "No data"}, 400
+    try:
+        if "price" in data:
+            sp.price = int(data["price"])
+        if "duration_minutes" in data:
+            sp.duration_minutes = int(data["duration_minutes"])
+    except (ValueError, TypeError):
+        return {"error": "Valores inválidos"}, 400
+    db.session.commit()
+    return {"ok": True, "price": sp.price, "duration_minutes": sp.duration_minutes}
+
+
 @app.route("/service-prices/<int:price_id>/toggle", methods=["POST"])
 def service_prices_toggle(price_id):
     sp = ServicePrice.query.get_or_404(price_id)

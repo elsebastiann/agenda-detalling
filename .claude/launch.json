@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "agenda-detalling",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["app.py"],
+      "port": 5001,
+      "env": { "PORT": "5001" }
+    }
+  ]
+}
