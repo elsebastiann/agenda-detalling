@@ -827,6 +827,31 @@ def calculate_real_price(service_ids: list[int], vehicle_type_id: int) -> int:
 
     return int(total_price)
 
+# Servicios excluidos de descuentos por convenio (siempre precio completo)
+AGREEMENT_EXCLUDED_SERVICES = {
+    "Wash Essential",
+    "Wash Shine",
+    "Detallado Exterior",
+    "Detallado Llanta a Llanta",
+}
+
+def split_price_by_agreement_eligibility(service_ids: list[int], vehicle_type_id: int) -> tuple[int, int]:
+    """Devuelve (precio_con_descuento, precio_sin_descuento)."""
+    discountable = 0
+    excluded = 0
+    for sid in service_ids:
+        sp = ServicePrice.query.filter_by(
+            service_id=sid, vehicle_type_id=vehicle_type_id, is_active=True
+        ).first()
+        if not sp:
+            continue
+        service = Service.query.get(sid)
+        if service and service.name in AGREEMENT_EXCLUDED_SERVICES:
+            excluded += sp.price
+        else:
+            discountable += sp.price
+    return int(discountable), int(excluded)
+
 def apply_agreement_discount(price: int, agreement: Agreement | None) -> int:
     if not agreement or not agreement.is_active:
         return price
@@ -837,6 +862,16 @@ def apply_agreement_discount(price: int, agreement: Agreement | None) -> int:
         discount = agreement.value
 
     return max(price - discount, 0)
+
+def apply_agreement_discount_split(service_ids: list[int], vehicle_type_id: int, agreement: Agreement | None) -> tuple[int, int]:
+    """
+    Aplica el descuento del convenio solo a los servicios elegibles.
+    Devuelve (precio_final, precio_base_total).
+    """
+    discountable, excluded = split_price_by_agreement_eligibility(service_ids, vehicle_type_id)
+    base_total = discountable + excluded
+    discounted = apply_agreement_discount(discountable, agreement)
+    return discounted + excluded, base_total
 
 # -----------------------
 # HELPER: Calcular valor estimado de una cita (precio base + convenio, sin ajustes manuales)
@@ -860,7 +895,7 @@ def calculate_estimated_amount_for_appointment(appt: Appointment) -> int:
         vehicle_type_id=appt.vehicle_type_id
     )
 
-    after_agreement = apply_agreement_discount(base_price, appt.agreement)
+    after_agreement, _ = apply_agreement_discount_split(service_ids, appt.vehicle_type_id, appt.agreement)
 
     # Aplicar ajuste al crear (booking adjustment)
     b_type  = getattr(appt, "booking_adjustment_type", None)
@@ -2063,7 +2098,7 @@ def api_estimate_price():
 
     agreement = Agreement.query.get(agreement_id) if agreement_id else None
 
-    final_price = apply_agreement_discount(base_price, agreement)
+    final_price, _ = apply_agreement_discount_split(service_ids, vehicle_type_id, agreement)
 
     # Ajuste al crear (booking adjustment)
     b_type  = data.get("booking_adjustment_type")
@@ -2116,13 +2151,13 @@ def close_appointment(appointment_id):
     services = Service.query.filter(Service.name.in_(service_names)).all()
     service_ids = [s.id for s in services]
 
-    # Precio base real con convenio
+    # Precio base real con convenio (excluye servicios no elegibles)
     base_price = calculate_real_price(
         service_ids=service_ids,
         vehicle_type_id=appt.vehicle_type_id
     )
 
-    base_amount = apply_agreement_discount(base_price, appt.agreement)
+    base_amount, _ = apply_agreement_discount_split(service_ids, appt.vehicle_type_id, appt.agreement)
 
     # Aplicar ajuste hecho al crear la cita (booking adjustment)
     b_type  = getattr(appt, "booking_adjustment_type", None)
