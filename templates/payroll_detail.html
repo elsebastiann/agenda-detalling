@@ -1,0 +1,282 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+
+  <!-- Encabezado -->
+  <div class="d-flex justify-content-between align-items-center mb-1">
+    <div>
+      <h2 class="mb-0">
+        Quincena {{ period.start_date.strftime('%d/%m/%Y') }} — {{ period.end_date.strftime('%d/%m/%Y') }}
+      </h2>
+      <small class="text-muted">
+        {% if period.status == 'paid' %}
+          <span class="badge bg-success">Pagada el {{ period.paid_at.strftime('%d/%m/%Y %H:%M') }}</span>
+        {% else %}
+          <span class="badge bg-warning text-dark">Borrador</span>
+        {% endif %}
+      </small>
+    </div>
+    <div class="d-flex gap-2">
+      <a href="{{ url_for('payroll_list') }}" class="btn btn-sm btn-outline-secondary">← Volver</a>
+      {% if period.status == 'draft' %}
+      <form method="POST" action="{{ url_for('payroll_pay', period_id=period.id) }}"
+            onsubmit="return confirm('¿Confirmar pago de esta quincena? Esta acción no se puede deshacer.')">
+        <button type="submit" class="btn btn-sm btn-success">Marcar como pagada</button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Agregar vale rápido -->
+  {% if period.status == 'draft' %}
+  <div class="card card-body bg-dark border-secondary mt-3 mb-4">
+    <form method="POST" action="{{ url_for('payroll_vale_new', period_id=period.id) }}"
+          class="row g-2 align-items-end">
+      <div class="col-auto">
+        <label class="form-label text-muted small">Agregar vale a esta quincena</label>
+        <select name="employee_id" class="form-select form-select-sm" required>
+          <option value="">Operario</option>
+          {% for entry in entries %}
+            <option value="{{ entry.employee_id }}">{{ entry.employee.username }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-auto">
+        <input type="number" name="amount" class="form-control form-select-sm"
+               placeholder="Monto" min="1000" step="1000" style="width:130px" required>
+      </div>
+      <div class="col-auto">
+        <input type="text" name="description" class="form-control form-select-sm"
+               placeholder="Descripción" style="width:200px">
+      </div>
+      <div class="col-auto">
+        <button type="submit" class="btn btn-sm btn-outline-warning">+ Vale</button>
+      </div>
+    </form>
+  </div>
+  {% endif %}
+
+  <!-- Tarjetas por operario -->
+  {% for entry in entries %}
+  {% set emp = entry.employee %}
+  {% set is_trial = emp.is_trial_period %}
+  {% set errors = errors_by_emp.get(emp.id, []) %}
+  {% set vales   = vales_by_emp.get(emp.id, []) %}
+  {% set is_paid = period.status == 'paid' %}
+  {% set is_perfect = (errors | length == 0) and not is_trial %}
+
+  <div class="card bg-dark border-secondary mb-4" id="entry-card-{{ entry.id }}">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <div>
+        <strong class="fs-5">{{ emp.username }}</strong>
+        {% if is_trial %}
+          <span class="badge bg-warning text-dark ms-2">Período de prueba</span>
+        {% endif %}
+        {% if is_perfect %}
+          <span class="badge bg-success ms-2">⭐ Quincena perfecta</span>
+        {% endif %}
+      </div>
+      <div class="fs-5 fw-bold text-success" id="total-{{ entry.id }}">
+        $ {{ "{:,}".format(entry.total).replace(",", ".") }}
+      </div>
+    </div>
+
+    <div class="card-body">
+      <div class="row g-3">
+
+        <!-- Columna izquierda: salario y bono -->
+        <div class="col-12 col-md-4">
+          <table class="table table-sm table-dark mb-0">
+            <tbody>
+              <tr>
+                <td class="text-muted">Salario base</td>
+                <td class="text-end">$ {{ "{:,}".format(entry.base_salary).replace(",",".") }}</td>
+              </tr>
+              {% if not is_trial %}
+              <tr>
+                <td class="text-muted">Bono calidad</td>
+                <td class="text-end {% if entry.bonus < 100000 %}text-warning{% else %}text-success{% endif %}">
+                  $ {{ "{:,}".format(entry.bonus).replace(",",".") }}
+                </td>
+              </tr>
+              {% if is_perfect %}
+              <tr>
+                <td class="text-muted">Bono extra</td>
+                <td class="text-end">
+                  {% if not is_paid %}
+                  <input type="number" class="form-control form-control-sm text-end"
+                         style="width:110px;margin-left:auto"
+                         min="0" step="1000"
+                         value="{{ entry.bonus_extra }}"
+                         onchange="updateEntry({{ entry.id }}, 'bonus_extra', this.value)">
+                  {% else %}
+                    $ {{ "{:,}".format(entry.bonus_extra).replace(",",".") }}
+                  {% endif %}
+                </td>
+              </tr>
+              {% endif %}
+              {% endif %}
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Columna centro: descuentos editables -->
+        <div class="col-12 col-md-4">
+          <table class="table table-sm table-dark mb-0">
+            <tbody>
+              <tr>
+                <td class="text-muted">Días ausencia</td>
+                <td class="text-end">
+                  {% if not is_paid %}
+                  <input type="number" class="form-control form-control-sm text-end"
+                         style="width:80px;margin-left:auto"
+                         min="0" max="15" step="1"
+                         value="{{ entry.absence_days }}"
+                         onchange="updateEntry({{ entry.id }}, 'absence_days', this.value)">
+                  {% else %}
+                    {{ entry.absence_days }} días
+                  {% endif %}
+                </td>
+              </tr>
+              <tr>
+                <td class="text-muted">Desc. ausencias</td>
+                <td class="text-end text-danger" id="absence-deduction-{{ entry.id }}">
+                  − $ {{ "{:,}".format(entry.deduction_absences).replace(",",".") }}
+                </td>
+              </tr>
+              <tr>
+                <td class="text-muted">Desc. vales</td>
+                <td class="text-end text-danger">
+                  − $ {{ "{:,}".format(entry.deduction_vales).replace(",",".") }}
+                </td>
+              </tr>
+              <tr>
+                <td class="text-muted">Desc. bebidas</td>
+                <td class="text-end">
+                  {% if not is_paid %}
+                  <input type="number" class="form-control form-control-sm text-end"
+                         style="width:110px;margin-left:auto"
+                         min="0" step="1000"
+                         value="{{ entry.deduction_drinks }}"
+                         onchange="updateEntry({{ entry.id }}, 'deduction_drinks', this.value)">
+                  {% else %}
+                    − $ {{ "{:,}".format(entry.deduction_drinks).replace(",",".") }}
+                  {% endif %}
+                </td>
+              </tr>
+              <tr>
+                <td class="text-muted">Desc. calidad</td>
+                <td class="text-end text-danger">
+                  − $ {{ "{:,}".format(entry.deduction_quality).replace(",",".") }}
+                </td>
+              </tr>
+              <tr>
+                <td class="text-muted">Desc. otros</td>
+                <td class="text-end">
+                  {% if not is_paid %}
+                  <input type="number" class="form-control form-control-sm text-end"
+                         style="width:110px;margin-left:auto"
+                         min="0" step="1000"
+                         value="{{ entry.deduction_other }}"
+                         onchange="updateEntry({{ entry.id }}, 'deduction_other', this.value)">
+                  {% else %}
+                    − $ {{ "{:,}".format(entry.deduction_other).replace(",",".") }}
+                  {% endif %}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          {% if not is_paid %}
+          <input type="text" class="form-control form-control-sm mt-1"
+                 placeholder="Notas desc. otros"
+                 value="{{ entry.deduction_other_notes or '' }}"
+                 onchange="updateEntry({{ entry.id }}, 'deduction_other_notes', this.value)">
+          {% elif entry.deduction_other_notes %}
+            <small class="text-muted">{{ entry.deduction_other_notes }}</small>
+          {% endif %}
+        </div>
+
+        <!-- Columna derecha: detalle errores y vales -->
+        <div class="col-12 col-md-4">
+          {% if errors %}
+          <p class="text-muted small mb-1">Errores de calidad:</p>
+          <ul class="list-unstyled small">
+            {% for e in errors %}
+            <li class="mb-1">
+              <span class="badge {% if e.type == 'leve' %}bg-warning text-dark{% else %}bg-danger{% endif %}">
+                {{ e.type | capitalize }}
+              </span>
+              {{ e.description }}
+              <span class="text-danger">− $ {{ "{:,}".format(e.deduction).replace(",",".") }}</span>
+              <br><small class="text-muted">{{ e.created_at.strftime('%d/%m %H:%M') }}</small>
+            </li>
+            {% endfor %}
+          </ul>
+          {% endif %}
+
+          {% if vales %}
+          <p class="text-muted small mb-1 mt-2">Vales:</p>
+          <ul class="list-unstyled small">
+            {% for v in vales %}
+            <li>
+              $ {{ "{:,}".format(v.amount).replace(",",".") }}
+              {% if v.description %} — {{ v.description }}{% endif %}
+              <small class="text-muted">({{ v.created_at.strftime('%d/%m') }})</small>
+            </li>
+            {% endfor %}
+          </ul>
+          {% endif %}
+
+          {% if not errors and not vales %}
+            <p class="text-muted small">Sin novedades.</p>
+          {% endif %}
+
+          {% if not is_paid %}
+          <textarea class="form-control form-control-sm mt-2" rows="2"
+                    placeholder="Notas generales..."
+                    onchange="updateEntry({{ entry.id }}, 'notes', this.value)">{{ entry.notes or '' }}</textarea>
+          {% elif entry.notes %}
+            <p class="text-muted small mt-2">{{ entry.notes }}</p>
+          {% endif %}
+        </div>
+
+      </div><!-- row -->
+    </div><!-- card-body -->
+  </div>
+  {% endfor %}
+
+  <!-- Total general -->
+  <div class="card bg-dark border-secondary mb-5">
+    <div class="card-body d-flex justify-content-between align-items-center">
+      <span class="fs-5 text-muted">Total quincena</span>
+      <span class="fs-4 fw-bold text-success">
+        $ {{ "{:,}".format(entries | sum(attribute='total')).replace(",", ".") }}
+      </span>
+    </div>
+  </div>
+
+</div>
+
+<script>
+function updateEntry(entryId, field, value) {
+  const body = {};
+  body[field] = field.includes('notes') ? value : parseInt(value) || 0;
+
+  fetch(`/payroll/{{ period.id }}/entry/${entryId}/update`, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(body)
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.ok) {
+      // Actualizar total en la tarjeta
+      const totalEl = document.getElementById('total-' + entryId);
+      if (totalEl) {
+        totalEl.textContent = '$ ' + data.total.toLocaleString('es-CL');
+      }
+    }
+  });
+}
+</script>
+{% endblock %}

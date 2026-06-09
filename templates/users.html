@@ -18,6 +18,8 @@
           <th>Usuario</th>
           <th class="text-center">Rol</th>
           <th class="text-center">Estado</th>
+          <th class="text-end">Salario</th>
+          <th class="text-center">Prueba</th>
           <th class="text-center">Creado</th>
           <th class="text-center">Acciones</th>
         </tr>
@@ -41,6 +43,27 @@
             {% else %}
               <span class="badge bg-danger">Inactivo</span>
             {% endif %}
+          </td>
+          <td class="text-end">
+            {% if u.role == 'operario' %}
+            <span class="editable-salary" data-id="{{ u.id }}" data-value="{{ u.salary or 0 }}"
+                  style="cursor:pointer;border-bottom:1px dashed rgba(255,255,255,0.3);padding:2px 4px;">
+              {% if u.salary %}
+                $ {{ "{:,}".format(u.salary).replace(",", ".") }}
+              {% else %}
+                <span class="text-muted">—</span>
+              {% endif %}
+            </span>
+            {% else %}—{% endif %}
+          </td>
+          <td class="text-center">
+            {% if u.role == 'operario' %}
+            <div class="form-check form-switch d-flex justify-content-center">
+              <input class="form-check-input trial-toggle" type="checkbox"
+                     data-id="{{ u.id }}"
+                     {% if u.is_trial_period %}checked{% endif %}>
+            </div>
+            {% else %}—{% endif %}
           </td>
           <td class="text-center" style="font-size:0.78rem;color:var(--text2);">
             {{ u.created_at.strftime('%d/%m/%Y') }}
@@ -159,16 +182,59 @@
 </div>
 
 <script>
-  // Rellena el modal de edición con los datos del usuario seleccionado
+  // Modal edición usuario
   document.getElementById('modalEditUser').addEventListener('show.bs.modal', function (e) {
     const btn = e.relatedTarget;
-    const id       = btn.getAttribute('data-id');
-    const username = btn.getAttribute('data-username');
-    const role     = btn.getAttribute('data-role');
+    document.getElementById('editUsername').value = btn.getAttribute('data-username');
+    document.getElementById('editRole').value     = btn.getAttribute('data-role');
+    document.getElementById('editUserForm').action = `/users/${btn.getAttribute('data-id')}/edit`;
+  });
 
-    document.getElementById('editUsername').value = username;
-    document.getElementById('editRole').value     = role;
-    document.getElementById('editUserForm').action = `/users/${id}/edit`;
+  // Edición inline de salario
+  document.querySelectorAll('.editable-salary').forEach(cell => {
+    cell.addEventListener('click', function() {
+      if (cell.querySelector('input')) return;
+      const id  = cell.dataset.id;
+      const val = cell.dataset.value;
+      const orig = cell.innerHTML;
+      const input = document.createElement('input');
+      input.type = 'number'; input.value = val; input.min = 0; input.step = 50000;
+      input.className = 'form-control form-control-sm text-end';
+      input.style.width = '130px';
+      cell.innerHTML = ''; cell.appendChild(input);
+      input.focus(); input.select();
+      function save() {
+        const newVal = parseInt(input.value) || 0;
+        fetch(`/users/${id}/salary`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({salary: newVal})
+        }).then(r => r.json()).then(d => {
+          if (d.ok) {
+            cell.dataset.value = newVal;
+            cell.innerHTML = newVal > 0
+              ? '$ ' + newVal.toLocaleString('es-CL')
+              : '<span class="text-muted">—</span>';
+          } else { cell.innerHTML = orig; }
+        });
+      }
+      input.addEventListener('blur', save);
+      input.addEventListener('keydown', e => {
+        if (e.key === 'Enter') input.blur();
+        if (e.key === 'Escape') { cell.innerHTML = orig; }
+      });
+    });
+  });
+
+  // Toggle período de prueba
+  document.querySelectorAll('.trial-toggle').forEach(toggle => {
+    toggle.addEventListener('change', function() {
+      fetch(`/users/${this.dataset.id}/salary`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({is_trial_period: this.checked})
+      });
+    });
   });
 </script>
 

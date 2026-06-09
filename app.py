@@ -599,6 +599,116 @@ class Parking(db.Model):
         return f"<Parking {self.parking_date} {self.plate}>"
 
 # -----------------------
+# NÓMINA
+# -----------------------
+
+class PayrollPeriod(db.Model):
+    __tablename__ = "payroll_periods"
+    id         = db.Column(db.Integer, primary_key=True)
+    start_date = db.Column(db.Date, nullable=False)
+    end_date   = db.Column(db.Date, nullable=False)
+    # draft | paid
+    status     = db.Column(db.String(20), nullable=False, default="draft")
+    paid_at    = db.Column(db.DateTime, nullable=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    entries    = db.relationship("PayrollEntry", backref="period", lazy=True, cascade="all, delete-orphan")
+
+    def __repr__(self):
+        return f"<PayrollPeriod {self.start_date}~{self.end_date} {self.status}>"
+
+
+class PayrollEntry(db.Model):
+    """Liquidación de un operario en una quincena."""
+    __tablename__ = "payroll_entries"
+    id            = db.Column(db.Integer, primary_key=True)
+    period_id     = db.Column(db.Integer, db.ForeignKey("payroll_periods.id"), nullable=False)
+    employee_id   = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+
+    # Salario base efectivo (salary - 100k si está en prueba)
+    base_salary   = db.Column(db.Integer, nullable=False, default=0)
+    # Bono calidad (máx 100k, 0 si en prueba). Se recalcula desde errores.
+    bonus         = db.Column(db.Integer, nullable=False, default=0)
+    # Bono extra por quincena perfecta (a discreción del admin)
+    bonus_extra   = db.Column(db.Integer, nullable=False, default=0)
+
+    # Descuentos
+    absence_days        = db.Column(db.Integer, nullable=False, default=0)
+    deduction_absences  = db.Column(db.Integer, nullable=False, default=0)
+    deduction_vales     = db.Column(db.Integer, nullable=False, default=0)
+    deduction_drinks    = db.Column(db.Integer, nullable=False, default=0)
+    deduction_quality   = db.Column(db.Integer, nullable=False, default=0)
+    deduction_other     = db.Column(db.Integer, nullable=False, default=0)
+    deduction_other_notes = db.Column(db.String(300), nullable=True)
+
+    total         = db.Column(db.Integer, nullable=False, default=0)
+    notes         = db.Column(db.String(500), nullable=True)
+
+    employee      = db.relationship("User")
+
+    def recalculate(self):
+        self.total = (
+            self.base_salary
+            + self.bonus
+            + self.bonus_extra
+            - self.deduction_absences
+            - self.deduction_vales
+            - self.deduction_drinks
+            - self.deduction_quality
+            - self.deduction_other
+        )
+
+    def __repr__(self):
+        return f"<PayrollEntry period={self.period_id} emp={self.employee_id}>"
+
+
+class QualityError(db.Model):
+    """Error de calidad registrado por el admin."""
+    __tablename__ = "quality_errors"
+    id          = db.Column(db.Integer, primary_key=True)
+    # leve | grave
+    error_type  = db.Column(db.String(10), nullable=False)
+    description = db.Column(db.String(500), nullable=False)
+    created_at  = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    # Período al que pertenece (se asigna al liquidar, nullable hasta entonces)
+    period_id   = db.Column(db.Integer, db.ForeignKey("payroll_periods.id"), nullable=True)
+
+    assignments = db.relationship("QualityErrorEmployee", backref="error", lazy=True, cascade="all, delete-orphan")
+
+    @property
+    def unit_value(self):
+        return 5000 if self.error_type == "leve" else 10000
+
+    def __repr__(self):
+        return f"<QualityError {self.error_type} {self.created_at}>"
+
+
+class QualityErrorEmployee(db.Model):
+    """Asignación de un error a uno o varios operarios (con monto dividido)."""
+    __tablename__ = "quality_error_employees"
+    id          = db.Column(db.Integer, primary_key=True)
+    error_id    = db.Column(db.Integer, db.ForeignKey("quality_errors.id"), nullable=False)
+    employee_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    deduction   = db.Column(db.Integer, nullable=False)  # monto descontado a este operario
+
+    employee    = db.relationship("User")
+
+
+class Vale(db.Model):
+    """Vale de adelanto de un operario."""
+    __tablename__ = "vales"
+    id          = db.Column(db.Integer, primary_key=True)
+    employee_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    amount      = db.Column(db.Integer, nullable=False)
+    description = db.Column(db.String(300), nullable=True)
+    created_at  = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    # Se asigna al período al liquidar
+    period_id   = db.Column(db.Integer, db.ForeignKey("payroll_periods.id"), nullable=True)
+
+    employee    = db.relationship("User")
+
+
+# -----------------------
 # Helper: Get list of existing vendors (for expense forms)
 # -----------------------
 def get_existing_vendors():
@@ -2364,12 +2474,26 @@ def parking_delete(parking_id):
 
 # INICIALIZACIÓN
 # -----------------------
+def ensure_payroll_schema():
+    """Agrega columnas de nómina a users si no existen."""
+    with app.app_context():
+        for col, definition in [
+            ("salary",          "INTEGER DEFAULT 0"),
+            ("is_trial_period", "BOOLEAN DEFAULT 0"),
+        ]:
+            try:
+                db.session.execute(text(f"SELECT {col} FROM users LIMIT 1"))
+            except Exception:
+                db.session.execute(text(f"ALTER TABLE users ADD COLUMN {col} {definition}"))
+                db.session.commit()
+
 with app.app_context():
     db.create_all()
     ensure_service_sales_schema()
     ensure_clients_vehicle_type_schema()
     ensure_clients_agreement_schema()
     ensure_appointments_close_schema()
+    ensure_payroll_schema()
     # --- Normalización defensiva de convenios (migración suave) ---
     normalize_agreements_discount_type()
     seed_services()
@@ -2816,6 +2940,331 @@ def run_migrate_prices():
     db.session.commit()
     log.append(f"Precios: {updated} actualizados, {created} creados, {skipped} omitidos.")
     return "<br>".join(log) + "<br><b>Migración completada.</b>"
+
+
+# =============================================================
+# NÓMINA
+# =============================================================
+
+BONUS_MAX = 100_000
+TRIAL_DEDUCTION = 100_000
+
+# ── Vales ────────────────────────────────────────────────────
+@app.route("/vales")
+def vales_list():
+    employees = User.query.filter(
+        User.role == "operario", User.is_active == True
+    ).order_by(User.username).all()
+    vales = (Vale.query
+             .filter_by(period_id=None)
+             .order_by(Vale.created_at.desc())
+             .all())
+    return render_template("vales.html", vales=vales, employees=employees)
+
+@app.route("/vales/new", methods=["POST"])
+def vales_new():
+    emp_id = request.form.get("employee_id")
+    amount = request.form.get("amount")
+    desc   = (request.form.get("description") or "").strip()
+    if not emp_id or not amount:
+        flash("Completa todos los campos.", "danger")
+        return redirect(url_for("vales_list"))
+    try:
+        amount = int(amount)
+    except ValueError:
+        flash("Monto inválido.", "danger")
+        return redirect(url_for("vales_list"))
+    db.session.add(Vale(employee_id=int(emp_id), amount=amount, description=desc))
+    db.session.commit()
+    flash("Vale registrado.", "success")
+    return redirect(url_for("vales_list"))
+
+@app.route("/vales/<int:vale_id>/delete", methods=["POST"])
+def vales_delete(vale_id):
+    vale = Vale.query.get_or_404(vale_id)
+    if vale.period_id:
+        flash("No se puede eliminar un vale ya asignado a una quincena.", "danger")
+        return redirect(url_for("vales_list"))
+    db.session.delete(vale)
+    db.session.commit()
+    flash("Vale eliminado.", "success")
+    return redirect(url_for("vales_list"))
+
+# ── Errores de calidad ────────────────────────────────────────
+@app.route("/quality-errors")
+def quality_errors_list():
+    employees = User.query.filter(
+        User.role == "operario", User.is_active == True
+    ).order_by(User.username).all()
+    errors = (QualityError.query
+              .filter_by(period_id=None)
+              .order_by(QualityError.created_at.desc())
+              .all())
+    return render_template("quality_errors.html", errors=errors, employees=employees)
+
+@app.route("/quality-errors/new", methods=["POST"])
+def quality_errors_new():
+    error_type  = request.form.get("error_type")
+    description = (request.form.get("description") or "").strip()
+    emp_ids     = request.form.getlist("employee_ids")  # lista de ids
+
+    if error_type not in ("leve", "grave"):
+        flash("Tipo de error inválido.", "danger")
+        return redirect(url_for("quality_errors_list"))
+    if not description:
+        flash("La descripción es obligatoria.", "danger")
+        return redirect(url_for("quality_errors_list"))
+    if not emp_ids:
+        flash("Selecciona al menos un operario.", "danger")
+        return redirect(url_for("quality_errors_list"))
+
+    unit = 5000 if error_type == "leve" else 10000
+    # División entera; si no es exacta el primer operario absorbe el resto
+    n = len(emp_ids)
+    per_person = unit // n
+    remainder  = unit - per_person * n
+
+    err = QualityError(error_type=error_type, description=description)
+    db.session.add(err)
+    db.session.flush()
+
+    for i, eid in enumerate(emp_ids):
+        amt = per_person + (remainder if i == 0 else 0)
+        db.session.add(QualityErrorEmployee(
+            error_id=err.id,
+            employee_id=int(eid),
+            deduction=amt
+        ))
+
+    db.session.commit()
+    flash("Error registrado.", "success")
+    return redirect(url_for("quality_errors_list"))
+
+@app.route("/quality-errors/<int:error_id>/delete", methods=["POST"])
+def quality_errors_delete(error_id):
+    err = QualityError.query.get_or_404(error_id)
+    if err.period_id:
+        flash("No se puede eliminar un error ya asignado a una quincena.", "danger")
+        return redirect(url_for("quality_errors_list"))
+    db.session.delete(err)
+    db.session.commit()
+    flash("Error eliminado.", "success")
+    return redirect(url_for("quality_errors_list"))
+
+# ── Períodos de nómina ────────────────────────────────────────
+@app.route("/payroll")
+def payroll_list():
+    periods = PayrollPeriod.query.order_by(PayrollPeriod.start_date.desc()).all()
+    return render_template("payroll_list.html", periods=periods)
+
+@app.route("/payroll/new", methods=["POST"])
+def payroll_new():
+    start_str = request.form.get("start_date")
+    end_str   = request.form.get("end_date")
+    try:
+        start = date.fromisoformat(start_str)
+        end   = date.fromisoformat(end_str)
+    except (TypeError, ValueError):
+        flash("Fechas inválidas.", "danger")
+        return redirect(url_for("payroll_list"))
+    if end < start:
+        flash("La fecha de fin debe ser posterior a la de inicio.", "danger")
+        return redirect(url_for("payroll_list"))
+
+    period = PayrollPeriod(start_date=start, end_date=end)
+    db.session.add(period)
+    db.session.flush()
+
+    employees = User.query.filter(
+        User.role == "operario", User.is_active == True
+    ).all()
+
+    for emp in employees:
+        salary    = getattr(emp, "salary", 0) or 0
+        is_trial  = bool(getattr(emp, "is_trial_period", False))
+        base      = max(salary - TRIAL_DEDUCTION, 0) if is_trial else salary
+        bonus     = 0 if is_trial else BONUS_MAX
+
+        # Calcular descuento de calidad acumulado (errores sin período asignado)
+        quality_deduction = 0
+        unassigned_errors = (QualityErrorEmployee.query
+                             .join(QualityError)
+                             .filter(
+                                 QualityErrorEmployee.employee_id == emp.id,
+                                 QualityError.period_id == None
+                             ).all())
+        for qee in unassigned_errors:
+            quality_deduction += qee.deduction
+            if not is_trial:
+                bonus = max(bonus - qee.deduction, 0)
+            # Asignar error al período
+            qee.error.period_id = period.id
+
+        # Calcular vales sin período asignado
+        vales_pendientes = Vale.query.filter_by(employee_id=emp.id, period_id=None).all()
+        vales_total = sum(v.amount for v in vales_pendientes)
+        for v in vales_pendientes:
+            v.period_id = period.id
+
+        entry = PayrollEntry(
+            period_id=period.id,
+            employee_id=emp.id,
+            base_salary=base,
+            bonus=bonus,
+            bonus_extra=0,
+            absence_days=0,
+            deduction_absences=0,
+            deduction_vales=vales_total,
+            deduction_drinks=0,
+            deduction_quality=quality_deduction,
+            deduction_other=0,
+        )
+        entry.recalculate()
+        db.session.add(entry)
+
+    db.session.commit()
+    flash("Quincena creada.", "success")
+    return redirect(url_for("payroll_detail", period_id=period.id))
+
+@app.route("/payroll/<int:period_id>")
+def payroll_detail(period_id):
+    period = PayrollPeriod.query.get_or_404(period_id)
+    entries = (PayrollEntry.query
+               .filter_by(period_id=period_id)
+               .join(User)
+               .order_by(User.username)
+               .all())
+    # Errores del período por operario
+    errors_by_emp = {}
+    for err in QualityError.query.filter_by(period_id=period_id).all():
+        for asgn in err.assignments:
+            errors_by_emp.setdefault(asgn.employee_id, []).append({
+                "type": err.error_type,
+                "description": err.description,
+                "deduction": asgn.deduction,
+                "created_at": err.created_at,
+            })
+    # Vales del período por operario
+    vales_by_emp = {}
+    for v in Vale.query.filter_by(period_id=period_id).all():
+        vales_by_emp.setdefault(v.employee_id, []).append(v)
+
+    return render_template("payroll_detail.html",
+        period=period,
+        entries=entries,
+        errors_by_emp=errors_by_emp,
+        vales_by_emp=vales_by_emp,
+    )
+
+@app.route("/payroll/<int:period_id>/entry/<int:entry_id>/update", methods=["POST"])
+def payroll_entry_update(period_id, entry_id):
+    entry  = PayrollEntry.query.get_or_404(entry_id)
+    period = PayrollPeriod.query.get_or_404(period_id)
+    if period.status == "paid":
+        return jsonify({"ok": False, "error": "La quincena ya está pagada."}), 400
+
+    data = request.get_json(silent=True) or {}
+    is_trial = bool(getattr(entry.employee, "is_trial_period", False))
+
+    if "absence_days" in data:
+        days = int(data["absence_days"])
+        salary_raw = getattr(entry.employee, "salary", 0) or 0
+        entry.absence_days      = days
+        entry.deduction_absences = int(round(salary_raw / 30 * days))
+
+    if "deduction_drinks" in data:
+        entry.deduction_drinks = int(data["deduction_drinks"])
+
+    if "deduction_other" in data:
+        entry.deduction_other = int(data["deduction_other"])
+
+    if "deduction_other_notes" in data:
+        entry.deduction_other_notes = data["deduction_other_notes"]
+
+    if "bonus_extra" in data:
+        entry.bonus_extra = 0 if is_trial else int(data["bonus_extra"])
+
+    if "notes" in data:
+        entry.notes = data["notes"]
+
+    # Recalcular vales (puede haberse agregado un vale nuevo)
+    vales_total = db.session.query(db.func.sum(Vale.amount)).filter_by(
+        employee_id=entry.employee_id, period_id=period_id
+    ).scalar() or 0
+    entry.deduction_vales = vales_total
+
+    entry.recalculate()
+    db.session.commit()
+    return jsonify({"ok": True, "total": entry.total})
+
+@app.route("/payroll/<int:period_id>/pay", methods=["POST"])
+def payroll_pay(period_id):
+    period = PayrollPeriod.query.get_or_404(period_id)
+    if period.status == "paid":
+        flash("Esta quincena ya fue pagada.", "warning")
+        return redirect(url_for("payroll_detail", period_id=period_id))
+    period.status  = "paid"
+    period.paid_at = datetime.utcnow()
+    db.session.commit()
+    flash("Quincena marcada como pagada.", "success")
+    return redirect(url_for("payroll_detail", period_id=period_id))
+
+@app.route("/payroll/<int:period_id>/delete", methods=["POST"])
+def payroll_delete(period_id):
+    period = PayrollPeriod.query.get_or_404(period_id)
+    if period.status == "paid":
+        flash("No se puede eliminar una quincena ya pagada.", "danger")
+        return redirect(url_for("payroll_list"))
+    # Desasociar errores y vales del período antes de borrar
+    QualityError.query.filter_by(period_id=period_id).update({"period_id": None})
+    Vale.query.filter_by(period_id=period_id).update({"period_id": None})
+    db.session.delete(period)
+    db.session.commit()
+    flash("Quincena eliminada.", "success")
+    return redirect(url_for("payroll_list"))
+
+# ── Vale rápido desde detalle de nómina ──────────────────────
+@app.route("/payroll/<int:period_id>/vale/new", methods=["POST"])
+def payroll_vale_new(period_id):
+    period = PayrollPeriod.query.get_or_404(period_id)
+    if period.status == "paid":
+        flash("La quincena ya está pagada.", "danger")
+        return redirect(url_for("payroll_detail", period_id=period_id))
+    emp_id = request.form.get("employee_id")
+    amount = request.form.get("amount")
+    desc   = (request.form.get("description") or "").strip()
+    try:
+        amount = int(amount)
+    except (TypeError, ValueError):
+        flash("Monto inválido.", "danger")
+        return redirect(url_for("payroll_detail", period_id=period_id))
+
+    db.session.add(Vale(
+        employee_id=int(emp_id), amount=amount,
+        description=desc, period_id=period_id
+    ))
+    # Actualizar entry
+    entry = PayrollEntry.query.filter_by(
+        period_id=period_id, employee_id=int(emp_id)
+    ).first()
+    if entry:
+        entry.deduction_vales += amount
+        entry.recalculate()
+    db.session.commit()
+    flash("Vale agregado.", "success")
+    return redirect(url_for("payroll_detail", period_id=period_id))
+
+# ── Configuración salarial en usuarios ───────────────────────
+@app.route("/users/<int:user_id>/salary", methods=["POST"])
+def user_salary_update(user_id):
+    user = User.query.get_or_404(user_id)
+    data = request.get_json(silent=True) or {}
+    if "salary" in data:
+        user.salary = int(data["salary"])
+    if "is_trial_period" in data:
+        user.is_trial_period = bool(data["is_trial_period"])
+    db.session.commit()
+    return jsonify({"ok": True})
 
 
 if __name__ == "__main__":

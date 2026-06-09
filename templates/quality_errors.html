@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="mb-0">Errores de calidad</h2>
+  </div>
+
+  <!-- Formulario nuevo error -->
+  <form method="POST" action="{{ url_for('quality_errors_new') }}" class="card card-body bg-dark border-secondary mb-4">
+    <div class="row g-2">
+      <div class="col-12 col-md-2">
+        <select name="error_type" class="form-select" required>
+          <option value="">Tipo</option>
+          <option value="leve">Leve − $5.000</option>
+          <option value="grave">Grave − $10.000</option>
+        </select>
+      </div>
+      <div class="col-12 col-md-5">
+        <input type="text" name="description" class="form-control"
+               placeholder="Descripción del error" required>
+      </div>
+      <div class="col-12 col-md-3">
+        <div class="border border-secondary rounded p-2">
+          <small class="text-muted d-block mb-1">Responsables (si son varios el monto se divide):</small>
+          {% for emp in employees %}
+          <div class="form-check form-check-inline">
+            <input class="form-check-input" type="checkbox"
+                   name="employee_ids" value="{{ emp.id }}" id="emp_{{ emp.id }}">
+            <label class="form-check-label" for="emp_{{ emp.id }}">{{ emp.username }}</label>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="col-12 col-md-2">
+        <button type="submit" class="btn btn-danger w-100">Registrar error</button>
+      </div>
+    </div>
+  </form>
+
+  <!-- Listado de errores pendientes -->
+  {% if errors %}
+  <div class="table-responsive">
+    <table class="table table-dark table-hover align-middle">
+      <thead>
+        <tr>
+          <th>Fecha y hora</th>
+          <th>Tipo</th>
+          <th>Descripción</th>
+          <th>Responsables</th>
+          <th class="text-center">Acción</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for err in errors %}
+        <tr>
+          <td class="text-nowrap">{{ err.created_at.strftime('%d/%m/%Y %H:%M') }}</td>
+          <td>
+            {% if err.error_type == 'leve' %}
+              <span class="badge bg-warning text-dark">Leve</span>
+            {% else %}
+              <span class="badge bg-danger">Grave</span>
+            {% endif %}
+          </td>
+          <td>{{ err.description }}</td>
+          <td>
+            {% for a in err.assignments %}
+              <span class="badge bg-secondary me-1">
+                {{ a.employee.username }}
+                (− $ {{ "{:,}".format(a.deduction).replace(",", ".") }})
+              </span>
+            {% endfor %}
+          </td>
+          <td class="text-center">
+            <form method="POST" action="{{ url_for('quality_errors_delete', error_id=err.id) }}"
+                  onsubmit="return confirm('¿Eliminar este error?')">
+              <button type="submit" class="btn btn-sm btn-outline-danger">Eliminar</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+    <p class="text-muted">No hay errores pendientes por asignar a una quincena.</p>
+  {% endif %}
+</div>
+{% endblock %}

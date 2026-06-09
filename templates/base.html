@@ -487,6 +487,10 @@
             {% if current_user and current_user.role == 'admin' %}
             <li><hr style="border-color:var(--border);margin:6px 14px;"></li>
             <li><a class="dropdown-item-custom" href="{{ url_for('users_list') }}"><i class="bi bi-people-fill"></i>Usuarios</a></li>
+            <li><hr style="border-color:var(--border);margin:6px 14px;"></li>
+            <li><a class="dropdown-item-custom" href="{{ url_for('payroll_list') }}"><i class="bi bi-cash-coin"></i>Nómina</a></li>
+            <li><a class="dropdown-item-custom" href="{{ url_for('quality_errors_list') }}"><i class="bi bi-exclamation-triangle-fill"></i>Errores calidad</a></li>
+            <li><a class="dropdown-item-custom" href="{{ url_for('vales_list') }}"><i class="bi bi-receipt"></i>Vales</a></li>
             {% endif %}
           </ul>
         </div>

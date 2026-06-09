@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="mb-0">Vales pendientes</h2>
+  </div>
+
+  <!-- Formulario nuevo vale -->
+  <form method="POST" action="{{ url_for('vales_new') }}" class="row g-2 mb-4">
+    <div class="col-12 col-md-3">
+      <select name="employee_id" class="form-select" required>
+        <option value="">Operario</option>
+        {% for emp in employees %}
+          <option value="{{ emp.id }}">{{ emp.username }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-6 col-md-2">
+      <input type="number" name="amount" class="form-control" placeholder="Monto" min="1000" step="1000" required>
+    </div>
+    <div class="col-12 col-md-5">
+      <input type="text" name="description" class="form-control" placeholder="Descripción (opcional)">
+    </div>
+    <div class="col-6 col-md-2">
+      <button type="submit" class="btn btn-primary w-100">Registrar</button>
+    </div>
+  </form>
+
+  {% if vales %}
+  <div class="table-responsive">
+    <table class="table table-dark table-hover align-middle">
+      <thead>
+        <tr>
+          <th>Fecha</th>
+          <th>Operario</th>
+          <th class="text-end">Monto</th>
+          <th>Descripción</th>
+          <th class="text-center">Acción</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for v in vales %}
+        <tr>
+          <td>{{ v.created_at.strftime('%d/%m/%Y %H:%M') }}</td>
+          <td>{{ v.employee.username }}</td>
+          <td class="text-end">$ {{ "{:,}".format(v.amount).replace(",", ".") }}</td>
+          <td>{{ v.description or '—' }}</td>
+          <td class="text-center">
+            <form method="POST" action="{{ url_for('vales_delete', vale_id=v.id) }}"
+                  onsubmit="return confirm('¿Eliminar este vale?')">
+              <button type="submit" class="btn btn-sm btn-outline-danger">Eliminar</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+    <p class="text-muted">No hay vales pendientes por asignar.</p>
+  {% endif %}
+</div>
+{% endblock %}

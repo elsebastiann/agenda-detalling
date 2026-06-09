@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="mb-0">Nómina</h2>
+  </div>
+
+  <!-- Nueva quincena -->
+  <form method="POST" action="{{ url_for('payroll_new') }}" class="row g-2 mb-4 align-items-end">
+    <div class="col-auto">
+      <label class="form-label text-muted small">Inicio quincena</label>
+      <input type="date" name="start_date" class="form-control" required>
+    </div>
+    <div class="col-auto">
+      <label class="form-label text-muted small">Fin quincena</label>
+      <input type="date" name="end_date" class="form-control" required>
+    </div>
+    <div class="col-auto">
+      <button type="submit" class="btn btn-primary">Crear quincena</button>
+    </div>
+  </form>
+
+  {% if periods %}
+  <div class="table-responsive">
+    <table class="table table-dark table-hover align-middle">
+      <thead>
+        <tr>
+          <th>Período</th>
+          <th class="text-center">Estado</th>
+          <th class="text-center">Operarios</th>
+          <th class="text-end">Total nómina</th>
+          <th class="text-center">Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in periods %}
+        <tr>
+          <td>
+            {{ p.start_date.strftime('%d/%m/%Y') }} — {{ p.end_date.strftime('%d/%m/%Y') }}
+          </td>
+          <td class="text-center">
+            {% if p.status == 'paid' %}
+              <span class="badge bg-success">Pagada</span>
+            {% else %}
+              <span class="badge bg-warning text-dark">Borrador</span>
+            {% endif %}
+          </td>
+          <td class="text-center">{{ p.entries | length }}</td>
+          <td class="text-end">
+            $ {{ "{:,}".format(p.entries | sum(attribute='total')).replace(",", ".") }}
+          </td>
+          <td class="text-center d-flex gap-2 justify-content-center">
+            <a href="{{ url_for('payroll_detail', period_id=p.id) }}"
+               class="btn btn-sm btn-outline-light">Ver detalle</a>
+            {% if p.status == 'draft' %}
+            <form method="POST" action="{{ url_for('payroll_delete', period_id=p.id) }}"
+                  onsubmit="return confirm('¿Eliminar esta quincena?')">
+              <button type="submit" class="btn btn-sm btn-outline-danger">Eliminar</button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+    <p class="text-muted">No hay quincenas creadas aún.</p>
+  {% endif %}
+</div>
+{% endblock %}
