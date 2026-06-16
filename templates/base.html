@@ -487,7 +487,7 @@
     <div class="collapse navbar-collapse justify-content-end" id="navbarContent">
       <div class="d-flex flex-column flex-lg-row align-items-lg-center gap-1 py-2 py-lg-0">
         <a class="nav-link-custom" href="{{ url_for('calendar_view') }}">Agenda</a>
-        <a class="nav-link-custom" href="{{ url_for('parking_list') }}">Parqueaderos</a>
+        <a class="nav-link-custom" href="{{ url_for('quality_errors_list') }}">Errores</a>
         <a class="nav-link-custom nav-link-accent" href="{{ url_for('new_appointment') }}">+ Nueva</a>
         <a class="nav-link-custom" href="{{ url_for('expenses_new') }}">Gastos</a>
         <div class="dropdown">
@@ -507,7 +507,7 @@
             <li><a class="dropdown-item-custom" href="{{ url_for('service_prices_list') }}"><i class="bi bi-tag"></i>Detalle de servicios</a></li>
             <li><a class="dropdown-item-custom" href="{{ url_for('vehicle_types_list') }}"><i class="bi bi-car-front"></i>Tipos de vehículo</a></li>
             <li><a class="dropdown-item-custom" href="{{ url_for('payment_methods_list') }}"><i class="bi bi-credit-card"></i>Medios de pago</a></li>
-            <li><a class="dropdown-item-custom" href="{{ url_for('agreements_list') }}"><i class="bi bi-handshake-fill"></i>Convenios</a></li>
+            <li><a class="dropdown-item-custom" href="{{ url_for('agreements_list') }}"><i class="bi bi-handshake"></i>Convenios</a></li>
             {# ── Administración ── #}
             {% if current_user and current_user.role == 'admin' %}
             <li><hr style="border-color:var(--border);margin:6px 14px;"></li>
@@ -597,7 +597,7 @@
   <a href="{{ url_for('service_prices_list') }}"><i class="bi bi-tag"></i>Detalle de servicios</a>
   <a href="{{ url_for('vehicle_types_list') }}"><i class="bi bi-car-front"></i>Tipos de vehículo</a>
   <a href="{{ url_for('payment_methods_list') }}"><i class="bi bi-credit-card"></i>Medios de pago</a>
-  <a href="{{ url_for('agreements_list') }}"><i class="bi bi-handshake-fill"></i>Convenios</a>
+  <a href="{{ url_for('agreements_list') }}"><i class="bi bi-handshake"></i>Convenios</a>
 
   {# ── Administración (solo admin) ── #}
   {% if current_user and current_user.role == 'admin' %}
