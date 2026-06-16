@@ -95,6 +95,14 @@
     }
     .dropdown-item-custom i { color: var(--accent-dk); font-size: 0.9rem; width: 16px; text-align: center; }
     .dropdown-item-custom:hover { color: var(--ink); background: var(--bg); }
+    .dropdown-group-label {
+      padding: 10px 19px 3px;
+      font-size: 0.62rem;
+      font-weight: 800;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      color: var(--text3);
+    }
 
     /* ── BOTONES ── */
     .btn {
@@ -486,19 +494,25 @@
           <button class="nav-link-custom border-0 bg-transparent dropdown-toggle"
                   type="button" data-bs-toggle="dropdown" aria-expanded="false">Más</button>
           <ul class="dropdown-menu dropdown-menu-end py-2"
-              style="background:var(--surface);border:1px solid var(--border);border-radius:14px;min-width:210px;box-shadow:0 8px 24px rgba(0,0,0,0.1);">
+              style="background:var(--surface);border:1px solid var(--border);border-radius:14px;min-width:220px;box-shadow:0 8px 24px rgba(0,0,0,0.1);">
+            {# ── Operaciones ── #}
+            <li><div class="dropdown-group-label">Operaciones</div></li>
             <li><a class="dropdown-item-custom" href="{{ url_for('sales_list') }}"><i class="bi bi-graph-up-arrow"></i>Ingresos</a></li>
             <li><a class="dropdown-item-custom" href="{{ url_for('appointments_list') }}"><i class="bi bi-card-list"></i>Citas</a></li>
+            <li><a class="dropdown-item-custom" href="{{ url_for('parking_list') }}"><i class="bi bi-p-square"></i>Parqueaderos</a></li>
+            {# ── Configuración ── #}
             <li><hr style="border-color:var(--border);margin:6px 14px;"></li>
-            <li><a class="dropdown-item-custom" href="{{ url_for('vehicle_types_list') }}"><i class="bi bi-car-front"></i>Tipos de vehículo</a></li>
+            <li><div class="dropdown-group-label">Configuración</div></li>
             <li><a class="dropdown-item-custom" href="{{ url_for('services_view') }}"><i class="bi bi-tools"></i>Servicios</a></li>
             <li><a class="dropdown-item-custom" href="{{ url_for('service_prices_list') }}"><i class="bi bi-tag"></i>Detalle de servicios</a></li>
+            <li><a class="dropdown-item-custom" href="{{ url_for('vehicle_types_list') }}"><i class="bi bi-car-front"></i>Tipos de vehículo</a></li>
             <li><a class="dropdown-item-custom" href="{{ url_for('payment_methods_list') }}"><i class="bi bi-credit-card"></i>Medios de pago</a></li>
             <li><a class="dropdown-item-custom" href="{{ url_for('agreements_list') }}"><i class="bi bi-handshake-fill"></i>Convenios</a></li>
+            {# ── Administración ── #}
             {% if current_user and current_user.role == 'admin' %}
             <li><hr style="border-color:var(--border);margin:6px 14px;"></li>
+            <li><div class="dropdown-group-label">Administración</div></li>
             <li><a class="dropdown-item-custom" href="{{ url_for('users_list') }}"><i class="bi bi-people-fill"></i>Usuarios</a></li>
-            <li><hr style="border-color:var(--border);margin:6px 14px;"></li>
             <li><a class="dropdown-item-custom" href="{{ url_for('payroll_list') }}"><i class="bi bi-cash-coin"></i>Nómina</a></li>
             <li><a class="dropdown-item-custom" href="{{ url_for('quality_errors_list') }}"><i class="bi bi-exclamation-triangle-fill"></i>Errores calidad</a></li>
             <li><a class="dropdown-item-custom" href="{{ url_for('vales_list') }}"><i class="bi bi-receipt"></i>Vales</a></li>
