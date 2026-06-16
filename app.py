@@ -529,6 +529,25 @@ class User(db.Model):
     # True = debe cambiar contraseña en el próximo login
     must_change_password = db.Column(db.Boolean, default=False)
 
+    # Nómina
+    salary          = db.Column(db.Integer, default=0)
+    is_trial_period = db.Column(db.Boolean, default=False)  # override manual (legado)
+    hire_date       = db.Column(db.Date, nullable=True)     # fecha real de ingreso
+
+    @property
+    def in_trial(self):
+        """True si el empleado aún está en período de prueba (primer mes desde hire_date)."""
+        if self.hire_date:
+            return (date.today() - self.hire_date).days < 30
+        return bool(self.is_trial_period)
+
+    @property
+    def trial_end_date(self):
+        if self.hire_date:
+            from datetime import timedelta
+            return self.hire_date + timedelta(days=30)
+        return None
+
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
 
@@ -2480,6 +2499,7 @@ def ensure_payroll_schema():
         for col, definition in [
             ("salary",          "INTEGER DEFAULT 0"),
             ("is_trial_period", "BOOLEAN DEFAULT 0"),
+            ("hire_date",       "DATE"),
         ]:
             try:
                 db.session.execute(text(f"SELECT {col} FROM users LIMIT 1"))
@@ -2648,7 +2668,7 @@ def users_list():
         flash("Acceso restringido a administradores.", "danger")
         return redirect(url_for("calendar_view"))
     users = User.query.order_by(User.created_at.asc()).all()
-    return render_template("users.html", users=users)
+    return render_template("users.html", users=users, today=date.today())
 
 
 @app.route("/users/new", methods=["POST"])
@@ -2656,9 +2676,10 @@ def users_new():
     if not getattr(g, "current_user", None) or g.current_user.role != "admin":
         return redirect(url_for("calendar_view"))
 
-    username = (request.form.get("username") or "").strip()
-    password = request.form.get("password") or ""
-    role     = request.form.get("role") or "operario"
+    username       = (request.form.get("username") or "").strip()
+    password       = request.form.get("password") or ""
+    role           = request.form.get("role") or "operario"
+    hire_date_str  = (request.form.get("hire_date") or "").strip()
 
     if not username or not password:
         flash("Usuario y contraseña son obligatorios.", "danger")
@@ -2670,7 +2691,15 @@ def users_new():
         flash(f"El usuario '{username}' ya existe.", "danger")
         return redirect(url_for("users_list"))
 
-    u = User(username=username, role=role, is_active=True, must_change_password=True)
+    hire_date = None
+    if hire_date_str:
+        try:
+            hire_date = date.fromisoformat(hire_date_str)
+        except ValueError:
+            pass
+
+    u = User(username=username, role=role, is_active=True, must_change_password=True,
+             hire_date=hire_date)
     u.set_password(password)
     db.session.add(u)
     db.session.commit()
@@ -2684,9 +2713,10 @@ def users_edit(user_id):
         return redirect(url_for("calendar_view"))
 
     user = User.query.get_or_404(user_id)
-    new_username = (request.form.get("username") or "").strip()
-    new_role     = request.form.get("role") or user.role
-    new_password = request.form.get("password") or ""
+    new_username    = (request.form.get("username") or "").strip()
+    new_role        = request.form.get("role") or user.role
+    new_password    = request.form.get("password") or ""
+    hire_date_str   = (request.form.get("hire_date") or "").strip()
 
     if not new_username:
         flash("El nombre de usuario no puede estar vacío.", "danger")
@@ -2704,6 +2734,13 @@ def users_edit(user_id):
     user.role     = new_role
     if new_password:
         user.set_password(new_password)
+    if hire_date_str:
+        try:
+            user.hire_date = date.fromisoformat(hire_date_str)
+        except ValueError:
+            pass
+    elif hire_date_str == "":
+        user.hire_date = None
     db.session.commit()
     flash(f"Usuario '{new_username}' actualizado.", "success")
     return redirect(url_for("users_list"))
@@ -3080,8 +3117,8 @@ def payroll_new():
     ).all()
 
     for emp in employees:
-        salary    = getattr(emp, "salary", 0) or 0
-        is_trial  = bool(getattr(emp, "is_trial_period", False))
+        salary    = emp.salary or 0
+        is_trial  = emp.in_trial
         base      = max(salary - TRIAL_DEDUCTION, 0) if is_trial else salary
         bonus     = 0 if is_trial else BONUS_MAX
 
@@ -3164,11 +3201,11 @@ def payroll_entry_update(period_id, entry_id):
         return jsonify({"ok": False, "error": "La quincena ya está pagada."}), 400
 
     data = request.get_json(silent=True) or {}
-    is_trial = bool(getattr(entry.employee, "is_trial_period", False))
+    is_trial = entry.employee.in_trial
 
     if "absence_days" in data:
         days = int(data["absence_days"])
-        salary_raw = getattr(entry.employee, "salary", 0) or 0
+        salary_raw = entry.employee.salary or 0
         entry.absence_days      = days
         entry.deduction_absences = int(round(salary_raw / 30 * days))
 
@@ -3263,8 +3300,15 @@ def user_salary_update(user_id):
         user.salary = int(data["salary"])
     if "is_trial_period" in data:
         user.is_trial_period = bool(data["is_trial_period"])
+    if "hire_date" in data:
+        try:
+            user.hire_date = date.fromisoformat(data["hire_date"]) if data["hire_date"] else None
+        except ValueError:
+            pass
     db.session.commit()
-    return jsonify({"ok": True})
+    in_trial = user.in_trial
+    trial_end = user.trial_end_date.isoformat() if user.trial_end_date else None
+    return jsonify({"ok": True, "in_trial": in_trial, "trial_end": trial_end})
 
 
 if __name__ == "__main__":

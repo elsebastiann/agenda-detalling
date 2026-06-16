@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
 
-<div class="container mt-4" style="max-width:860px;">
+<div class="container mt-4" style="max-width:980px;">
 
   <div class="d-flex align-items-center justify-content-between mb-4">
     <h2 class="mb-0">Gestión de usuarios</h2>
@@ -19,8 +19,8 @@
           <th class="text-center">Rol</th>
           <th class="text-center">Estado</th>
           <th class="text-end">Salario</th>
-          <th class="text-center">Prueba</th>
-          <th class="text-center">Creado</th>
+          <th class="text-center">F. Ingreso</th>
+          <th class="text-center">Período prueba</th>
           <th class="text-center">Acciones</th>
         </tr>
       </thead>
@@ -56,17 +56,38 @@
             </span>
             {% else %}—{% endif %}
           </td>
-          <td class="text-center">
+          <td class="text-center" style="font-size:0.82rem;">
             {% if u.role == 'operario' %}
-            <div class="form-check form-switch d-flex justify-content-center">
-              <input class="form-check-input trial-toggle" type="checkbox"
-                     data-id="{{ u.id }}"
-                     {% if u.is_trial_period %}checked{% endif %}>
-            </div>
-            {% else %}—{% endif %}
+              <span class="editable-hire-date" data-id="{{ u.id }}"
+                    data-value="{{ u.hire_date.isoformat() if u.hire_date else '' }}"
+                    style="cursor:pointer;border-bottom:1px dashed rgba(255,255,255,0.3);padding:2px 4px;white-space:nowrap;">
+                {% if u.hire_date %}
+                  {{ u.hire_date.strftime('%d/%m/%Y') }}
+                {% else %}
+                  <span class="text-muted">—</span>
+                {% endif %}
+              </span>
+            {% else %}
+              <span class="text-muted">—</span>
+            {% endif %}
           </td>
-          <td class="text-center" style="font-size:0.78rem;color:var(--text2);">
-            {{ u.created_at.strftime('%d/%m/%Y') }}
+          <td class="text-center" id="trial-cell-{{ u.id }}">
+            {% if u.role == 'operario' %}
+              {% if u.hire_date %}
+                {% if u.in_trial %}
+                  {% set days_left = 30 - (today - u.hire_date).days %}
+                  <span class="badge bg-warning text-dark" title="Fin de prueba: {{ u.trial_end_date.strftime('%d/%m/%Y') }}">
+                    En prueba · {{ days_left }}d
+                  </span>
+                {% else %}
+                  <span class="badge bg-success">Confirmado</span>
+                {% endif %}
+              {% else %}
+                <span class="text-muted" style="font-size:0.78rem;">Sin fecha</span>
+              {% endif %}
+            {% else %}
+              —
+            {% endif %}
           </td>
           <td class="text-center">
             <div class="d-flex gap-2 justify-content-center">
@@ -76,7 +97,8 @@
                       data-bs-target="#modalEditUser"
                       data-id="{{ u.id }}"
                       data-username="{{ u.username }}"
-                      data-role="{{ u.role }}">
+                      data-role="{{ u.role }}"
+                      data-hire="{{ u.hire_date.isoformat() if u.hire_date else '' }}">
                 <i class="bi bi-pencil"></i>
               </button>
               <!-- Activar / Desactivar -->
@@ -102,6 +124,12 @@
       </tbody>
     </table>
   </div>
+
+  <p class="text-muted" style="font-size:0.78rem;">
+    <i class="bi bi-info-circle me-1"></i>
+    Durante el período de prueba (primeros 30 días desde fecha de ingreso) el salario se reduce en
+    $100.000 y no aplican bonos de calidad ni extras.
+  </p>
 </div>
 
 {# ── Modal: Nuevo usuario ── #}
@@ -131,6 +159,12 @@
               <option value="lider">Líder</option>
               <option value="admin">Admin</option>
             </select>
+          </div>
+          <div>
+            <label class="form-label">Fecha de ingreso</label>
+            <input type="date" name="hire_date" class="form-control"
+                   value="{{ today.isoformat() }}">
+            <small class="text-muted">Los primeros 30 días son período de prueba (–$100.000, sin bonos).</small>
           </div>
         </div>
         <div class="modal-footer" style="border-top:1px solid var(--border);">
@@ -170,6 +204,11 @@
               <option value="admin">Admin</option>
             </select>
           </div>
+          <div>
+            <label class="form-label">Fecha de ingreso</label>
+            <input type="date" name="hire_date" id="editHireDate" class="form-control">
+            <small class="text-muted">Los primeros 30 días son período de prueba automático.</small>
+          </div>
         </div>
         <div class="modal-footer" style="border-top:1px solid var(--border);">
           <button type="button" class="btn btn-outline-secondary btn-sm"
@@ -185,8 +224,9 @@
   // Modal edición usuario
   document.getElementById('modalEditUser').addEventListener('show.bs.modal', function (e) {
     const btn = e.relatedTarget;
-    document.getElementById('editUsername').value = btn.getAttribute('data-username');
-    document.getElementById('editRole').value     = btn.getAttribute('data-role');
+    document.getElementById('editUsername').value  = btn.getAttribute('data-username');
+    document.getElementById('editRole').value      = btn.getAttribute('data-role');
+    document.getElementById('editHireDate').value  = btn.getAttribute('data-hire') || '';
     document.getElementById('editUserForm').action = `/users/${btn.getAttribute('data-id')}/edit`;
   });
 
@@ -226,13 +266,54 @@
     });
   });
 
-  // Toggle período de prueba
-  document.querySelectorAll('.trial-toggle').forEach(toggle => {
-    toggle.addEventListener('change', function() {
-      fetch(`/users/${this.dataset.id}/salary`, {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({is_trial_period: this.checked})
+  // Edición inline de fecha de ingreso
+  document.querySelectorAll('.editable-hire-date').forEach(cell => {
+    cell.addEventListener('click', function() {
+      if (cell.querySelector('input')) return;
+      const id   = cell.dataset.id;
+      const val  = cell.dataset.value;
+      const orig = cell.innerHTML;
+      const input = document.createElement('input');
+      input.type = 'date'; input.value = val;
+      input.className = 'form-control form-control-sm';
+      input.style.width = '140px';
+      cell.innerHTML = ''; cell.appendChild(input);
+      input.focus();
+      function save() {
+        const newVal = input.value; // YYYY-MM-DD o vacío
+        fetch(`/users/${id}/salary`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({hire_date: newVal || null})
+        }).then(r => r.json()).then(d => {
+          if (d.ok) {
+            cell.dataset.value = newVal;
+            if (newVal) {
+              const [y, m, day] = newVal.split('-');
+              cell.innerHTML = `${day}/${m}/${y}`;
+            } else {
+              cell.innerHTML = '<span class="text-muted">—</span>';
+            }
+            // Actualizar badge de período de prueba
+            const trialCell = document.getElementById(`trial-cell-${id}`);
+            if (trialCell) {
+              if (d.in_trial && newVal) {
+                const end = d.trial_end ? d.trial_end.split('-') : null;
+                const endStr = end ? `${end[2]}/${end[1]}/${end[0]}` : '';
+                trialCell.innerHTML = `<span class="badge bg-warning text-dark" title="Fin de prueba: ${endStr}">En prueba</span>`;
+              } else if (!d.in_trial && newVal) {
+                trialCell.innerHTML = `<span class="badge bg-success">Confirmado</span>`;
+              } else {
+                trialCell.innerHTML = `<span class="text-muted" style="font-size:0.78rem;">Sin fecha</span>`;
+              }
+            }
+          } else { cell.innerHTML = orig; }
+        });
+      }
+      input.addEventListener('blur', save);
+      input.addEventListener('keydown', e => {
+        if (e.key === 'Enter') input.blur();
+        if (e.key === 'Escape') { cell.innerHTML = orig; }
       });
     });
   });
