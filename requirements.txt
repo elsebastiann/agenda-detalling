@@ -3,3 +3,6 @@ flask_sqlalchemy
 gunicorn
 pywebpush==1.14.0
 cryptography==42.0.5
+twilio>=8.0.0
+APScheduler>=3.10.4
+pytz

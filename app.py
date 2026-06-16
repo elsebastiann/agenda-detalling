@@ -7,6 +7,10 @@ import os
 import csv
 import io
 from decimal import Decimal
+import pytz
+from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.triggers.cron import CronTrigger
+from apscheduler.triggers.interval import IntervalTrigger
 
 COLORS = {
     "wash essential":           "#FFF3B0",
@@ -371,6 +375,11 @@ class Appointment(db.Model):
     work_ended_at       = db.Column(db.DateTime, nullable=True)
     total_pause_seconds = db.Column(db.Integer, nullable=False, default=0)
 
+    # Notificaciones WhatsApp
+    notif_reminder_sent  = db.Column(db.Boolean, default=False)  # recordatorio al admin 30 min antes
+    notif_client_sent    = db.Column(db.Boolean, default=False)  # recordatorio al cliente día anterior
+    notif_ceramic_sent   = db.Column(db.Boolean, default=False)  # seguimiento cerámico 3 meses
+
     operator_assignments = db.relationship(
         "AppointmentOperator", cascade="all, delete-orphan", lazy="joined"
     )
@@ -436,6 +445,23 @@ def ensure_appointment_work_schema():
         db.session.commit()
 
 ensure_appointment_work_schema()
+
+def ensure_appointment_notif_schema():
+    with app.app_context():
+        for col, ddl in [
+            ("notif_reminder_sent", "BOOLEAN DEFAULT 0"),
+            ("notif_client_sent",   "BOOLEAN DEFAULT 0"),
+            ("notif_ceramic_sent",  "BOOLEAN DEFAULT 0"),
+        ]:
+            try:
+                db.session.execute(text(f"SELECT {col} FROM appointments LIMIT 1"))
+            except Exception:
+                db.session.execute(
+                    text(f"ALTER TABLE appointments ADD COLUMN {col} {ddl}")
+                )
+        db.session.commit()
+
+ensure_appointment_notif_schema()
 
 # --- Migración: tabla appointment_operators ---
 def ensure_appointment_operators_schema():
@@ -3361,6 +3387,152 @@ def user_salary_update(user_id):
     in_trial = user.in_trial
     trial_end = user.trial_end_date.isoformat() if user.trial_end_date else None
     return jsonify({"ok": True, "in_trial": in_trial, "trial_end": trial_end})
+
+
+# ============================================================
+# WHATSAPP — TWILIO
+# ============================================================
+
+_BOGOTA = pytz.timezone("America/Bogota")
+
+
+def send_whatsapp(to: str, body: str) -> bool:
+    """Envía un mensaje de WhatsApp via Twilio. Retorna True si se envió."""
+    account_sid = os.environ.get("TWILIO_ACCOUNT_SID", "")
+    auth_token  = os.environ.get("TWILIO_AUTH_TOKEN", "")
+    from_number = os.environ.get("TWILIO_FROM", "whatsapp:+14155238886")
+    if not account_sid or not auth_token:
+        app.logger.warning("[WhatsApp] Variables TWILIO_ACCOUNT_SID / TWILIO_AUTH_TOKEN no configuradas.")
+        return False
+    try:
+        from twilio.rest import Client as TwilioClient
+        phone = to.strip().replace(" ", "")
+        if not phone.startswith("+"):
+            phone = "+57" + phone  # Colombia por defecto
+        TwilioClient(account_sid, auth_token).messages.create(
+            from_=from_number,
+            to=f"whatsapp:{phone}",
+            body=body,
+        )
+        app.logger.info(f"[WhatsApp] Mensaje enviado a {phone}")
+        return True
+    except Exception as exc:
+        app.logger.error(f"[WhatsApp] Error al enviar a {to}: {exc}")
+        return False
+
+
+# ── Job 1: Recordatorio al ADMIN — 30 minutos antes de cada cita ──────────────
+def _job_admin_reminder():
+    """Corre cada 5 minutos. Notifica al admin si hay cita en los próximos 30 min."""
+    admin_phone = os.environ.get("ADMIN_WHATSAPP", "")
+    if not admin_phone:
+        return
+    with app.app_context():
+        now_utc   = datetime.utcnow()
+        win_start = now_utc + timedelta(minutes=25)
+        win_end   = now_utc + timedelta(minutes=35)
+        pendientes = Appointment.query.filter(
+            Appointment.start_datetime >= win_start,
+            Appointment.start_datetime <= win_end,
+            Appointment.status == "scheduled",
+            Appointment.notif_reminder_sent == False,
+        ).all()
+        for appt in pendientes:
+            hora_bogota = appt.start_datetime.replace(tzinfo=pytz.utc).astimezone(_BOGOTA)
+            msg = (
+                f"⏰ *NOXA Detail — Cita en 30 min*\n\n"
+                f"👤 {appt.customer_name or 'Sin nombre'}\n"
+                f"🚗 Placa: {appt.plate or '—'}\n"
+                f"🔧 {appt.services}\n"
+                f"📞 {appt.phone or 'Sin teléfono'}\n"
+                f"🕐 {hora_bogota.strftime('%I:%M %p')}"
+            )
+            if send_whatsapp(admin_phone, msg):
+                appt.notif_reminder_sent = True
+                db.session.commit()
+
+
+# ── Job 2: Recordatorio al CLIENTE — día anterior a las 7 PM ─────────────────
+def _job_client_reminder():
+    """Corre diariamente a las 7 PM (Bogotá). Notifica a clientes con cita mañana."""
+    with app.app_context():
+        tomorrow = date.today() + timedelta(days=1)
+        citas = Appointment.query.filter(
+            db.func.date(Appointment.start_datetime) == tomorrow,
+            Appointment.status == "scheduled",
+            Appointment.phone.isnot(None),
+            Appointment.phone != "",
+            Appointment.notif_client_sent == False,
+        ).all()
+        for appt in citas:
+            hora_bogota = appt.start_datetime.replace(tzinfo=pytz.utc).astimezone(_BOGOTA)
+            msg = (
+                f"👋 Hola {appt.customer_name or 'cliente'}!\n\n"
+                f"Te recordamos que mañana tienes una cita en *NOXA Detail*:\n"
+                f"🕐 {hora_bogota.strftime('%I:%M %p')}\n"
+                f"🔧 {appt.services}\n\n"
+                f"Si necesitas reagendar escríbenos. ¡Te esperamos! 🚗✨"
+            )
+            if send_whatsapp(appt.phone, msg):
+                appt.notif_client_sent = True
+                db.session.commit()
+
+
+# ── Job 3: Seguimiento cerámico — 3 meses después de la aplicación ────────────
+def _job_ceramic_followup():
+    """Corre diariamente a las 10 AM (Bogotá). Notifica a clientes cuyo cerámico cumple 90 días."""
+    with app.app_context():
+        today      = date.today()
+        # Ventana de 90 ± 3 días para no perder citas si el job falla un día
+        target_ini = datetime.combine(today - timedelta(days=93), datetime.min.time())
+        target_fin = datetime.combine(today - timedelta(days=87), datetime.min.time())
+        citas = Appointment.query.filter(
+            Appointment.start_datetime >= target_ini,
+            Appointment.start_datetime <= target_fin,
+            Appointment.status == "completed",
+            Appointment.services.ilike("%ceramico%"),
+            Appointment.phone.isnot(None),
+            Appointment.phone != "",
+            Appointment.notif_ceramic_sent == False,
+        ).all()
+        for appt in citas:
+            msg = (
+                f"✨ Hola {appt.customer_name or 'cliente'}!\n\n"
+                f"Han pasado 3 meses desde que aplicamos el cerámico a tu vehículo 🚗\n\n"
+                f"Es el momento ideal para el *mantenimiento del recubrimiento* y "
+                f"asegurarte de conservar toda la protección.\n\n"
+                f"¡Escríbenos para agendar tu mantenimiento! 💎"
+            )
+            if send_whatsapp(appt.phone, msg):
+                appt.notif_ceramic_sent = True
+                db.session.commit()
+
+
+# ── Scheduler setup ───────────────────────────────────────────────────────────
+_scheduler = BackgroundScheduler(timezone=_BOGOTA)
+
+_scheduler.add_job(
+    _job_admin_reminder,
+    IntervalTrigger(minutes=5),
+    id="admin_reminder",
+    replace_existing=True,
+)
+_scheduler.add_job(
+    _job_client_reminder,
+    CronTrigger(hour=19, minute=0, timezone=_BOGOTA),
+    id="client_reminder",
+    replace_existing=True,
+)
+_scheduler.add_job(
+    _job_ceramic_followup,
+    CronTrigger(hour=10, minute=0, timezone=_BOGOTA),
+    id="ceramic_followup",
+    replace_existing=True,
+)
+
+# Inicia solo una vez (evita doble arranque con el reloader de Flask en desarrollo)
+if not app.debug or os.environ.get("WERKZEUG_RUN_MAIN") == "true":
+    _scheduler.start()
 
 
 if __name__ == "__main__":
