@@ -3508,6 +3508,29 @@ def _job_ceramic_followup():
                 db.session.commit()
 
 
+# ── Ruta de prueba (solo admin) ───────────────────────────────────────────────
+@app.route("/test-whatsapp")
+def test_whatsapp():
+    if not getattr(g, "current_user", None) or g.current_user.role != "admin":
+        flash("Acceso restringido.", "danger")
+        return redirect(url_for("calendar_view"))
+
+    admin_phone = os.environ.get("ADMIN_WHATSAPP", "")
+    if not admin_phone:
+        flash("Variable ADMIN_WHATSAPP no configurada.", "danger")
+        return redirect(url_for("calendar_view"))
+
+    ok = send_whatsapp(
+        admin_phone,
+        "✅ *NOXA Detail — Prueba exitosa*\n\nLas notificaciones de WhatsApp están funcionando correctamente."
+    )
+    if ok:
+        flash("✅ Mensaje de prueba enviado. Revisa tu WhatsApp.", "success")
+    else:
+        flash("❌ No se pudo enviar. Revisa las variables TWILIO_ACCOUNT_SID y TWILIO_AUTH_TOKEN en Railway.", "danger")
+    return redirect(url_for("calendar_view"))
+
+
 # ── Scheduler setup ───────────────────────────────────────────────────────────
 _scheduler = BackgroundScheduler(timezone=_BOGOTA)
 
