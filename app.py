@@ -3396,17 +3396,19 @@ def user_salary_update(user_id):
 _BOGOTA = pytz.timezone("America/Bogota")
 
 
-def send_whatsapp(to: str, body: str) -> bool:
-    """Envía un mensaje de WhatsApp via Twilio. Retorna True si se envió."""
+def send_whatsapp(to: str, body: str) -> tuple[bool, str]:
+    """Envía un mensaje de WhatsApp via Twilio. Retorna (ok, error_msg)."""
     account_sid = os.environ.get("TWILIO_ACCOUNT_SID", "")
     auth_token  = os.environ.get("TWILIO_AUTH_TOKEN", "")
     from_number = os.environ.get("TWILIO_FROM", "whatsapp:+14155238886")
     if not account_sid or not auth_token:
-        app.logger.warning("[WhatsApp] Variables TWILIO_ACCOUNT_SID / TWILIO_AUTH_TOKEN no configuradas.")
-        return False
+        return False, "Variables TWILIO_ACCOUNT_SID / TWILIO_AUTH_TOKEN no configuradas."
     try:
         from twilio.rest import Client as TwilioClient
         phone = to.strip().replace(" ", "")
+        # Quitar prefijo whatsapp: si alguien lo puso en la variable de entorno
+        if phone.startswith("whatsapp:"):
+            phone = phone[len("whatsapp:"):]
         if not phone.startswith("+"):
             phone = "+57" + phone  # Colombia por defecto
         TwilioClient(account_sid, auth_token).messages.create(
@@ -3415,10 +3417,10 @@ def send_whatsapp(to: str, body: str) -> bool:
             body=body,
         )
         app.logger.info(f"[WhatsApp] Mensaje enviado a {phone}")
-        return True
+        return True, ""
     except Exception as exc:
         app.logger.error(f"[WhatsApp] Error al enviar a {to}: {exc}")
-        return False
+        return False, str(exc)
 
 
 # ── Job 1: Recordatorio al ADMIN — 30 minutos antes de cada cita ──────────────
@@ -3447,7 +3449,8 @@ def _job_admin_reminder():
                 f"📞 {appt.phone or 'Sin teléfono'}\n"
                 f"🕐 {hora_bogota.strftime('%I:%M %p')}"
             )
-            if send_whatsapp(admin_phone, msg):
+            ok, _ = send_whatsapp(admin_phone, msg)
+            if ok:
                 appt.notif_reminder_sent = True
                 db.session.commit()
 
@@ -3473,7 +3476,8 @@ def _job_client_reminder():
                 f"🔧 {appt.services}\n\n"
                 f"Si necesitas reagendar escríbenos. ¡Te esperamos! 🚗✨"
             )
-            if send_whatsapp(appt.phone, msg):
+            ok, _ = send_whatsapp(appt.phone, msg)
+            if ok:
                 appt.notif_client_sent = True
                 db.session.commit()
 
@@ -3503,7 +3507,8 @@ def _job_ceramic_followup():
                 f"asegurarte de conservar toda la protección.\n\n"
                 f"¡Escríbenos para agendar tu mantenimiento! 💎"
             )
-            if send_whatsapp(appt.phone, msg):
+            ok, _ = send_whatsapp(appt.phone, msg)
+            if ok:
                 appt.notif_ceramic_sent = True
                 db.session.commit()
 
@@ -3520,14 +3525,26 @@ def test_whatsapp():
         flash("Variable ADMIN_WHATSAPP no configurada.", "danger")
         return redirect(url_for("calendar_view"))
 
-    ok = send_whatsapp(
+    # Diagnóstico de variables
+    sid   = os.environ.get("TWILIO_ACCOUNT_SID", "")
+    token = os.environ.get("TWILIO_AUTH_TOKEN", "")
+    from_ = os.environ.get("TWILIO_FROM", "whatsapp:+14155238886")
+
+    ok, err = send_whatsapp(
         admin_phone,
         "✅ *NOXA Detail — Prueba exitosa*\n\nLas notificaciones de WhatsApp están funcionando correctamente."
     )
     if ok:
         flash("✅ Mensaje de prueba enviado. Revisa tu WhatsApp.", "success")
     else:
-        flash("❌ No se pudo enviar. Revisa las variables TWILIO_ACCOUNT_SID y TWILIO_AUTH_TOKEN en Railway.", "danger")
+        flash(
+            f"❌ Error Twilio: {err} | "
+            f"SID: {'✓' if sid else '✗'} | "
+            f"Token: {'✓' if token else '✗'} | "
+            f"FROM: {from_} | "
+            f"TO: {admin_phone}",
+            "danger"
+        )
     return redirect(url_for("calendar_view"))
 
 
