@@ -508,6 +508,7 @@
             <li><a class="dropdown-item-custom" href="{{ url_for('vehicle_types_list') }}"><i class="bi bi-car-front"></i>Tipos de vehículo</a></li>
             <li><a class="dropdown-item-custom" href="{{ url_for('payment_methods_list') }}"><i class="bi bi-credit-card"></i>Medios de pago</a></li>
             <li><a class="dropdown-item-custom" href="{{ url_for('agreements_list') }}"><i class="bi bi-handshake"></i>Convenios</a></li>
+            <li><a class="dropdown-item-custom" href="{{ url_for('expense_categories_list') }}"><i class="bi bi-tags"></i>Categorías de gastos</a></li>
             {# ── Administración ── #}
             {% if current_user and current_user.role == 'admin' %}
             <li><hr style="border-color:var(--border);margin:6px 14px;"></li>
@@ -598,6 +599,7 @@
   <a href="{{ url_for('vehicle_types_list') }}"><i class="bi bi-car-front"></i>Tipos de vehículo</a>
   <a href="{{ url_for('payment_methods_list') }}"><i class="bi bi-credit-card"></i>Medios de pago</a>
   <a href="{{ url_for('agreements_list') }}"><i class="bi bi-handshake"></i>Convenios</a>
+  <a href="{{ url_for('expense_categories_list') }}"><i class="bi bi-tags"></i>Categorías de gastos</a>
 
   {# ── Administración (solo admin) ── #}
   {% if current_user and current_user.role == 'admin' %}

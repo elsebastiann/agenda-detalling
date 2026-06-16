@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="container mt-4" style="max-width:640px;">
+
+  <div class="d-flex align-items-center justify-content-between mb-4">
+    <div>
+      <h2 class="mb-0">Categorías de gastos</h2>
+      <small class="text-muted">Las categorías activas aparecen al crear un gasto.</small>
+    </div>
+    <a href="{{ url_for('expenses_list') }}" class="btn btn-outline-secondary btn-sm">← Gastos</a>
+  </div>
+
+  <!-- Crear nueva categoría -->
+  <form method="POST" action="{{ url_for('expense_categories_new') }}"
+        class="d-flex gap-2 mb-4">
+    <input type="text" name="name" class="form-control"
+           placeholder="Nueva categoría (ej: Insumos)" required autocomplete="off">
+    <button type="submit" class="btn btn-primary btn-sm" style="white-space:nowrap;">
+      <i class="bi bi-plus-lg me-1"></i>Crear
+    </button>
+  </form>
+
+  <!-- Lista de categorías -->
+  <div class="table-responsive">
+    <table class="table table-dark table-hover align-middle">
+      <thead>
+        <tr>
+          <th>Nombre</th>
+          <th class="text-center">Estado</th>
+          <th class="text-center">Gastos</th>
+          <th class="text-center">Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in categories %}
+        <tr>
+          <td class="fw-bold" style="color:{% if not c.is_active %}var(--text3){% else %}var(--text){% endif %};">
+            {{ c.name }}
+          </td>
+          <td class="text-center">
+            {% if c.is_active %}
+              <span class="badge bg-success">Activa</span>
+            {% else %}
+              <span class="badge bg-secondary">Inactiva</span>
+            {% endif %}
+          </td>
+          <td class="text-center" style="font-size:0.82rem;color:var(--text2);">
+            {{ counts.get(c.name, 0) }}
+          </td>
+          <td class="text-center">
+            <div class="d-flex gap-2 justify-content-center">
+              <!-- Renombrar -->
+              <button class="btn btn-sm btn-outline-secondary"
+                      data-bs-toggle="modal"
+                      data-bs-target="#modalRename"
+                      data-id="{{ c.id }}"
+                      data-name="{{ c.name }}"
+                      title="Renombrar">
+                <i class="bi bi-pencil"></i>
+              </button>
+              <!-- Activar / Desactivar -->
+              <form method="POST"
+                    action="{{ url_for('expense_categories_toggle', category_id=c.id) }}"
+                    class="m-0">
+                {% if c.is_active %}
+                  <button type="submit" class="btn btn-sm btn-outline-warning"
+                          title="Desactivar">
+                    <i class="bi bi-eye-slash"></i>
+                  </button>
+                {% else %}
+                  <button type="submit" class="btn btn-sm btn-outline-success"
+                          title="Activar">
+                    <i class="bi bi-eye"></i>
+                  </button>
+                {% endif %}
+              </form>
+              <!-- Eliminar (solo si no tiene gastos) -->
+              {% if counts.get(c.name, 0) == 0 %}
+              <form method="POST"
+                    action="{{ url_for('expense_categories_delete', category_id=c.id) }}"
+                    class="m-0"
+                    onsubmit="return confirm('¿Eliminar la categoría \'{{ c.name }}\'?')">
+                <button type="submit" class="btn btn-sm btn-outline-danger" title="Eliminar">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </form>
+              {% else %}
+              <button class="btn btn-sm btn-outline-secondary"
+                      disabled
+                      title="Tiene {{ counts.get(c.name, 0) }} gasto(s) — desactívala en lugar de eliminarla">
+                <i class="bi bi-trash"></i>
+              </button>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <p class="text-muted mt-2" style="font-size:0.78rem;">
+    <i class="bi bi-info-circle me-1"></i>
+    Las categorías con gastos no se pueden eliminar, solo desactivar para que no aparezcan en formularios nuevos.
+  </p>
+</div>
+
+{# ── Modal: Renombrar categoría ── #}
+<div class="modal fade" id="modalRename" tabindex="-1">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content"
+         style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);">
+      <div class="modal-header" style="border-bottom:1px solid var(--border);">
+        <h5 class="modal-title" style="font-size:0.95rem;">Renombrar categoría</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="POST" id="renameForm" action="">
+        <div class="modal-body">
+          <label class="form-label">Nuevo nombre *</label>
+          <input type="text" name="name" id="renameInput" class="form-control" required autocomplete="off">
+        </div>
+        <div class="modal-footer" style="border-top:1px solid var(--border);">
+          <button type="button" class="btn btn-outline-secondary btn-sm"
+                  data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary btn-sm">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+  document.getElementById('modalRename').addEventListener('show.bs.modal', function(e) {
+    const btn = e.relatedTarget;
+    document.getElementById('renameInput').value = btn.getAttribute('data-name');
+    document.getElementById('renameForm').action =
+      `/expense-categories/${btn.getAttribute('data-id')}/rename`;
+  });
+</script>
+
+{% endblock %}

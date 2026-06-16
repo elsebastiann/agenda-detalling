@@ -1960,25 +1960,62 @@ def expenses_export():
 # Gestión de categorías de gastos
 # -----------------------
 
+@app.route("/expense-categories")
+def expense_categories_list():
+    if not getattr(g, "current_user", None) or g.current_user.role != "admin":
+        flash("Acceso restringido a administradores.", "danger")
+        return redirect(url_for("expenses_list"))
+    categories = ExpenseCategory.query.order_by(ExpenseCategory.name).all()
+    # Contar gastos por categoría para saber si se puede eliminar
+    from sqlalchemy import func
+    counts = {
+        row.category: row.count
+        for row in db.session.query(
+            Expense.category, func.count(Expense.id).label("count")
+        ).group_by(Expense.category).all()
+    }
+    return render_template("expense_categories.html", categories=categories, counts=counts)
+
+
 @app.route("/expense-categories/new", methods=["POST"])
 def expense_categories_new():
-    name = (request.form.get("name") or "").strip()
+    name = " ".join((request.form.get("name") or "").split())
     if not name:
         flash("Debes ingresar el nombre de la categoría.", "danger")
-        return redirect(url_for("expenses_list"))
-
-    # Normalizar espacios múltiples
-    name = " ".join(name.split())
+        return redirect(url_for("expense_categories_list"))
 
     existing = ExpenseCategory.query.filter_by(name=name).first()
     if existing:
         existing.is_active = True
         db.session.commit()
-        return redirect(url_for("expenses_list"))
+        flash(f"Categoría '{name}' reactivada.", "success")
+        return redirect(url_for("expense_categories_list"))
 
     db.session.add(ExpenseCategory(name=name, is_active=True))
     db.session.commit()
-    return redirect(url_for("expenses_list"))
+    flash(f"Categoría '{name}' creada.", "success")
+    return redirect(url_for("expense_categories_list"))
+
+
+@app.route("/expense-categories/<int:category_id>/rename", methods=["POST"])
+def expense_categories_rename(category_id):
+    if not getattr(g, "current_user", None) or g.current_user.role != "admin":
+        return redirect(url_for("expense_categories_list"))
+    c = ExpenseCategory.query.get_or_404(category_id)
+    new_name = " ".join((request.form.get("name") or "").split())
+    if not new_name:
+        flash("El nombre no puede estar vacío.", "danger")
+        return redirect(url_for("expense_categories_list"))
+    if ExpenseCategory.query.filter(ExpenseCategory.name == new_name, ExpenseCategory.id != category_id).first():
+        flash(f"Ya existe una categoría con el nombre '{new_name}'.", "danger")
+        return redirect(url_for("expense_categories_list"))
+    old_name = c.name
+    # Actualizar también los gastos existentes que usen este nombre
+    Expense.query.filter_by(category=old_name).update({"category": new_name})
+    c.name = new_name
+    db.session.commit()
+    flash(f"Categoría renombrada a '{new_name}'.", "success")
+    return redirect(url_for("expense_categories_list"))
 
 
 @app.route("/expense-categories/<int:category_id>/toggle", methods=["POST"])
@@ -1986,7 +2023,22 @@ def expense_categories_toggle(category_id):
     c = ExpenseCategory.query.get_or_404(category_id)
     c.is_active = not c.is_active
     db.session.commit()
-    return redirect(url_for("expenses_list"))
+    return redirect(url_for("expense_categories_list"))
+
+
+@app.route("/expense-categories/<int:category_id>/delete", methods=["POST"])
+def expense_categories_delete(category_id):
+    if not getattr(g, "current_user", None) or g.current_user.role != "admin":
+        return redirect(url_for("expense_categories_list"))
+    c = ExpenseCategory.query.get_or_404(category_id)
+    in_use = Expense.query.filter_by(category=c.name).count()
+    if in_use > 0:
+        flash(f"No se puede eliminar '{c.name}': tiene {in_use} gasto(s) asociados.", "danger")
+        return redirect(url_for("expense_categories_list"))
+    db.session.delete(c)
+    db.session.commit()
+    flash(f"Categoría '{c.name}' eliminada.", "success")
+    return redirect(url_for("expense_categories_list"))
 
 # -----------------------
 # API PARA FULLCALENDAR

@@ -59,33 +59,11 @@
   </div>
 </form>
 
-<hr class="my-4">
-
-<div class="card bg-dark border-secondary p-3 mb-3">
-  <h5 class="mb-3">Administrar categorías de gastos</h5>
-
-  <!-- Crear nueva categoría -->
-  <form method="post" action="{{ url_for('expense_categories_new') }}" class="d-flex gap-2 mb-3">
-    <input type="text"
-           name="name"
-           class="form-control"
-           placeholder="Nueva categoría (ej: Insumos)"
-           required>
-    <button class="btn btn-outline-success">Crear</button>
-  </form>
-
-  <!-- Listado de categorías -->
-  <div class="d-flex flex-wrap gap-2">
-    {% for c in categories_all %}
-      <form method="post"
-            action="{{ url_for('expense_categories_toggle', category_id=c.id) }}">
-        <button
-          class="btn btn-sm {{ 'btn-success' if c.is_active else 'btn-outline-secondary' }}">
-          {{ c.name }} {{ '✅' if c.is_active else '🚫' }}
-        </button>
-      </form>
-    {% endfor %}
-  </div>
+<div class="d-flex justify-content-end mb-2">
+  <a href="{{ url_for('expense_categories_list') }}"
+     class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-tags me-1"></i>Gestionar categorías
+  </a>
 </div>
 
 <table id="expensesTable" class="table table-dark table-striped table-sm align-middle mt-3">
