@@ -357,10 +357,13 @@
       .bn-more-menu {
         position: fixed;
         bottom: 62px; left: 0; right: 0;
+        max-height: calc(100dvh - 62px - 20px);
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
         background: var(--surface);
         border-top: 1px solid var(--border);
         border-radius: 20px 20px 0 0;
-        padding: 6px 0 12px;
+        padding: 6px 0 16px;
         z-index: 1049;
         transform: translateY(100%);
         opacity: 0;
@@ -381,7 +384,7 @@
 
       .bn-more-menu a {
         display: flex; align-items: center; gap: 14px;
-        padding: 12px 22px;
+        padding: 11px 22px;
         color: var(--text2);
         text-decoration: none;
         font-size: 0.88rem;
@@ -391,6 +394,14 @@
       .bn-more-menu a i { font-size: 18px; color: var(--accent-dk); width: 22px; text-align: center; }
       .bn-more-menu a:active, .bn-more-menu a:hover { background: var(--bg); color: var(--ink); }
       .bn-more-menu hr { border-color: var(--border); margin: 4px 22px; }
+      .bn-group-label {
+        padding: 14px 22px 4px;
+        font-size: 0.65rem;
+        font-weight: 800;
+        letter-spacing: 0.8px;
+        text-transform: uppercase;
+        color: var(--text3);
+      }
 
       /* Overlay */
       .bn-overlay {
@@ -556,23 +567,34 @@
     </div>
   </div>
   <a href="{{ url_for('change_password') }}"><i class="bi bi-key-fill"></i>Cambiar contraseña</a>
-  <hr>
   {% endif %}
 
+  {# ── Operaciones ── #}
+  <hr>
+  <div class="bn-group-label">Operaciones</div>
   <a href="{{ url_for('sales_list') }}"><i class="bi bi-graph-up-arrow"></i>Ingresos</a>
   <a href="{{ url_for('appointments_list') }}"><i class="bi bi-card-list"></i>Citas</a>
+  <a href="{{ url_for('parking_list') }}"><i class="bi bi-p-square"></i>Parqueaderos</a>
+
+  {# ── Configuración ── #}
   <hr>
-  <a href="{{ url_for('vehicle_types_list') }}"><i class="bi bi-car-front"></i>Tipos de vehículo</a>
+  <div class="bn-group-label">Configuración</div>
   <a href="{{ url_for('services_view') }}"><i class="bi bi-tools"></i>Servicios</a>
   <a href="{{ url_for('service_prices_list') }}"><i class="bi bi-tag"></i>Detalle de servicios</a>
+  <a href="{{ url_for('vehicle_types_list') }}"><i class="bi bi-car-front"></i>Tipos de vehículo</a>
   <a href="{{ url_for('payment_methods_list') }}"><i class="bi bi-credit-card"></i>Medios de pago</a>
   <a href="{{ url_for('agreements_list') }}"><i class="bi bi-handshake-fill"></i>Convenios</a>
 
+  {# ── Administración (solo admin) ── #}
   {% if current_user and current_user.role == 'admin' %}
   <hr>
+  <div class="bn-group-label">Administración</div>
   <a href="{{ url_for('users_list') }}"><i class="bi bi-people-fill"></i>Usuarios</a>
+  <a href="{{ url_for('payroll_list') }}"><i class="bi bi-cash-coin"></i>Nómina</a>
+  <a href="{{ url_for('vales_list') }}"><i class="bi bi-receipt"></i>Vales</a>
   {% endif %}
 
+  {# ── Cerrar sesión ── #}
   <hr>
   {% if current_user %}
   <form method="POST" action="{{ url_for('logout') }}" style="margin:0;">
@@ -592,8 +614,8 @@
   <a class="bn-item" href="{{ url_for('calendar_view') }}">
     <i class="bi bi-calendar3"></i><span>Agenda</span>
   </a>
-  <a class="bn-item" href="{{ url_for('parking_list') }}">
-    <i class="bi bi-p-square"></i><span>Parqueaderos</span>
+  <a class="bn-item" href="{{ url_for('quality_errors_list') }}">
+    <i class="bi bi-exclamation-triangle-fill"></i><span>Errores</span>
   </a>
   <a class="bn-item bn-primary" href="{{ url_for('new_appointment') }}">
     <i class="bi bi-plus"></i><span>Nueva</span>
