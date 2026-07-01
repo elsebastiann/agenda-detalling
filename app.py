@@ -3405,14 +3405,14 @@ def send_whatsapp(to: str, body: str) -> tuple[bool, str]:
         return False, "Variables TWILIO_ACCOUNT_SID / TWILIO_AUTH_TOKEN no configuradas."
     try:
         from twilio.rest import Client as TwilioClient
-        phone = to.strip().replace(" ", "")
-        # Quitar prefijo whatsapp: si alguien lo puso en la variable de entorno
-        if phone.startswith("whatsapp:"):
-            phone = phone[len("whatsapp:"):]
+        # Normalizar número destino
+        phone = to.strip().replace(" ", "").replace("whatsapp:", "")
         if not phone.startswith("+"):
             phone = "+57" + phone  # Colombia por defecto
+        # Normalizar número origen — siempre forzar prefijo whatsapp:
+        from_clean = from_number.strip().replace("whatsapp:", "")
         TwilioClient(account_sid, auth_token).messages.create(
-            from_=from_number,
+            from_=f"whatsapp:{from_clean}",
             to=f"whatsapp:{phone}",
             body=body,
         )
