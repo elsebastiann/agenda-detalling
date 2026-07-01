@@ -2871,7 +2871,7 @@ def seed_superadmin():
 seed_superadmin()
 
 # --- Endpoints que NO requieren sesión ---
-PUBLIC_ENDPOINTS  = {"login", "logout", "static"}
+PUBLIC_ENDPOINTS  = {"login", "logout", "static", "whatsapp_webhook"}
 CHANGE_PWD_ENDPOINTS = {"change_password", "logout", "static"}
 
 # --- Endpoints accesibles por operario (además de los públicos) ---
