@@ -776,6 +776,21 @@ class Message(db.Model):
     created_at      = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 
 
+# --- Ensure whatsapp_conversations schema migration for profile_name ---
+def ensure_whatsapp_schema():
+    with app.app_context():
+        db.create_all()  # crea whatsapp_conversations / whatsapp_messages si no existen
+        try:
+            db.session.execute(text("SELECT profile_name FROM whatsapp_conversations LIMIT 1"))
+        except Exception:
+            db.session.execute(
+                text("ALTER TABLE whatsapp_conversations ADD COLUMN profile_name VARCHAR(120)")
+            )
+            db.session.commit()
+
+ensure_whatsapp_schema()
+
+
 # -----------------------
 # Helper: Get list of existing vendors (for expense forms)
 # -----------------------
