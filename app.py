@@ -3445,6 +3445,46 @@ def send_whatsapp(to: str, body: str) -> tuple[bool, str]:
         return False, str(exc)
 
 
+# ── Claude — motor de respuesta del bot de ventas ─────────────────────────────
+_claude_client = None
+
+def _get_claude_client():
+    global _claude_client
+    if _claude_client is None:
+        import anthropic
+        _claude_client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY", ""))
+    return _claude_client
+
+
+# TODO: reemplazar con la base de conocimiento completa de NOXA (tarea #5)
+NOXA_SYSTEM_PROMPT = """Eres el asistente de ventas de NOXA Detail, un negocio de detailing y car wash de alto nivel en Bogotá.
+Responde de forma cercana, profesional y breve, como lo haría un comercial humano por WhatsApp — sin sonar robótico.
+Tu objetivo es entender la necesidad del cliente y guiarlo hacia agendar una cita.
+Todavía no tienes el catálogo completo de servicios ni precios cargado: si preguntan por precios específicos, diles que un asesor se los confirma en breve."""
+
+
+def get_claude_reply(conversation: "Conversation") -> str:
+    """Genera una respuesta con Claude usando el historial de la conversación."""
+    history = (
+        Message.query
+        .filter_by(conversation_id=conversation.id)
+        .order_by(Message.created_at)
+        .all()
+    )
+    messages = [
+        {"role": "user" if m.direction == "in" else "assistant", "content": m.body}
+        for m in history
+    ]
+
+    response = _get_claude_client().messages.create(
+        model="claude-sonnet-5",
+        max_tokens=500,
+        system=NOXA_SYSTEM_PROMPT,
+        messages=messages,
+    )
+    return response.content[0].text
+
+
 # ── Webhook: mensajes ENTRANTES de WhatsApp (Twilio) ──────────────────────────
 @app.route("/whatsapp/webhook", methods=["POST"])
 def whatsapp_webhook():
@@ -3462,7 +3502,12 @@ def whatsapp_webhook():
     db.session.commit()
 
     if conversation.bot_active:
-        reply = f'Recibimos tu mensaje: "{body}". Pronto te responderemos.'
+        try:
+            reply = get_claude_reply(conversation)
+        except Exception as exc:
+            app.logger.error(f"[Claude] Error generando respuesta: {exc}")
+            reply = "Gracias por tu mensaje, en breve un asesor te responde."
+
         ok, _ = send_whatsapp(from_number, reply)
         if ok:
             db.session.add(Message(conversation_id=conversation.id, direction="out", body=reply))
