@@ -753,6 +753,28 @@ class Vale(db.Model):
     employee    = db.relationship("User")
 
 
+class Conversation(db.Model):
+    """Una conversación de WhatsApp por número de teléfono."""
+    __tablename__ = "whatsapp_conversations"
+    id         = db.Column(db.Integer, primary_key=True)
+    phone      = db.Column(db.String(20), nullable=False, unique=True)
+    bot_active = db.Column(db.Boolean, nullable=False, default=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    messages   = db.relationship("Message", backref="conversation", order_by="Message.created_at")
+
+
+class Message(db.Model):
+    """Un mensaje individual, entrante o saliente, de una conversación."""
+    __tablename__ = "whatsapp_messages"
+    id              = db.Column(db.Integer, primary_key=True)
+    conversation_id = db.Column(db.Integer, db.ForeignKey("whatsapp_conversations.id"), nullable=False)
+    direction       = db.Column(db.String(10), nullable=False)  # "in" | "out"
+    body            = db.Column(db.Text, nullable=False)
+    created_at      = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+
 # -----------------------
 # Helper: Get list of existing vendors (for expense forms)
 # -----------------------
@@ -3430,7 +3452,21 @@ def whatsapp_webhook():
     body = request.form.get("Body", "").strip()
     app.logger.info(f"[WhatsApp] Mensaje recibido de {from_number}: {body!r}")
 
-    send_whatsapp(from_number, f'Recibimos tu mensaje: "{body}". Pronto te responderemos.')
+    conversation = Conversation.query.filter_by(phone=from_number).first()
+    if not conversation:
+        conversation = Conversation(phone=from_number)
+        db.session.add(conversation)
+        db.session.flush()
+
+    db.session.add(Message(conversation_id=conversation.id, direction="in", body=body))
+    db.session.commit()
+
+    if conversation.bot_active:
+        reply = f'Recibimos tu mensaje: "{body}". Pronto te responderemos.'
+        ok, _ = send_whatsapp(from_number, reply)
+        if ok:
+            db.session.add(Message(conversation_id=conversation.id, direction="out", body=reply))
+            db.session.commit()
 
     return ("", 200)
 
