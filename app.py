@@ -3577,7 +3577,8 @@ def get_claude_reply(conversation: "Conversation") -> str:
         ],
         messages=messages,
     )
-    return response.content[0].text
+    text_blocks = [block.text for block in response.content if block.type == "text"]
+    return "\n".join(text_blocks).strip()
 
 
 # ── Webhook: mensajes ENTRANTES de WhatsApp (Twilio) ──────────────────────────
