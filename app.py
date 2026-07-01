@@ -3545,10 +3545,15 @@ def get_claude_reply(conversation: "Conversation") -> str:
         .order_by(Message.created_at)
         .all()
     )
-    messages = [
-        {"role": "user" if m.direction == "in" else "assistant", "content": m.body}
-        for m in history
-    ]
+    # Claude exige alternancia estricta user/assistant: si hubo mensajes seguidos
+    # del mismo rol (p.ej. por un envío fallido anterior), se fusionan en uno solo.
+    messages = []
+    for m in history:
+        role = "user" if m.direction == "in" else "assistant"
+        if messages and messages[-1]["role"] == role:
+            messages[-1]["content"] += "\n" + m.body
+        else:
+            messages.append({"role": role, "content": m.body})
 
     profile_line = (
         f"Nombre de perfil de WhatsApp del cliente: {conversation.profile_name!r}"
