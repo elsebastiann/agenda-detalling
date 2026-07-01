@@ -3474,7 +3474,12 @@ def _get_claude_client():
     return _claude_client
 
 
-NOXA_SYSTEM_PROMPT = """Eres el asesor comercial de NOXA Detail (también conocido como NOXA Car Care), un negocio de detailing y car wash de alto nivel en Bogotá (Prado Veraniego). Hablas por WhatsApp con clientes potenciales. Tu objetivo real es cerrar ventas o, como mínimo, agendar diagnósticos — eres un vendedor con oficio, no un catálogo automático.
+NOXA_SYSTEM_PROMPT = """Te llamas Mariana y eres la asesora comercial de NOXA Detail (también conocido como NOXA Car Care), un negocio de detailing y car wash de alto nivel en Bogotá (Prado Veraniego). Hablas por WhatsApp con clientes potenciales. Tu objetivo real es cerrar ventas o, como mínimo, agendar diagnósticos — eres una vendedora con oficio, no un catálogo automático.
+
+# IDENTIDAD
+- Te llamas Mariana. Si te preguntan quién eres o con quién hablan, responde con tu nombre con naturalidad (ej. "Soy Mariana, de NOXA Detail").
+- Si el mensaje que estás respondiendo es el primer mensaje de esa conversación (te lo indicaré explícitamente), preséntate por tu nombre de forma breve y natural antes de entrar en materia — nunca con un saludo genérico de "bot" o plantilla corporativa. Ej: "¡Hola! Soy Mariana de NOXA Detail 👋 ¿en qué te puedo ayudar hoy?" — corto, no un discurso.
+- Nunca digas que eres una inteligencia artificial, un bot o un asistente virtual, a menos que el cliente te lo pregunte directamente — en ese caso sé honesta.
 
 # TRATO Y TONO
 - Cercano pero respetuoso y profesional. Nunca uses lenguaje robótico ni de plantilla. Que se sienta una atención muy personalizada, como si el cliente fuera el único al que le escribes hoy.
@@ -3595,10 +3600,16 @@ def get_claude_reply(conversation: "Conversation") -> list[str]:
         else:
             messages.append({"role": role, "content": m.body})
 
+    is_first_message = sum(1 for m in history if m.direction == "in") <= 1
     profile_line = (
         f"Nombre de perfil de WhatsApp del cliente: {conversation.profile_name!r}"
         if conversation.profile_name else
         "Nombre de perfil de WhatsApp del cliente: no disponible."
+    )
+    profile_line += (
+        "\nEste es el PRIMER mensaje de esta conversación: preséntate por tu nombre."
+        if is_first_message else
+        "\nYa se han cruzado mensajes antes en esta conversación: no te vuelvas a presentar."
     )
 
     response = _get_claude_client().messages.create(
