@@ -3639,6 +3639,13 @@ def whatsapp_webhook():
     elif profile_name and conversation.profile_name != profile_name:
         conversation.profile_name = profile_name
 
+    # Palabra clave para limpiar el historial y probar conversaciones desde cero.
+    if body.strip().lower() == "/reset":
+        Message.query.filter_by(conversation_id=conversation.id).delete()
+        db.session.commit()
+        send_whatsapp(from_number, "🔄 Listo, empezamos de cero.")
+        return ("", 200)
+
     db.session.add(Message(conversation_id=conversation.id, direction="in", body=body))
     db.session.commit()
 
