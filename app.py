@@ -3581,6 +3581,7 @@ def get_claude_reply(conversation: "Conversation") -> str:
 
 
 # ── Webhook: mensajes ENTRANTES de WhatsApp (Twilio) ──────────────────────────
+# (redeploy trigger)
 @app.route("/whatsapp/webhook", methods=["POST"])
 def whatsapp_webhook():
     from_number = request.form.get("From", "").replace("whatsapp:", "")
