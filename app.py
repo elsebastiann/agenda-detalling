@@ -3423,6 +3423,18 @@ def send_whatsapp(to: str, body: str) -> tuple[bool, str]:
         return False, str(exc)
 
 
+# ── Webhook: mensajes ENTRANTES de WhatsApp (Twilio) ──────────────────────────
+@app.route("/whatsapp/webhook", methods=["POST"])
+def whatsapp_webhook():
+    from_number = request.form.get("From", "").replace("whatsapp:", "")
+    body = request.form.get("Body", "").strip()
+    app.logger.info(f"[WhatsApp] Mensaje recibido de {from_number}: {body!r}")
+
+    send_whatsapp(from_number, f'Recibimos tu mensaje: "{body}". Pronto te responderemos.')
+
+    return ("", 200)
+
+
 # ── Job 1: Recordatorio al ADMIN — 30 minutos antes de cada cita ──────────────
 def _job_admin_reminder():
     """Corre cada 5 minutos. Notifica al admin si hay cita en los próximos 30 min."""
