@@ -3797,6 +3797,27 @@ def whatsapp_conversation(conversation_id):
     return render_template("whatsapp_conversation.html", conversation=conversation, messages=messages)
 
 
+@app.route("/whatsapp/<int:conversation_id>/messages.json")
+def whatsapp_messages_json(conversation_id):
+    """Mensajes nuevos desde el último id visto — usado por el polling del chat."""
+    since_id = request.args.get("since", 0, type=int)
+    conversation = Conversation.query.get_or_404(conversation_id)
+    messages = (
+        Message.query
+        .filter_by(conversation_id=conversation.id)
+        .filter(Message.id > since_id)
+        .order_by(Message.created_at)
+        .all()
+    )
+    return jsonify({
+        "bot_active": conversation.bot_active,
+        "messages": [
+            {"id": m.id, "direction": m.direction, "body": m.body, "time": m.created_at.strftime("%d/%m %H:%M")}
+            for m in messages
+        ],
+    })
+
+
 @app.route("/whatsapp/<int:conversation_id>/toggle-bot", methods=["POST"])
 def whatsapp_toggle_bot(conversation_id):
     conversation = Conversation.query.get_or_404(conversation_id)
