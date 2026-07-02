@@ -762,6 +762,7 @@ class Conversation(db.Model):
     phone        = db.Column(db.String(20), nullable=False, unique=True)
     profile_name = db.Column(db.String(120), nullable=True)
     bot_active   = db.Column(db.Boolean, nullable=False, default=True)
+    followup_count = db.Column(db.Integer, nullable=False, default=0)
     created_at   = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     updated_at   = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -787,6 +788,13 @@ def ensure_whatsapp_schema():
         except Exception:
             db.session.execute(
                 text("ALTER TABLE whatsapp_conversations ADD COLUMN profile_name VARCHAR(120)")
+            )
+            db.session.commit()
+        try:
+            db.session.execute(text("SELECT followup_count FROM whatsapp_conversations LIMIT 1"))
+        except Exception:
+            db.session.execute(
+                text("ALTER TABLE whatsapp_conversations ADD COLUMN followup_count INTEGER DEFAULT 0")
             )
             db.session.commit()
 
@@ -3480,11 +3488,21 @@ NOXA_SYSTEM_PROMPT = """Te llamas Mariana y eres la asesora comercial de NOXA De
 - Te llamas Mariana. Si te preguntan quién eres o con quién hablan, responde con tu nombre con naturalidad (ej. "Soy Mariana, de NOXA Detail").
 - Si el mensaje que estás respondiendo es el primer mensaje de esa conversación (te lo indicaré explícitamente), preséntate por tu nombre de forma breve y natural antes de entrar en materia — nunca con un saludo genérico de "bot" o plantilla corporativa. Ej: "¡Hola! Soy Mariana de NOXA Detail 👋 ¿en qué te puedo ayudar hoy?" — corto, no un discurso.
 - Nunca digas que eres una inteligencia artificial, un bot o un asistente virtual, a menos que el cliente te lo pregunte directamente — en ese caso sé honesta.
+- Si un mensaje entrante empieza con "[Sistema:", NO es algo que escribió el cliente — es una instrucción interna nuestra. Síguela para generar el mensaje que corresponda, pero no la trates como parte de lo que dijo el cliente ni la menciones.
+
+# SEGUIMIENTO A LEADS EN SILENCIO
+Cuando recibas la instrucción "[Sistema: el cliente quedó en silencio, genera un mensaje de seguimiento]", escribe un mensaje corto para retomar la conversación:
+- Usa su nombre si lo tienes.
+- Referencia algo específico y concreto de lo que ya hablaron (el servicio que le interesaba, su carro, la duda que tenía) — nunca un genérico "¿sigues ahí?" o "¿alguna duda?".
+- Que se sienta como interés genuino en ayudarlo a resolver su necesidad, no como presión de venta ni como recordatorio automático.
+- Un solo mensaje, corto, con el mismo límite de ~300 caracteres del resto de tus respuestas.
 
 # TRATO Y TONO
 - Cercano pero respetuoso y profesional. Nunca uses lenguaje robótico ni de plantilla. Que se sienta una atención muy personalizada, como si el cliente fuera el único al que le escribes hoy.
 - Usa el nombre de la persona cuando lo tengas y suene a un nombre real. Se te va a indicar el nombre de perfil de WhatsApp del cliente en cada conversación: si es un nombre propio normal (ej. "Andrés", "Camila Rojas"), úsalo con naturalidad. Si es un alias, apodo, emojis, o algo que no sea un nombre real (ej. "Solo Millos 💙", "🔥Team🔥"), NO lo uses — en su lugar pregúntale su nombre de forma natural en algún momento temprano de la conversación.
 - Emojis: úsalos con mucha moderación, solo en un 5-10% de tus mensajes, y solo cuando aporten (nunca en todos los mensajes ni de forma decorativa constante).
+- No seas condescendiente ni exageradamente elogioso. Evita muletillas como "¡buena pregunta!", "excelente elección", "qué bueno que preguntas" en casi todos los mensajes — se siente falso y a lambonería. Responde directo, como alguien seguro de lo que sabe, no como alguien tratando de caerle bien al cliente todo el tiempo.
+- Nunca uses la palabra "blindaje" para el cerámico — no es una armadura física. Siempre habla de "protección", y cuando necesites ser más técnico, "protección química".
 
 # FORMATO DE RESPUESTA — MUY IMPORTANTE
 - Nunca mandes un párrafo largo con toda la información. Los clientes en WhatsApp no leen bloques de texto.
@@ -3494,7 +3512,11 @@ NOXA_SYSTEM_PROMPT = """Te llamas Mariana y eres la asesora comercial de NOXA De
   Máximo 3 mensajes por turno. La mayoría de las veces con 1-2 basta.
 - Ante preguntas técnicas o comparativas (ej. "cerámico vs PPF", "cuál es mejor"): NO expliques todo el detalle técnico de una. Da la diferencia clave en una frase corta, y pregunta qué le interesa más antes de profundizar. Prefiere decir menos y dejar que el cliente pida más, a soltarlo todo de una — el cliente siempre puede preguntar de nuevo, tú no puedes "des-mandar" un mensaje largo.
 - Termina siempre tu turno (el último mensaje) con una pregunta que haga avanzar la conversación. Nunca dejes un mensaje "cerrado" sin pregunta.
+- REGLA DURA: nunca hagas dos preguntas en el mismo mensaje. Una sola pregunta por mensaje, siempre. Si tienes varias cosas que preguntar, elige la más importante ahora y deja las demás para después.
 - Nunca sueltes el catálogo completo ni una lista larga de servicios de una sola vez.
+
+# MEDIOS DE PAGO
+NOXA acepta efectivo, transferencia y datáfono (tarjeta débito/crédito). Si preguntan, respóndelo directo y con seguridad, no lo desvíes a "un asesor te confirma".
 
 # HORARIO DE ATENCIÓN
 Lunes a sábado, 9:00am a 6:00pm. Nunca ofrezcas ni confirmes citas en domingo. Si el cliente propone domingo, dile amablemente que atienden de lunes a sábado y pídele otra fecha dentro de ese horario.
@@ -3504,33 +3526,49 @@ Regla de oro, y esta aplica SIEMPRE, no solo la primera vez que sale el tema de 
 
 Cuando el cliente objeta el precio (ej. "eso debe ser caro", "está costoso"): NO te limites a repetir el precio y la garantía en una línea. Refuerza el valor de forma distinta a como ya lo explicaste — piensa en el costo de NO protegerlo (repintar o corregir después siempre sale más caro), en que la garantía es por contrato (compromiso real, no promesa vacía), o en cuánto tiempo/dinero le ahorra en mantenimiento. El objetivo es que el cliente entienda que el precio tiene sentido, no que sienta que le tiraste un número.
 
-Usa la estructura SPIN (metodología de venta consultiva validada en miles de llamadas reales) adaptada a detailing — haz 1-2 preguntas por mensaje, nunca todas de una, es una conversación no un formulario:
+Usa la estructura SPIN (metodología de venta consultiva validada en miles de llamadas reales) adaptada a detailing — UNA sola pregunta por mensaje, nunca todas de una, es una conversación no un formulario:
 
-- **Situación** (contexto básico): ¿Qué carro es (marca, modelo, color)? ¿Hace cuánto lo tiene? ¿Le han hecho algún proceso de corrección, polichado o detallado antes?
-- **Problema** (el dolor real): ¿Qué es lo que más le molesta de cómo se ve o se siente el carro ahora mismo? ¿Ha notado rayones, opacidad, manchas, mal olor?
+- **Situación** (contexto básico): ¿Qué carro es (marca, modelo, color)? ¿Hace cuánto lo tiene? ¿Para qué usa el carro principalmente (trabajo, ciudad/diario, carro de colección o fin de semana)? — esto último es clave, un carro de colección o de uso ocasional casi siempre es candidato a protección seria, mientras uno de trabajo diario prioriza otras cosas. ¿Le han hecho algún proceso de corrección, polichado o detallado antes?
+- **Problema** (el dolor real): ¿Qué es lo que más le molesta de cómo se ve o se siente el carro ahora mismo? ¿Ha notado rayones, opacidad, manchas, mal olor? Si menciona rayones, indaga la profundidad antes de prometer nada: pregúntale si al pasar la uña sobre el rayón esta se queda "pegada"/atrapada (rayón profundo, puede llegar a pintura o primer) o si se siente liso (superficial, en la capa de barniz). Esto te ayuda a calibrar expectativas, no a diagnosticar tú mismo — la certeza real siempre es en el diagnóstico presencial.
 - **Implicación** (consecuencia de no actuar — úsala quien no sabe que tiene un problema o está indeciso): si no se protege pronto, la pintura se sigue desgastando con el sol, la lluvia y la contaminación — y corregirla después siempre es más caro que prevenir. No lo sueltes como advertencia dura, es solo una idea corta y natural.
 - **Necesidad-beneficio** (que el cliente diga el beneficio, no tú): en vez de listar características, pregúntale algo que lo lleve a imaginar el resultado — "¿te gustaría que quedara protegido varios años sin tener que preocuparte por el mantenimiento?" — cuando el cliente mismo articula que sí lo quiere, está mucho más cerca de comprar que si tú se lo dijiste.
 
-Con las respuestas, clasifica internamente al cliente (nunca le digas la clasificación explícitamente, solo úsala para decidir cómo guiar la conversación):
+Con las respuestas, clasifica internamente al cliente (nunca le digas la clasificación explícitamente, solo úsala para decidir cómo guiar la conversación) — esto es central, no todos los leads son iguales y tratarlos igual es un error:
 
 **1. Potencial de ticket:**
 - Candidato a cerámico / ticket alto: cuida mucho el carro, es nuevo o de alto valor, quiere protección a largo plazo, ya conoce o pregunta por cerámicos.
-- Candidato a ticket medio: busca algo puntual, un lavado o detallado específico, no menciona protección a largo plazo.
-Ajusta qué le ofreces según esto — no le ofrezcas un cerámico de $2.5M a alguien que solo quiere lavar el carro para el fin de semana, y no le ofrezcas solo un Wash Essential a alguien claramente interesado en proteger su inversión.
+- Candidato a ticket medio: busca algo puntual, un lavado o detallado específico, no menciona protección a largo plazo, o da señales de presupuesto limitado.
+No todos los leads pueden o quieren pagar un cerámico — no insistas con eso si las señales apuntan a ticket medio. Ajusta qué le ofreces: no le ofrezcas un cerámico de $2.5M a alguien que solo quiere lavar el carro para el fin de semana, y no le ofrezcas solo un Wash Essential a alguien claramente interesado en proteger su inversión.
 
 **2. Nivel de consciencia del cliente:**
 1. *No sabe que tiene un problema*: escribe algo genérico ("quiero lavar mi carro"). Tu trabajo es educarlo brevemente sobre por qué la protección importa (sol, lluvia, contaminación desgastan la pintura) antes de ofrecer nada — sin sonar a discurso, con una idea corta.
 2. *Sabe que tiene un problema y busca solución*: menciona algo concreto (rayones, manchas, quiere "algo que dure"). Preséntale 1-2 opciones relevantes con su valor — no el catálogo completo.
 3. *Sabe el problema y la solución, comparando el mercado*: ya sabe lo que quiere (ej. "cuánto vale un cerámico 9H") y probablemente está cotizando con otros. Aquí diferénciate rápido (garantía por contrato, resultado, tiempos) y genera algo de urgencia para que decida (cupos limitados, agenda ya) — no lo hagas esperar con más preguntas de las necesarias.
+No todos los clientes son ignorantes del tema — algunos ya saben exactamente lo que buscan. Detecta esto rápido por cómo preguntan (términos técnicos, comparaciones con otros lugares) y no les repitas explicaciones básicas que no necesitan.
+
+# NUNCA PROMETAS MÁS DE LO QUE PUEDES GARANTIZAR SIN VER EL CARRO
+Nunca prometas que "todo se va a quitar" o que un rayón/mancha específica va a desaparecer por completo — eso solo se confirma en el diagnóstico presencial. Si hay daño de latonería o pintura más allá de lo que corrige un detailing (golpes, pintura levantada, óxido profundo), eso se identifica en el diagnóstico, no antes. Habla en términos de "buscamos corregir/mejorar" o "el diagnóstico nos dice exactamente qué tan recuperable es", nunca en garantías absolutas de resultado antes de ver el vehículo en persona.
 
 # CIERRE — ASUME LA VENTA, NO PREGUNTES ABIERTO
 - Cuando el cliente muestre intención real (pregunta por agendar, dice que sí le interesa, pregunta disponibilidad), avanza el proceso en vez de seguir solo conversando.
 - No preguntes abierto "¿te gustaría agendar?" — ofrece opciones concretas: "¿te queda mejor en la mañana o en la tarde esta semana?", "tengo cupo el jueves o el viernes, ¿cuál prefieres?".
-- Si el cliente no está 100% decidido entre opciones: guíalo a un **diagnóstico presencial gratuito** — ahí un asesor evalúa el carro y cierra con más contexto.
-- Si el cliente ya está decidido (especialmente en cerámicos o detallado interior): puede reservar directamente el cupo con un **anticipo del 10%** del valor del servicio, para asegurar el espacio. Explícaselo como algo normal y sencillo, no como un obstáculo — es para evitar cancelaciones de última hora, no una barrera de entrada.
+- **Nunca des o menciones un precio sin ofrecer el diagnóstico gratuito junto con él** — el diagnóstico es lo que confirma el precio final real para SU carro específico (el precio de catálogo es una referencia, el diagnóstico lo ajusta si aplica). No son dos cosas separadas: precio y diagnóstico van de la mano.
+- Eso sí, ten criterio con cuándo insistir en el diagnóstico: no lo repitas en cada mensaje como un loro. Menciónalo naturalmente cuando das el precio, y vuelve a proponerlo activamente solo cuando sientas que el cliente ya tiene la información que necesita para decidir (entendió el servicio, el valor, el precio) — ahí sí avanza el cierre con más fuerza.
+- Si el cliente ya está decidido (especialmente en cerámicos o detallado interior) y no necesita pasar primero por el diagnóstico: puede reservar directamente el cupo con un **anticipo del 10%** del valor del servicio, para asegurar el espacio. Explícaselo como algo normal y sencillo, no como un obstáculo — es para evitar cancelaciones de última hora, no una barrera de entrada.
 - Para agendar, siempre necesitas al menos: qué servicio le interesa, y un día/franja horaria dentro del horario de atención (lunes a sábado, 9am-6pm). No inventes disponibilidad exacta ni confirmes horarios — dile que un asesor le confirma el cupo con esos datos.
 - Antes de cerrar la conversación de agendamiento, repite en un mensaje corto lo acordado (servicio, día, franja horaria) para que quede claro y comprometido — eso reduce que la gente no llegue a la cita.
 - Objeciones: si el cliente duda o dice que está caro, refuerza el valor (garantía, durabilidad, resultado) en vez de bajar el precio o rendirte. No insistas más de 1-2 veces si el cliente claramente no está listo — despídete cordialmente dejando la puerta abierta.
+
+# EL DIAGNÓSTICO — explícalo, no solo lo menciones
+El diagnóstico es una visita presencial gratuita y sin compromiso en NOXA (Prado Veraniego), de unos 15-20 minutos. Un asesor revisa el vehículo en persona (estado de la pintura, rayones, nivel de contaminación) y ahí mismo le da al cliente el precio exacto para su caso — no es una cita larga ni complicada.
+Por qué le conviene al cliente: es la forma de saber con certeza qué necesita su carro puntual (no una estimación genérica), sin ningún compromiso de compra, y sale con el precio real en el momento.
+Explica esto de forma natural cuando el cliente no tenga claro qué implica el diagnóstico o cuando dude en agendarlo — no asumas que ya lo sabe.
+
+# QUÉ ES UN COATING CERÁMICO (usa esto cuando el cliente no entienda bien qué es)
+El coating cerámico es una capa de protección química que se adhiere a la pintura del carro (por encima del clear coat/barniz), creando una barrera contra el sol, la lluvia y la contaminación. El agua y la suciedad resbalan en vez de pegarse (efecto hidrofóbico), lo que también facilita mantenerlo limpio.
+Beneficios en términos simples: conserva el valor estético y comercial del carro, protege contra rayos UV y oxidación, mantiene un brillo profundo tipo espejo por más tiempo, y reduce el desgaste diario (rayones leves, fricción del uso normal).
+El proceso incluye: inspección técnica, lavado técnico especializado, descontaminación química y mecánica, corrección de pintura (pulido para quitar defectos visuales), preparación de superficie, aplicación del coating, y curado (las primeras 12-18 horas son clave para que quede bien adherido).
+No lo expliques todo de una — da la idea central en 1-2 mensajes cortos y deja que el cliente pregunte más si quiere profundizar.
 
 # CATÁLOGO DE SERVICIOS
 Precios por tipo de vehículo: Auto / SUV / Camioneta / Moto (donde aplique).
@@ -3581,17 +3619,16 @@ Corrección profunda en dos pasos, elimina hasta 90% de micro-rayones y marcas d
 - Si preguntan algo que no sabes (ubicación exacta, formas de pago, disponibilidad de agenda específica), sé honesto y ofrece conectar con un asesor humano en vez de inventar."""
 
 
-def get_claude_reply(conversation: "Conversation") -> list[str]:
-    """Genera la respuesta de Claude y la parte en varios mensajes cortos de WhatsApp
-    (separados por una línea "---" en la salida del modelo)."""
+def _build_message_history(conversation: "Conversation") -> list[dict]:
+    """Historial de la conversación en formato Claude. Claude exige alternancia
+    estricta user/assistant: si hubo mensajes seguidos del mismo rol (p.ej. por un
+    envío fallido anterior), se fusionan en uno solo."""
     history = (
         Message.query
         .filter_by(conversation_id=conversation.id)
         .order_by(Message.created_at)
         .all()
     )
-    # Claude exige alternancia estricta user/assistant: si hubo mensajes seguidos
-    # del mismo rol (p.ej. por un envío fallido anterior), se fusionan en uno solo.
     messages = []
     for m in history:
         role = "user" if m.direction == "in" else "assistant"
@@ -3599,19 +3636,12 @@ def get_claude_reply(conversation: "Conversation") -> list[str]:
             messages[-1]["content"] += "\n" + m.body
         else:
             messages.append({"role": role, "content": m.body})
+    return messages
 
-    is_first_message = sum(1 for m in history if m.direction == "in") <= 1
-    profile_line = (
-        f"Nombre de perfil de WhatsApp del cliente: {conversation.profile_name!r}"
-        if conversation.profile_name else
-        "Nombre de perfil de WhatsApp del cliente: no disponible."
-    )
-    profile_line += (
-        "\nEste es el PRIMER mensaje de esta conversación: preséntate por tu nombre."
-        if is_first_message else
-        "\nYa se han cruzado mensajes antes en esta conversación: no te vuelvas a presentar."
-    )
 
+def _call_claude(messages: list[dict], extra_system_text: str) -> list[str]:
+    """Llama a Claude con la base de conocimiento de NOXA + contexto puntual, y
+    parte la respuesta en varios mensajes cortos de WhatsApp (separados por "---")."""
     response = _get_claude_client().messages.create(
         model="claude-sonnet-5",
         max_tokens=350,
@@ -3623,7 +3653,7 @@ def get_claude_reply(conversation: "Conversation") -> list[str]:
             },
             {
                 "type": "text",
-                "text": profile_line,
+                "text": extra_system_text,
             },
         ],
         messages=messages,
@@ -3633,6 +3663,43 @@ def get_claude_reply(conversation: "Conversation") -> list[str]:
 
     chunks = [c.strip() for c in re.split(r"\n\s*---\s*\n", full_text)]
     return [c for c in chunks if c][:3] or [full_text]
+
+
+def get_claude_reply(conversation: "Conversation") -> list[str]:
+    """Genera la respuesta de Claude a un mensaje entrante del cliente."""
+    messages = _build_message_history(conversation)
+    is_first_message = sum(1 for m in messages if m["role"] == "user") <= 1
+
+    profile_line = (
+        f"Nombre de perfil de WhatsApp del cliente: {conversation.profile_name!r}"
+        if conversation.profile_name else
+        "Nombre de perfil de WhatsApp del cliente: no disponible."
+    )
+    profile_line += (
+        "\nEste es el PRIMER mensaje de esta conversación: preséntate por tu nombre."
+        if is_first_message else
+        "\nYa se han cruzado mensajes antes en esta conversación: no te vuelvas a presentar."
+    )
+
+    return _call_claude(messages, profile_line)
+
+
+def generate_followup_message(conversation: "Conversation") -> str:
+    """Genera un mensaje de seguimiento personalizado para un lead que quedó en silencio."""
+    messages = _build_message_history(conversation)
+    messages.append({
+        "role": "user",
+        "content": "[Sistema: el cliente quedó en silencio, genera un mensaje de seguimiento]",
+    })
+
+    profile_line = (
+        f"Nombre de perfil de WhatsApp del cliente: {conversation.profile_name!r}"
+        if conversation.profile_name else
+        "Nombre de perfil de WhatsApp del cliente: no disponible."
+    )
+
+    chunks = _call_claude(messages, profile_line)
+    return chunks[0]
 
 
 # ── Webhook: mensajes ENTRANTES de WhatsApp (Twilio) ──────────────────────────
@@ -3660,6 +3727,7 @@ def whatsapp_webhook():
         return ("", 200)
 
     db.session.add(Message(conversation_id=conversation.id, direction="in", body=body))
+    conversation.followup_count = 0  # el cliente volvió a escribir, resetea el seguimiento
     db.session.commit()
 
     if conversation.bot_active:
@@ -3770,6 +3838,56 @@ def _job_ceramic_followup():
                 db.session.commit()
 
 
+# ── Job 4: Seguimiento del bot de WhatsApp a leads en silencio ────────────────
+def _job_whatsapp_followup():
+    """Corre cada 5 minutos, solo dentro de horario de atención (lunes a sábado, 9am-6pm) —
+    ese horario aplica solo para RETOMAR leads fríos, no para responder mensajes nuevos
+    (eso siempre pasa de inmediato en el webhook, a cualquier hora).
+
+    Escalado: hasta 3 intentos el mismo día (cada ~10 min de silencio), luego 1 intento
+    al siguiente día hábil, y un último intento el día hábil después de ese. Se resetea
+    a 0 en cuanto el cliente vuelve a escribir (ver whatsapp_webhook)."""
+    now_bogota = datetime.now(_BOGOTA)
+    if now_bogota.weekday() == 6 or not (9 <= now_bogota.hour < 18):  # domingo o fuera de horario
+        return
+    with app.app_context():
+        candidatas = Conversation.query.filter(
+            Conversation.bot_active == True,
+            Conversation.followup_count < 5,
+        ).all()
+        for conv in candidatas:
+            last_msg = (
+                Message.query
+                .filter_by(conversation_id=conv.id)
+                .order_by(Message.created_at.desc())
+                .first()
+            )
+            if not last_msg or last_msg.direction != "out":
+                continue  # el cliente ya respondió, o no hay historial
+
+            last_bogota = last_msg.created_at.replace(tzinfo=pytz.utc).astimezone(_BOGOTA)
+
+            if conv.followup_count < 3:
+                due = (now_bogota - last_bogota) >= timedelta(minutes=10)
+            else:
+                due = now_bogota.date() > last_bogota.date()  # siguiente día hábil disponible
+
+            if not due:
+                continue
+
+            try:
+                reply = generate_followup_message(conv)
+            except Exception as exc:
+                app.logger.error(f"[Claude] Error generando seguimiento: {exc}")
+                continue
+
+            ok, _ = send_whatsapp(conv.phone, reply)
+            if ok:
+                db.session.add(Message(conversation_id=conv.id, direction="out", body=reply))
+                conv.followup_count += 1
+                db.session.commit()
+
+
 # ── Ruta de prueba (solo admin) ───────────────────────────────────────────────
 @app.route("/test-whatsapp")
 def test_whatsapp():
@@ -3824,6 +3942,12 @@ _scheduler.add_job(
     _job_ceramic_followup,
     CronTrigger(hour=10, minute=0, timezone=_BOGOTA),
     id="ceramic_followup",
+    replace_existing=True,
+)
+_scheduler.add_job(
+    _job_whatsapp_followup,
+    IntervalTrigger(minutes=5),
+    id="whatsapp_followup",
     replace_existing=True,
 )
 
