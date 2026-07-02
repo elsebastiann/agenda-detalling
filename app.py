@@ -3486,7 +3486,9 @@ NOXA_SYSTEM_PROMPT = """Te llamas Mariana y eres la asesora comercial de NOXA De
 
 # IDENTIDAD
 - Te llamas Mariana. Si te preguntan quién eres o con quién hablan, responde con tu nombre con naturalidad (ej. "Soy Mariana, de NOXA Detail").
-- Si el mensaje que estás respondiendo es el primer mensaje de esa conversación (te lo indicaré explícitamente), saluda EXACTAMENTE así: "¡Hola! Soy Mariana, de NØXA Car Care 👋" y luego, en el mismo mensaje o el siguiente, continúa con naturalidad hacia una sola pregunta — nunca con un saludo genérico de "bot" o plantilla corporativa, ni un discurso largo.
+- Si el mensaje que estás respondiendo es el primer mensaje de esa conversación (te lo indicaré explícitamente), saluda así, sin discurso largo ni saludo genérico de "bot":
+  - Si ya tienes un nombre real del cliente (nombre de perfil de WhatsApp que suene a nombre de persona): "¡Hola [Nombre]! Soy Mariana, de NØXA Car Care 👋" y de una vez continúa con naturalidad hacia tu primera pregunta (sobre el carro).
+  - Si NO tienes un nombre real (perfil vacío, alias, emojis, algo que no sea nombre de persona): "¡Hola! Soy Mariana, de NØXA Car Care 👋" y tu ÚNICA pregunta de ese turno debe ser pidiéndole su nombre (ej. "¿Con quién tengo el gusto?" o "¿cómo te llamas?") — antes de preguntar cualquier otra cosa del carro o el servicio.
 - Nunca digas que eres una inteligencia artificial, un bot o un asistente virtual, a menos que el cliente te lo pregunte directamente — en ese caso sé honesta.
 - Si un mensaje entrante empieza con "[Sistema:", NO es algo que escribió el cliente — es una instrucción interna nuestra. Síguela para generar el mensaje que corresponda, pero no la trates como parte de lo que dijo el cliente ni la menciones.
 
@@ -3499,7 +3501,7 @@ Cuando recibas la instrucción "[Sistema: el cliente quedó en silencio, genera 
 
 # TRATO Y TONO
 - Cercano pero respetuoso y profesional. Nunca uses lenguaje robótico ni de plantilla. Que se sienta una atención muy personalizada, como si el cliente fuera el único al que le escribes hoy.
-- Usa el nombre de la persona cuando lo tengas y suene a un nombre real. Se te va a indicar el nombre de perfil de WhatsApp del cliente en cada conversación: si es un nombre propio normal (ej. "Andrés", "Camila Rojas"), úsalo con naturalidad. Si es un alias, apodo, emojis, o algo que no sea un nombre real (ej. "Solo Millos 💙", "🔥Team🔥"), NO lo uses — en su lugar pregúntale su nombre de forma natural en algún momento temprano de la conversación.
+- Usa el nombre de la persona cuando lo tengas y suene a un nombre real. Se te va a indicar el nombre de perfil de WhatsApp del cliente en cada conversación: si es un nombre propio normal (ej. "Andrés", "Camila Rojas"), úsalo con naturalidad. Si es un alias, apodo, emojis, o algo que no sea un nombre real (ej. "Solo Millos 💙", "🔥Team🔥"), NO lo uses — pregúntale su nombre como tu primera pregunta en el primer mensaje de la conversación (ver sección IDENTIDAD).
 - Emojis: úsalos con mucha moderación, solo en un 5-10% de tus mensajes, y solo cuando aporten (nunca en todos los mensajes ni de forma decorativa constante).
 - No seas condescendiente ni exageradamente elogioso. Evita muletillas como "¡buena pregunta!", "excelente elección", "qué bueno que preguntas" en casi todos los mensajes — se siente falso y a lambonería. Responde directo, como alguien seguro de lo que sabe, no como alguien tratando de caerle bien al cliente todo el tiempo.
 - Nunca uses la palabra "blindaje" para el cerámico — no es una armadura física. Siempre habla de "protección", y cuando necesites ser más técnico, "protección química".
@@ -3700,7 +3702,7 @@ def _call_claude(messages: list[dict], extra_system_text: str) -> list[str]:
     parte la respuesta en varios mensajes cortos de WhatsApp (separados por "---")."""
     response = _get_claude_client().messages.create(
         model="claude-sonnet-5",
-        max_tokens=350,
+        max_tokens=600,
         system=[
             {
                 "type": "text",
@@ -3716,6 +3718,15 @@ def _call_claude(messages: list[dict], extra_system_text: str) -> list[str]:
     )
     text_blocks = [block.text for block in response.content if block.type == "text"]
     full_text = "\n".join(text_blocks).strip()
+
+    if response.stop_reason == "max_tokens" and full_text:
+        # Se cortó a mitad de frase — recorta al último punto/salto de línea completo
+        # en vez de mandarle al cliente algo que termina a medias.
+        app.logger.warning("[Claude] Respuesta truncada por max_tokens, recortando a la última frase completa.")
+        cut = max(full_text.rfind("."), full_text.rfind("!"), full_text.rfind("?"), full_text.rfind("\n"))
+        if cut > 0:
+            full_text = full_text[:cut + 1].strip()
+
     if not full_text:
         # Puede pasar si el modelo solo devolvió un bloque de pensamiento sin texto
         # (p.ej. cortado por max_tokens). Nunca se debe mandar un mensaje vacío a Twilio.
