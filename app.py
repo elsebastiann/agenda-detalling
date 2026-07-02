@@ -3777,12 +3777,16 @@ def whatsapp_webhook():
 
 
 # ── Panel de mensajes de WhatsApp (bandeja + human takeover) ─────────────────
-@app.route("/whatsapp")
-def whatsapp_inbox():
+def _whatsapp_rows():
     conversations = Conversation.query.all()
     rows = [(c, c.messages[-1] if c.messages else None) for c in conversations]
     rows.sort(key=lambda r: (r[1].created_at if r[1] else r[0].created_at), reverse=True)
-    return render_template("whatsapp_inbox.html", rows=rows)
+    return rows
+
+
+@app.route("/whatsapp")
+def whatsapp_inbox():
+    return render_template("whatsapp.html", rows=_whatsapp_rows(), conversation=None, messages=[])
 
 
 @app.route("/whatsapp/<int:conversation_id>")
@@ -3794,7 +3798,7 @@ def whatsapp_conversation(conversation_id):
         .order_by(Message.created_at)
         .all()
     )
-    return render_template("whatsapp_conversation.html", conversation=conversation, messages=messages)
+    return render_template("whatsapp.html", rows=_whatsapp_rows(), conversation=conversation, messages=messages)
 
 
 @app.route("/whatsapp/<int:conversation_id>/messages.json")

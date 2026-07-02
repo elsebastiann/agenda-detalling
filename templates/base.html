@@ -589,6 +589,7 @@
   <hr>
   <div class="bn-group-label">Operaciones</div>
   <a href="{{ url_for('whatsapp_inbox') }}"><i class="bi bi-whatsapp"></i>Mensajes</a>
+  <a href="{{ url_for('expenses_new') }}"><i class="bi bi-cash-stack"></i>Gastos</a>
   <a href="{{ url_for('sales_list') }}"><i class="bi bi-graph-up-arrow"></i>Ingresos</a>
   <a href="{{ url_for('appointments_list') }}"><i class="bi bi-card-list"></i>Citas</a>
   <a href="{{ url_for('parking_list') }}"><i class="bi bi-p-square"></i>Parqueaderos</a>
@@ -638,8 +639,8 @@
   <a class="bn-item bn-primary" href="{{ url_for('new_appointment') }}">
     <i class="bi bi-plus"></i><span>Nueva</span>
   </a>
-  <a class="bn-item" href="{{ url_for('expenses_new') }}">
-    <i class="bi bi-cash-stack"></i><span>Gastos</span>
+  <a class="bn-item" href="{{ url_for('whatsapp_inbox') }}">
+    <i class="bi bi-whatsapp"></i><span>Mensajes</span>
   </a>
   <button class="bn-item" onclick="toggleBnMenu()">
     <i class="bi bi-grid-3x3-gap"></i><span>Más</span>

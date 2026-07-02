@@ -1,0 +1,197 @@
+{% extends "base.html" %}
+
+{% block extra_head %}
+<style>
+  .wa-shell { display:flex; border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; margin-top:16px; height:75vh; background:#0b141a; }
+
+  /* ── Sidebar (lista de conversaciones) ── */
+  .wa-sidebar { width:340px; flex-shrink:0; border-right:1px solid #202c33; overflow-y:auto; }
+  .wa-row { display:flex; align-items:center; gap:12px; padding:11px 14px; cursor:pointer; border-bottom:1px solid #182229; text-decoration:none; }
+  .wa-row:hover { background:#182229; }
+  .wa-row.active { background:#202c33; }
+  .wa-avatar { width:44px; height:44px; border-radius:50%; background:#2a3942; display:flex; align-items:center; justify-content:center; font-weight:700; color:#8696a0; flex-shrink:0; }
+  .wa-row-main { flex:1; min-width:0; }
+  .wa-row-top { display:flex; justify-content:space-between; align-items:baseline; gap:8px; }
+  .wa-name { color:#e9edef; font-weight:600; font-size:0.9rem; }
+  .wa-time { color:#8696a0; font-size:0.68rem; flex-shrink:0; }
+  .wa-preview { color:#8696a0; font-size:0.78rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:70%; }
+  .wa-badge-active { color:#00d9a0; font-size:0.64rem; font-weight:700; white-space:nowrap; }
+  .wa-badge-paused { color:#e8c766; font-size:0.64rem; font-weight:700; white-space:nowrap; }
+
+  /* ── Panel principal (conversación activa) ── */
+  .wa-main { flex:1; display:flex; flex-direction:column; min-width:0; }
+  .wa-empty-state { flex:1; display:flex; align-items:center; justify-content:center; color:#54656f; font-size:0.9rem; flex-direction:column; gap:10px; }
+  .wa-header { background:#202c33; padding:10px 16px; display:flex; align-items:center; gap:12px; }
+  .wa-header-name { color:#e9edef; font-weight:600; font-size:0.95rem; margin:0; }
+  .wa-header-phone { color:#8696a0; font-size:0.78rem; margin:0; }
+  .wa-header-actions { margin-left:auto; display:flex; align-items:center; gap:8px; }
+  .wa-btn { background:transparent; border:1px solid #3b4a54; color:#e9edef; font-size:0.78rem; padding:5px 10px; border-radius:8px; cursor:pointer; text-decoration:none; white-space:nowrap; }
+  .wa-btn:hover { background:#2a3942; color:#e9edef; }
+  .wa-btn-warn { border-color:#d4a013; color:#e8c766; }
+  .wa-btn-ok { border-color:#00a884; color:#00d9a0; }
+  .wa-back { display:none; }
+
+  .wa-body { flex:1; background-image:radial-gradient(#182229 1px, transparent 1px); background-size:18px 18px;
+             padding:16px; overflow-y:auto; display:flex; flex-direction:column; gap:4px; }
+  .wa-bubble-row { display:flex; }
+  .wa-bubble-row.in { justify-content:flex-start; }
+  .wa-bubble-row.out { justify-content:flex-end; }
+  .wa-bubble { max-width:72%; padding:6px 9px 7px; border-radius:8px; font-size:0.88rem; line-height:1.35; white-space:pre-wrap; word-wrap:break-word; box-shadow:0 1px 1px rgba(0,0,0,0.3); }
+  .wa-bubble.in { background:#202c33; color:#e9edef; border-top-left-radius:0; }
+  .wa-bubble.out { background:#005c4b; color:#e9edef; border-top-right-radius:0; }
+  .wa-bubble .wa-msg-time { display:block; text-align:right; font-size:0.65rem; color:#a8b3ba; margin-top:2px; }
+
+  .wa-inputbar { background:#202c33; padding:10px 14px; display:flex; gap:8px; align-items:center; }
+  .wa-input { flex:1; background:#2a3942; border:none; border-radius:20px; padding:9px 16px; color:#e9edef; font-size:0.88rem; }
+  .wa-input::placeholder { color:#8696a0; }
+  .wa-send { width:38px; height:38px; border-radius:50%; background:#00a884; border:none; color:#0b141a; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .wa-send:hover { background:#00d9a0; }
+  .wa-paused-banner { background:#3a2f10; color:#e8c766; font-size:0.8rem; padding:8px 16px; }
+
+  /* ── Responsive: en móvil solo un panel a la vez ── */
+  @media (max-width: 860px) {
+    .wa-shell { height:78vh; }
+    .wa-shell.has-active .wa-sidebar { display:none; }
+    .wa-shell:not(.has-active) .wa-main { display:none; }
+    .wa-back { display:inline-block; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<h2><i class="bi bi-whatsapp"></i> Mensajes WhatsApp</h2>
+
+<div class="wa-shell {{ 'has-active' if conversation else '' }}">
+  <div class="wa-sidebar">
+    {% for conv, last_msg in rows %}
+    <a class="wa-row {{ 'active' if conversation and conversation.id == conv.id else '' }}"
+       href="{{ url_for('whatsapp_conversation', conversation_id=conv.id) }}">
+      <div class="wa-avatar">{{ (conv.profile_name or conv.phone)[0]|upper }}</div>
+      <div class="wa-row-main">
+        <div class="wa-row-top">
+          <span class="wa-name">{{ conv.profile_name or conv.phone }}</span>
+          <span class="wa-time">{{ last_msg.created_at.strftime('%d/%m %H:%M') if last_msg else conv.created_at.strftime('%d/%m %H:%M') }}</span>
+        </div>
+        <div class="d-flex justify-content-between align-items-center mt-1">
+          <span class="wa-preview">
+            {% if last_msg %}{% if last_msg.direction == 'out' %}<i class="bi bi-check2-all"></i> {% endif %}{{ last_msg.body }}{% else %}Sin mensajes{% endif %}
+          </span>
+          {% if conv.bot_active %}<span class="wa-badge-active">● Activo</span>{% else %}<span class="wa-badge-paused">⏸ Pausado</span>{% endif %}
+        </div>
+      </div>
+    </a>
+    {% else %}
+    <p class="text-center text-muted py-4 m-0">Todavía no hay conversaciones.</p>
+    {% endfor %}
+  </div>
+
+  <div class="wa-main">
+    {% if conversation %}
+      <div class="wa-header">
+        <a href="{{ url_for('whatsapp_inbox') }}" class="wa-btn wa-back"><i class="bi bi-arrow-left"></i></a>
+        <div class="wa-avatar">{{ (conversation.profile_name or conversation.phone)[0]|upper }}</div>
+        <div>
+          <p class="wa-header-name">{{ conversation.profile_name or conversation.phone }}</p>
+          <p class="wa-header-phone">{{ conversation.phone }}</p>
+        </div>
+        <div class="wa-header-actions">
+          <form method="POST" action="{{ url_for('whatsapp_toggle_bot', conversation_id=conversation.id) }}" class="m-0">
+            {% if conversation.bot_active %}
+              <button type="submit" class="wa-btn wa-btn-warn"><i class="bi bi-pause-circle"></i> Pausar bot</button>
+            {% else %}
+              <button type="submit" class="wa-btn wa-btn-ok"><i class="bi bi-play-circle"></i> Reactivar bot</button>
+            {% endif %}
+          </form>
+        </div>
+      </div>
+
+      <div id="pausedBanner" class="wa-paused-banner" style="{{ '' if not conversation.bot_active else 'display:none;' }}">
+        <i class="bi bi-exclamation-triangle"></i> El bot está pausado — Mariana no va a responder hasta que lo reactives.
+      </div>
+
+      <div class="wa-body" id="waBody">
+        {% for m in messages %}
+          <div class="wa-bubble-row {{ m.direction }}">
+            <div class="wa-bubble {{ m.direction }}">{{ m.body }}<span class="wa-msg-time">{{ m.created_at.strftime('%H:%M') }}</span></div>
+          </div>
+        {% endfor %}
+      </div>
+
+      <form class="wa-inputbar" id="sendForm" method="POST" action="{{ url_for('whatsapp_send_manual', conversation_id=conversation.id) }}">
+        <input type="text" name="body" id="waInput" class="wa-input" placeholder="Escribe un mensaje" required autocomplete="off">
+        <button type="submit" class="wa-send"><i class="bi bi-send-fill"></i></button>
+      </form>
+
+      <script>
+      (function () {
+        const body = document.getElementById('waBody');
+        const pausedBanner = document.getElementById('pausedBanner');
+        const sendForm = document.getElementById('sendForm');
+        const input = document.getElementById('waInput');
+        let lastId = {{ (messages[-1].id if messages else 0) }};
+
+        function scrollToBottom() { body.scrollTop = body.scrollHeight; }
+        scrollToBottom();
+
+        function addBubble(m) {
+          const row = document.createElement('div');
+          row.className = 'wa-bubble-row ' + m.direction;
+          const bubble = document.createElement('div');
+          bubble.className = 'wa-bubble ' + m.direction;
+          bubble.textContent = m.body;
+          const time = document.createElement('span');
+          time.className = 'wa-msg-time';
+          time.textContent = m.time.split(' ').pop();
+          bubble.appendChild(time);
+          row.appendChild(bubble);
+          body.appendChild(row);
+        }
+
+        async function poll() {
+          try {
+            const res = await fetch('{{ url_for("whatsapp_messages_json", conversation_id=conversation.id) }}?since=' + lastId);
+            const data = await res.json();
+            if (data.messages.length) {
+              const wasAtBottom = body.scrollHeight - body.scrollTop - body.clientHeight < 60;
+              data.messages.forEach(m => { addBubble(m); lastId = m.id; });
+              if (wasAtBottom) scrollToBottom();
+            }
+            pausedBanner.style.display = data.bot_active ? 'none' : 'block';
+          } catch (e) { /* red intermitente, se reintenta en el próximo ciclo */ }
+        }
+
+        setInterval(poll, 4000);
+
+        sendForm.addEventListener('submit', async function (e) {
+          e.preventDefault();
+          const text = input.value.trim();
+          if (!text) return;
+          input.value = '';
+          const fd = new FormData();
+          fd.append('body', text);
+          await fetch(sendForm.action, { method: 'POST', body: fd });
+          poll();
+        });
+      })();
+      </script>
+    {% else %}
+      <div class="wa-empty-state">
+        <i class="bi bi-whatsapp" style="font-size:3rem;"></i>
+        <p>Selecciona una conversación para ver los mensajes</p>
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+<script>
+  // Refresca la lista de conversaciones (panel izquierdo) cada 30s sin perder la conversación abierta
+  setInterval(() => {
+    fetch(window.location.href).then(r => r.text()).then(html => {
+      const doc = new DOMParser().parseFromString(html, 'text/html');
+      const newSidebar = doc.querySelector('.wa-sidebar');
+      const curSidebar = document.querySelector('.wa-sidebar');
+      if (newSidebar && curSidebar) curSidebar.innerHTML = newSidebar.innerHTML;
+    }).catch(() => {});
+  }, 30000);
+</script>
+{% endblock %}
