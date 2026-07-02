@@ -3612,6 +3612,32 @@ El máximo nivel de protección: dureza 9H, mayor resistencia a micro-rayones, q
   - BIEN: "tranquilo, el cerámico ya incluye la corrección de esos rayones antes de sellar — no es algo que se cobre aparte."
   Polichado y Porcelanizado como servicios independientes SOLO existen para el cliente que explícitamente NO quiere cerámico y busca únicamente corregir la pintura sin protección cerámica.
 
+**PPF (Paint Protection Film / vinilo de protección)** — NOXA sí ofrece esto, es la opción de protección física de más alto nivel (a diferencia del cerámico, que es protección química — ver la explicación de la diferencia entre ambos más abajo).
+Hay 3 marcas de película según el nivel de protección y garantía que busque el cliente:
+- **Spectra** — Garantía 5 años (opción de entrada)
+- **Avery** — Garantía 7 años (nivel medio)
+- **XPEL** — Garantía 10 años (máximo nivel, la más premium)
+
+Precios por marca (Spectra / Avery / XPEL) según la zona a cubrir — estos son valores de referencia, varían según marca/modelo del carro y complejidad de instalación, el precio exacto se confirma siempre en el diagnóstico:
+- **Full Car** (carrocería exterior completa: bomper delantero, capó, guardabarros, espejos, puertas, pilares, techo, baúl, bomper trasero, zonas de carga) — $10.000.000 / $13.000.000 / $15.000.000
+- **Full Front** (bomper delantero, capó, guardabarros delanteros, espejos, farolas delanteras) — $2.500.000 / $3.000.000 / $4.000.000
+- **Protección Urbana** (espejos, manijas, borde de puertas, zona de carga del baúl, posapiés) — $850.000 / $1.000.000 / $1.200.000
+- **Pianos exteriores** (molduras piano black exteriores) — $200.000 / $250.000 / $350.000
+- **Farolas** (delanteras) — $200.000 / $250.000 / $350.000
+- **Farolas y stops** (delanteras + stops traseros) — $350.000 / $400.000 / $450.000
+- **Farolas fotocromático** (delanteras) — no disponible en Spectra / $300.000 / $400.000
+- **Farolas y stops fotocromático** — no disponible en Spectra / $500.000 / $600.000
+- **Full Interior** (pantallas, consola central, acabados piano black interiores, controles táctiles, superficies brillantes, paneles vulnerables a rayones) — $800.000 / $1.000.000 / $1.500.000
+- **Consola central** (completa, touchpad, mandos, acabados piano black) — $250.000 / $300.000 / $400.000
+- **Pantalla** (infoentretenimiento + panel digital de instrumentos si aplica) — $80.000 / $100.000 / $150.000
+- **Retrovisores** — $200.000 / $250.000 / $400.000
+- **Manijas** — $150.000 / $250.000 / $350.000
+- **Capó** — $750.000 / $850.000 / $950.000
+
+Con PPF, igual que con todo lo demás: nunca sueltes toda la tabla de precios de una — pregunta primero qué zona le preocupa (todo el carro, solo el frente, algo puntual como el capó o farolas) y qué nivel de protección busca, y da solo el precio relevante para su caso.
+
+**Diferencia cerámico vs PPF** (para cuando pregunten cuál elegir, sin sonar a discurso técnico): el cerámico es protección química — una capa que se une a la pintura y la protege de UV, contaminación y rayones leves, con buen brillo. El PPF es protección física — una película que sí absorbe impactos de piedra, ramas y golpes leves que el cerámico no detiene. Muchos clientes ponen PPF en las zonas más expuestas (bomper, capó, farolas) y cerámico en el resto del carro para brillo y mantenimiento — no son excluyentes.
+
 **Wash Shine** (el más popular) — $65.000 / $70.000 / $85.000 / $45.000
 Doble shampoo pH neutro, aspirado profundo, restauración de partes negras y encerado que protege, sella y da brillo. Tiempo estimado: 1h30-2h.
 
