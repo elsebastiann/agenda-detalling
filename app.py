@@ -3677,7 +3677,9 @@ Corrección profunda en dos pasos, elimina hasta 90% de micro-rayones y marcas d
 # LÍMITES
 - No inventes servicios, precios ni garantías que no estén en este catálogo.
 - Si preguntan algo que no sabes (ubicación exacta, formas de pago, disponibilidad de agenda específica), sé honesto y ofrece conectar con un asesor humano en vez de inventar.
-- Las fotos que manda el cliente SÍ las puedes ver de verdad — analízalas con confianza cuando te ayuden a entender su caso. Si el mensaje dice algo como "[archivo adjunto: audio/...]" es una nota de voz u otro archivo que todavía no puedes escuchar/abrir — pídele amablemente que te lo escriba o te mande una foto en su lugar, sin sonar como un error técnico."""
+- Las fotos que manda el cliente SÍ las puedes ver de verdad — analízalas con confianza cuando te ayuden a entender su caso.
+- Las notas de voz se transcriben automáticamente a texto antes de llegarte, así que las tratas como cualquier mensaje normal — pero la transcripción a veces tiene errores. Si algo suena raro, no tiene sentido, o parece una palabra mal transcrita, no asumas — pregunta con naturalidad para confirmar en vez de responder a algo que quizás no dijo.
+- Si el mensaje dice "[nota de voz — no se pudo transcribir]" o "[archivo adjunto: ...]", es un audio u otro archivo que no se pudo procesar — pídele amablemente que te lo escriba o te mande una foto en su lugar, sin sonar como un error técnico."""
 
 
 def _build_message_history(conversation: "Conversation") -> list[dict]:
@@ -3750,6 +3752,36 @@ def _fetch_twilio_media_base64(media_url: str) -> str | None:
         return base64.b64encode(resp.content).decode("utf-8")
     except Exception as exc:
         app.logger.error(f"[WhatsApp] Error descargando imagen de Twilio: {exc}")
+        return None
+
+
+def _transcribe_twilio_audio(media_url: str, media_type: str) -> str | None:
+    """Descarga una nota de voz de WhatsApp y la transcribe con Whisper (OpenAI).
+    None si algo falla (falta la API key, error de red, etc.)."""
+    openai_key = os.environ.get("OPENAI_API_KEY", "")
+    if not openai_key:
+        app.logger.error("[Whisper] OPENAI_API_KEY no configurada, no se puede transcribir audio.")
+        return None
+
+    account_sid = os.environ.get("TWILIO_ACCOUNT_SID", "")
+    auth_token = os.environ.get("TWILIO_AUTH_TOKEN", "")
+    try:
+        audio_resp = requests.get(media_url, auth=(account_sid, auth_token), timeout=15)
+        audio_resp.raise_for_status()
+
+        ext = media_type.split("/")[-1].split(";")[0] or "ogg"
+        files = {"file": (f"audio.{ext}", audio_resp.content, media_type)}
+        data = {"model": "whisper-1", "language": "es"}
+        headers = {"Authorization": f"Bearer {openai_key}"}
+
+        transcribe_resp = requests.post(
+            "https://api.openai.com/v1/audio/transcriptions",
+            headers=headers, files=files, data=data, timeout=30,
+        )
+        transcribe_resp.raise_for_status()
+        return transcribe_resp.json().get("text", "").strip() or None
+    except Exception as exc:
+        app.logger.error(f"[Whisper] Error transcribiendo audio: {exc}")
         return None
 
 
@@ -3908,7 +3940,14 @@ def whatsapp_webhook():
         return ("", 200)
 
     stored_body = body
-    if not stored_body and media_url:
+    if media_url and media_type.startswith("audio/"):
+        transcript = _transcribe_twilio_audio(media_url, media_type)
+        if transcript:
+            stored_body = f"{body} {transcript}".strip() if body else transcript
+            media_url, media_type = "", ""  # ya es texto, no hace falta tratarlo como adjunto
+        elif not stored_body:
+            stored_body = "[nota de voz — no se pudo transcribir]"
+    elif not stored_body and media_url:
         stored_body = "[imagen]" if media_type.startswith("image/") else f"[archivo adjunto: {media_type or 'desconocido'}]"
     db.session.add(Message(conversation_id=conversation.id, direction="in", body=stored_body))
     conversation.followup_count = 0  # el cliente volvió a escribir, resetea el seguimiento
