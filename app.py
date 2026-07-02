@@ -3618,7 +3618,9 @@ Hay 3 marcas de película según el nivel de protección y garantía que busque 
 - **Avery** — Garantía 7 años (nivel medio)
 - **XPEL** — Garantía 10 años (máximo nivel, la más premium)
 
-Precios por marca (Spectra / Avery / XPEL) según la zona a cubrir — estos son valores de referencia, varían según marca/modelo del carro y complejidad de instalación, el precio exacto se confirma siempre en el diagnóstico:
+⚠️ Estos precios de PPF varían más que los del cerámico: dependen del carro específico — hay carros más grandes o con formas más complejas de instalar (más cortes, más curvas, más piezas) que otros, y eso cambia el valor real. Nunca los presentes como un precio fijo y cerrado — siempre como referencia que se confirma con exactitud en el diagnóstico, viendo el carro puntual del cliente.
+
+Precios por marca (Spectra / Avery / XPEL) según la zona a cubrir — valores de referencia, el precio exacto depende del carro y se confirma siempre en el diagnóstico:
 - **Full Car** (carrocería exterior completa: bomper delantero, capó, guardabarros, espejos, puertas, pilares, techo, baúl, bomper trasero, zonas de carga) — $10.000.000 / $13.000.000 / $15.000.000
 - **Full Front** (bomper delantero, capó, guardabarros delanteros, espejos, farolas delanteras) — $2.500.000 / $3.000.000 / $4.000.000
 - **Protección Urbana** (espejos, manijas, borde de puertas, zona de carga del baúl, posapiés) — $850.000 / $1.000.000 / $1.200.000
@@ -3634,7 +3636,7 @@ Precios por marca (Spectra / Avery / XPEL) según la zona a cubrir — estos son
 - **Manijas** — $150.000 / $250.000 / $350.000
 - **Capó** — $750.000 / $850.000 / $950.000
 
-Con PPF, igual que con todo lo demás: nunca sueltes toda la tabla de precios de una — pregunta primero qué zona le preocupa (todo el carro, solo el frente, algo puntual como el capó o farolas) y qué nivel de protección busca, y da solo el precio relevante para su caso.
+Con PPF, igual que con todo lo demás: nunca sueltes toda la tabla de precios de una — pregunta primero qué zona le preocupa (todo el carro, solo el frente, algo puntual como el capó o farolas) y qué nivel de protección busca, y da solo el precio relevante para su caso. La regla de oro aplica exactamente igual aquí: ningún precio de PPF hasta tener certeza de que el cliente entiende bien qué cubre, cómo protege físicamente el carro, y por qué el valor varía según su vehículo — no lo apresures solo porque hay varias marcas y zonas para cotizar.
 
 **Diferencia cerámico vs PPF** (para cuando pregunten cuál elegir, sin sonar a discurso técnico): el cerámico es protección química — una capa que se une a la pintura y la protege de UV, contaminación y rayones leves, con buen brillo. El PPF es protección física — una película que sí absorbe impactos de piedra, ramas y golpes leves que el cerámico no detiene. Muchos clientes ponen PPF en las zonas más expuestas (bomper, capó, farolas) y cerámico en el resto del carro para brillo y mantenimiento — no son excluyentes.
 
@@ -3714,6 +3716,10 @@ def _call_claude(messages: list[dict], extra_system_text: str) -> list[str]:
     )
     text_blocks = [block.text for block in response.content if block.type == "text"]
     full_text = "\n".join(text_blocks).strip()
+    if not full_text:
+        # Puede pasar si el modelo solo devolvió un bloque de pensamiento sin texto
+        # (p.ej. cortado por max_tokens). Nunca se debe mandar un mensaje vacío a Twilio.
+        raise ValueError("Claude no devolvió texto en la respuesta")
 
     chunks = [c.strip() for c in re.split(r"\n\s*---\s*\n", full_text)]
     return [c for c in chunks if c][:3] or [full_text]
@@ -3756,6 +3762,83 @@ def generate_followup_message(conversation: "Conversation") -> str:
     return chunks[0]
 
 
+def _summarize_conversation_for_admin(conversation: "Conversation") -> str:
+    """Resumen corto y natural (1-2 frases) de qué necesita/preguntó el lead, para el
+    aviso al admin — no es un volcado de mensajes, es contexto real y legible."""
+    messages = _build_message_history(conversation)
+    messages.append({
+        "role": "user",
+        "content": (
+            "[Sistema: no pudimos responderle a este cliente. Resume en 1-2 frases, en "
+            "tercera persona y en español, qué necesita o preguntó el cliente en esta "
+            "conversación — con el contexto suficiente para que un asesor humano pueda "
+            "seguir la conversación sin tener que leer todo el historial. No saludes, "
+            "no uses comillas ni el nombre del cliente al inicio, ve directo al resumen.]"
+        ),
+    })
+    profile_line = (
+        f"Nombre de perfil de WhatsApp del cliente: {conversation.profile_name!r}"
+        if conversation.profile_name else
+        "Nombre de perfil de WhatsApp del cliente: no disponible."
+    )
+    chunks = _call_claude(messages, profile_line)
+    return chunks[0]
+
+
+def notify_admin_conversation_error(conversation: "Conversation", error: Exception) -> None:
+    """Avisa al admin por WhatsApp cuando Mariana no pudo responderle al cliente tras
+    varios intentos (por cualquier motivo: generación, envío, etc.), con un resumen real
+    de la conversación para que pueda tomarla manualmente con contexto."""
+    admin_phone = os.environ.get("ADMIN_WHATSAPP", "")
+    if not admin_phone:
+        app.logger.error("[WhatsApp] No se pudo avisar al admin: ADMIN_WHATSAPP no configurado.")
+        return
+
+    contacto = conversation.profile_name or conversation.phone
+
+    try:
+        resumen = _summarize_conversation_for_admin(conversation)
+    except Exception as exc:
+        app.logger.error(f"[Claude] No se pudo generar el resumen para el admin: {exc}")
+        recent = (
+            Message.query
+            .filter_by(conversation_id=conversation.id)
+            .order_by(Message.created_at.desc())
+            .limit(8)
+            .all()
+        )
+        recent.reverse()
+        transcript = "\n".join(
+            f"{'Cliente' if m.direction == 'in' else 'Mariana'}: {m.body}" for m in recent
+        )[:1000]
+        resumen = f"escribió, pero no logré generar el resumen automático. Últimos mensajes:\n{transcript}"
+
+    msg = (
+        f"Diana, {contacto} {resumen}\n\n"
+        f"📱 {conversation.phone}\n\n"
+        f"Mariana no pudo responderle después de varios intentos — pausé el bot en esa "
+        f"conversación, respóndele tú manual desde el panel de Mensajes o por WhatsApp."
+    )
+    send_whatsapp(admin_phone, msg)
+
+
+def _generate_and_send_reply(conversation: "Conversation", from_number: str) -> bool:
+    """Genera la respuesta con Claude y manda todos los mensajes. Devuelve False si
+    algo falla — generación O envío — para que el webhook pueda reintentar el intento
+    completo (nunca deja mensajes a medias sin que el llamador se entere)."""
+    reply_chunks = get_claude_reply(conversation)  # puede lanzar excepción
+    for i, chunk in enumerate(reply_chunks):
+        ok, err = send_whatsapp(from_number, chunk)
+        if not ok:
+            app.logger.error(f"[WhatsApp] Error enviando mensaje: {err}")
+            return False
+        db.session.add(Message(conversation_id=conversation.id, direction="out", body=chunk))
+        db.session.commit()
+        if i < len(reply_chunks) - 1:
+            time.sleep(1.2)  # pausa breve para que se sientan mensajes naturales, no un bloque
+    return True
+
+
 # ── Webhook: mensajes ENTRANTES de WhatsApp (Twilio) ──────────────────────────
 # (redeploy trigger)
 @app.route("/whatsapp/webhook", methods=["POST"])
@@ -3785,19 +3868,34 @@ def whatsapp_webhook():
     db.session.commit()
 
     if conversation.bot_active:
-        try:
-            reply_chunks = get_claude_reply(conversation)
-        except Exception as exc:
-            app.logger.error(f"[Claude] Error generando respuesta: {exc}")
-            reply_chunks = ["Gracias por tu mensaje, en breve un asesor te responde."]
+        success = False
+        last_exc = None
+        for attempt in range(3):
+            try:
+                success = _generate_and_send_reply(conversation, from_number)
+                if success:
+                    break
+                last_exc = RuntimeError("Falló el envío de uno o más mensajes por WhatsApp")
+            except Exception as exc:
+                last_exc = exc
+            if not success:
+                app.logger.error(f"[Bot] Intento {attempt + 1}/3 fallido: {last_exc}")
 
-        for i, chunk in enumerate(reply_chunks):
-            ok, _ = send_whatsapp(from_number, chunk)
+        if not success:
+            # 3 intentos fallidos (generación o envío, cualquier error): no dejamos la
+            # conversación muerta — pausamos el bot (queda marcado en el panel) y
+            # avisamos al admin con contexto para que tome el control manual.
+            conversation.bot_active = False
+            db.session.commit()
+            fallback = "Dame un momento por favor ya te colaboro"
+            ok, _ = send_whatsapp(from_number, fallback)
             if ok:
-                db.session.add(Message(conversation_id=conversation.id, direction="out", body=chunk))
+                db.session.add(Message(conversation_id=conversation.id, direction="out", body=fallback))
                 db.session.commit()
-            if i < len(reply_chunks) - 1:
-                time.sleep(1.2)  # pausa breve para que se sientan mensajes naturales, no un bloque
+            try:
+                notify_admin_conversation_error(conversation, last_exc)
+            except Exception as exc:
+                app.logger.error(f"[WhatsApp] Error avisando al admin: {exc}")
 
     return ("", 200)
 
