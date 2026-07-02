@@ -3776,6 +3776,51 @@ def whatsapp_webhook():
     return ("", 200)
 
 
+# ── Panel de mensajes de WhatsApp (bandeja + human takeover) ─────────────────
+@app.route("/whatsapp")
+def whatsapp_inbox():
+    conversations = Conversation.query.all()
+    rows = [(c, c.messages[-1] if c.messages else None) for c in conversations]
+    rows.sort(key=lambda r: (r[1].created_at if r[1] else r[0].created_at), reverse=True)
+    return render_template("whatsapp_inbox.html", rows=rows)
+
+
+@app.route("/whatsapp/<int:conversation_id>")
+def whatsapp_conversation(conversation_id):
+    conversation = Conversation.query.get_or_404(conversation_id)
+    messages = (
+        Message.query
+        .filter_by(conversation_id=conversation.id)
+        .order_by(Message.created_at)
+        .all()
+    )
+    return render_template("whatsapp_conversation.html", conversation=conversation, messages=messages)
+
+
+@app.route("/whatsapp/<int:conversation_id>/toggle-bot", methods=["POST"])
+def whatsapp_toggle_bot(conversation_id):
+    conversation = Conversation.query.get_or_404(conversation_id)
+    conversation.bot_active = not conversation.bot_active
+    db.session.commit()
+    flash("Bot pausado en esta conversación." if not conversation.bot_active else "Bot reactivado.", "success")
+    return redirect(url_for("whatsapp_conversation", conversation_id=conversation.id))
+
+
+@app.route("/whatsapp/<int:conversation_id>/send", methods=["POST"])
+def whatsapp_send_manual(conversation_id):
+    conversation = Conversation.query.get_or_404(conversation_id)
+    body = request.form.get("body", "").strip()
+    if body:
+        ok, err = send_whatsapp(conversation.phone, body)
+        if ok:
+            db.session.add(Message(conversation_id=conversation.id, direction="out", body=body))
+            conversation.followup_count = 0  # un asesor humano ya respondió, resetea el seguimiento automático
+            db.session.commit()
+        else:
+            flash(f"Error enviando mensaje: {err}", "danger")
+    return redirect(url_for("whatsapp_conversation", conversation_id=conversation.id))
+
+
 # ── Job 1: Recordatorio al ADMIN — 30 minutos antes de cada cita ──────────────
 def _job_admin_reminder():
     """Corre cada 5 minutos. Notifica al admin si hay cita en los próximos 30 min."""

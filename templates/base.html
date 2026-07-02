@@ -487,6 +487,7 @@
     <div class="collapse navbar-collapse justify-content-end" id="navbarContent">
       <div class="d-flex flex-column flex-lg-row align-items-lg-center gap-1 py-2 py-lg-0">
         <a class="nav-link-custom" href="{{ url_for('calendar_view') }}">Agenda</a>
+        <a class="nav-link-custom" href="{{ url_for('whatsapp_inbox') }}">Mensajes</a>
         <a class="nav-link-custom" href="{{ url_for('quality_errors_list') }}">Errores</a>
         <a class="nav-link-custom nav-link-accent" href="{{ url_for('new_appointment') }}">+ Nueva</a>
         <a class="nav-link-custom" href="{{ url_for('expenses_new') }}">Gastos</a>
@@ -587,6 +588,7 @@
   {# ── Operaciones ── #}
   <hr>
   <div class="bn-group-label">Operaciones</div>
+  <a href="{{ url_for('whatsapp_inbox') }}"><i class="bi bi-whatsapp"></i>Mensajes</a>
   <a href="{{ url_for('sales_list') }}"><i class="bi bi-graph-up-arrow"></i>Ingresos</a>
   <a href="{{ url_for('appointments_list') }}"><i class="bi bi-card-list"></i>Citas</a>
   <a href="{{ url_for('parking_list') }}"><i class="bi bi-p-square"></i>Parqueaderos</a>
