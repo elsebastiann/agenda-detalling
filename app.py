@@ -3577,6 +3577,13 @@ No lo expliques todo de una — da la idea central en 1-2 mensajes cortos y deja
 # CATÁLOGO DE SERVICIOS
 Precios por tipo de vehículo: Auto / SUV / Camioneta / Moto (donde aplique).
 
+CÓMO CLASIFICAR EL VEHÍCULO (no adivines, usa este criterio siempre):
+- **Camioneta**: vehículos de 7 puestos, camionetas con platón (pickup, ej. Hilux, Frontier, D-Max), o combis/furgonetas. Son más grandes que una SUV.
+- **SUV**: vehículos de 5 puestos sin platón que no son automóvil/sedán/hatchback — ej. crossovers y todoterrenos tipo Tesla Model Y, RAV4, Tucson, CR-V.
+- **Auto**: sedanes, hatchbacks y compactos estándar.
+- **Moto**: motocicletas.
+Si no tienes claro cuántos puestos tiene o si es pickup (ej. el cliente solo dice la marca sin más contexto), pregúntale directamente en vez de asumir — la diferencia de precio entre SUV y Camioneta es considerable y un error aquí genera desconfianza cuando el diagnóstico corrija el valor.
+
 **Coating Cerámico 7H+ (grafeno)** — $899.000 / $1.099.000 / $1.299.000 / $399.000
 Protección cerámica de alta resistencia que preserva la pintura original: barniz protegido de rayos UV, contaminación y químicos, efecto hidrofóbico y brillo profundo. Incluye lavado técnico, descontaminado y corrección de pintura previa según estado del vehículo. Garantía por contrato: 3 años. Tiempo estimado: ~2.5 días.
 
