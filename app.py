@@ -8,6 +8,8 @@ import csv
 import io
 import re
 import time
+import base64
+import requests
 from decimal import Decimal
 import pytz
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -3674,7 +3676,8 @@ Corrección profunda en dos pasos, elimina hasta 90% de micro-rayones y marcas d
 
 # LÍMITES
 - No inventes servicios, precios ni garantías que no estén en este catálogo.
-- Si preguntan algo que no sabes (ubicación exacta, formas de pago, disponibilidad de agenda específica), sé honesto y ofrece conectar con un asesor humano en vez de inventar."""
+- Si preguntan algo que no sabes (ubicación exacta, formas de pago, disponibilidad de agenda específica), sé honesto y ofrece conectar con un asesor humano en vez de inventar.
+- Las fotos que manda el cliente SÍ las puedes ver de verdad — analízalas con confianza cuando te ayuden a entender su caso. Si el mensaje dice algo como "[archivo adjunto: audio/...]" es una nota de voz u otro archivo que todavía no puedes escuchar/abrir — pídele amablemente que te lo escriba o te mande una foto en su lugar, sin sonar como un error técnico."""
 
 
 def _build_message_history(conversation: "Conversation") -> list[dict]:
@@ -3736,10 +3739,37 @@ def _call_claude(messages: list[dict], extra_system_text: str) -> list[str]:
     return [c for c in chunks if c][:3] or [full_text]
 
 
-def get_claude_reply(conversation: "Conversation") -> list[str]:
-    """Genera la respuesta de Claude a un mensaje entrante del cliente."""
+def _fetch_twilio_media_base64(media_url: str) -> str | None:
+    """Descarga una imagen de un mensaje de WhatsApp (requiere auth de Twilio) y la
+    devuelve en base64, lista para mandarle a Claude. None si algo falla."""
+    account_sid = os.environ.get("TWILIO_ACCOUNT_SID", "")
+    auth_token = os.environ.get("TWILIO_AUTH_TOKEN", "")
+    try:
+        resp = requests.get(media_url, auth=(account_sid, auth_token), timeout=15)
+        resp.raise_for_status()
+        return base64.b64encode(resp.content).decode("utf-8")
+    except Exception as exc:
+        app.logger.error(f"[WhatsApp] Error descargando imagen de Twilio: {exc}")
+        return None
+
+
+def get_claude_reply(conversation: "Conversation", media_url: str | None = None, media_type: str | None = None) -> list[str]:
+    """Genera la respuesta de Claude a un mensaje entrante del cliente. Si el mensaje
+    trae una imagen (media_url/media_type), Claude la ve de verdad, no solo el texto."""
     messages = _build_message_history(conversation)
     is_first_message = sum(1 for m in messages if m["role"] == "user") <= 1
+
+    if media_url and media_type and media_type.startswith("image/") and messages and messages[-1]["role"] == "user":
+        image_b64 = _fetch_twilio_media_base64(media_url)
+        if image_b64:
+            caption = messages[-1]["content"] or "El cliente mandó esta foto."
+            messages[-1] = {
+                "role": "user",
+                "content": [
+                    {"type": "image", "source": {"type": "base64", "media_type": media_type, "data": image_b64}},
+                    {"type": "text", "text": caption},
+                ],
+            }
 
     profile_line = (
         f"Nombre de perfil de WhatsApp del cliente: {conversation.profile_name!r}"
@@ -3833,11 +3863,11 @@ def notify_admin_conversation_error(conversation: "Conversation", error: Excepti
     send_whatsapp(admin_phone, msg)
 
 
-def _generate_and_send_reply(conversation: "Conversation", from_number: str) -> bool:
+def _generate_and_send_reply(conversation: "Conversation", from_number: str, media_url: str = "", media_type: str = "") -> bool:
     """Genera la respuesta con Claude y manda todos los mensajes. Devuelve False si
     algo falla — generación O envío — para que el webhook pueda reintentar el intento
     completo (nunca deja mensajes a medias sin que el llamador se entere)."""
-    reply_chunks = get_claude_reply(conversation)  # puede lanzar excepción
+    reply_chunks = get_claude_reply(conversation, media_url or None, media_type or None)  # puede lanzar excepción
     for i, chunk in enumerate(reply_chunks):
         ok, err = send_whatsapp(from_number, chunk)
         if not ok:
@@ -3857,7 +3887,10 @@ def whatsapp_webhook():
     from_number = request.form.get("From", "").replace("whatsapp:", "")
     body = request.form.get("Body", "").strip()
     profile_name = request.form.get("ProfileName", "").strip()
-    app.logger.info(f"[WhatsApp] Mensaje recibido de {from_number} ({profile_name!r}): {body!r}")
+    num_media = int(request.form.get("NumMedia", "0") or "0")
+    media_url = request.form.get("MediaUrl0", "") if num_media > 0 else ""
+    media_type = request.form.get("MediaContentType0", "") if num_media > 0 else ""
+    app.logger.info(f"[WhatsApp] Mensaje recibido de {from_number} ({profile_name!r}): {body!r} media={media_type or None}")
 
     conversation = Conversation.query.filter_by(phone=from_number).first()
     if not conversation:
@@ -3874,7 +3907,10 @@ def whatsapp_webhook():
         send_whatsapp(from_number, "🔄 Listo, empezamos de cero.")
         return ("", 200)
 
-    db.session.add(Message(conversation_id=conversation.id, direction="in", body=body))
+    stored_body = body
+    if not stored_body and media_url:
+        stored_body = "[imagen]" if media_type.startswith("image/") else f"[archivo adjunto: {media_type or 'desconocido'}]"
+    db.session.add(Message(conversation_id=conversation.id, direction="in", body=stored_body))
     conversation.followup_count = 0  # el cliente volvió a escribir, resetea el seguimiento
     db.session.commit()
 
@@ -3883,7 +3919,7 @@ def whatsapp_webhook():
         last_exc = None
         for attempt in range(3):
             try:
-                success = _generate_and_send_reply(conversation, from_number)
+                success = _generate_and_send_reply(conversation, from_number, media_url, media_type)
                 if success:
                     break
                 last_exc = RuntimeError("Falló el envío de uno o más mensajes por WhatsApp")

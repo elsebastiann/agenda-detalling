@@ -7,3 +7,4 @@ twilio>=8.0.0
 APScheduler>=3.10.4
 pytz
 anthropic>=0.40.0
+requests>=2.31.0
