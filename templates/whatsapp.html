@@ -17,6 +17,11 @@
   .wa-preview { color:#8696a0; font-size:0.78rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:70%; }
   .wa-badge-active { color:#00d9a0; font-size:0.64rem; font-weight:700; white-space:nowrap; }
   .wa-badge-paused { color:#e8c766; font-size:0.64rem; font-weight:700; white-space:nowrap; }
+  .wa-status-pill { display:inline-block; font-size:0.62rem; font-weight:600; padding:1px 7px; border-radius:10px; background:#2a3942; color:#8696a0; white-space:nowrap; margin-top:3px; }
+  .wa-status-pill.won { background:rgba(0,168,132,0.18); color:#00d9a0; }
+  .wa-status-pill.lost { background:rgba(220,80,80,0.18); color:#e88080; }
+  .wa-filter-bar { display:flex; align-items:center; gap:8px; margin:8px 0 0; }
+  .wa-filter-bar select { background:#202c33; color:#e9edef; border:1px solid #3b4a54; border-radius:8px; padding:5px 8px; font-size:0.8rem; }
 
   /* ── Panel principal (conversación activa) ── */
   .wa-main { flex:1; display:flex; flex-direction:column; min-width:0; }
@@ -61,10 +66,21 @@
 {% block content %}
 <h2><i class="bi bi-whatsapp"></i> Mensajes WhatsApp</h2>
 
+<div class="wa-filter-bar">
+  <label for="statusFilter" style="color:var(--text2);font-size:0.8rem;">Filtrar por estado:</label>
+  <select id="statusFilter" onchange="applyStatusFilter()">
+    <option value="">Todos</option>
+    {% for s in lead_states %}
+    <option value="{{ s }}">{{ s }}</option>
+    {% endfor %}
+  </select>
+</div>
+
 <div class="wa-shell {{ 'has-active' if conversation else '' }}">
   <div class="wa-sidebar">
     {% for conv, last_msg in rows %}
     <a class="wa-row {{ 'active' if conversation and conversation.id == conv.id else '' }}"
+       data-status="{{ conv.status }}"
        href="{{ url_for('whatsapp_conversation', conversation_id=conv.id) }}">
       <div class="wa-avatar">{{ (conv.profile_name or conv.phone)[0]|upper }}</div>
       <div class="wa-row-main">
@@ -78,6 +94,7 @@
           </span>
           {% if conv.bot_active %}<span class="wa-badge-active">● Activo</span>{% else %}<span class="wa-badge-paused">⏸ Pausado</span>{% endif %}
         </div>
+        <span class="wa-status-pill {{ 'won' if conv.status == 'Cerrado' else ('lost' if conv.status == 'Perdido' else '') }}">{{ conv.status }}</span>
       </div>
     </a>
     {% else %}
@@ -92,7 +109,9 @@
         <div class="wa-avatar">{{ (conversation.profile_name or conversation.phone)[0]|upper }}</div>
         <div>
           <p class="wa-header-name">{{ conversation.profile_name or conversation.phone }}</p>
-          <p class="wa-header-phone">{{ conversation.phone }}</p>
+          <p class="wa-header-phone">{{ conversation.phone }}
+            <span class="wa-status-pill {{ 'won' if conversation.status == 'Cerrado' else ('lost' if conversation.status == 'Perdido' else '') }}">{{ conversation.status }}</span>
+          </p>
         </div>
         <div class="wa-header-actions">
           <form method="POST" action="{{ url_for('whatsapp_toggle_bot', conversation_id=conversation.id) }}" class="m-0">
@@ -184,6 +203,13 @@
 </div>
 
 <script>
+  function applyStatusFilter() {
+    const value = document.getElementById('statusFilter').value;
+    document.querySelectorAll('.wa-row').forEach(row => {
+      row.style.display = (!value || row.dataset.status === value) ? '' : 'none';
+    });
+  }
+
   // Refresca la lista de conversaciones (panel izquierdo) cada 30s sin perder la conversación abierta
   setInterval(() => {
     fetch(window.location.href).then(r => r.text()).then(html => {
@@ -191,6 +217,7 @@
       const newSidebar = doc.querySelector('.wa-sidebar');
       const curSidebar = document.querySelector('.wa-sidebar');
       if (newSidebar && curSidebar) curSidebar.innerHTML = newSidebar.innerHTML;
+      applyStatusFilter();
     }).catch(() => {});
   }, 30000);
 </script>
