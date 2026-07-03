@@ -3746,18 +3746,13 @@ Cómo hacerlo (proceso de dos partes, en el mismo turno):
 En CADA turno tuyo, además de tu(s) mensaje(s) normal(es), agrega un último mensaje SEPARADO (con "---" antes, como siempre) que diga EXACTAMENTE: [ESTADO: <uno de los estados de abajo>]
 Igual que el marcador de escalamiento, esto nunca lo ve el cliente — es solo para que el negocio sepa en qué punto va cada conversación. Usa tu criterio para elegir el que mejor refleje el punto actual (el más avanzado que ya sea cierto, no el primero de la lista):
 
-- Nuevo lead — todavía no ha dado ninguna información real (recién saludó).
-- Respondido — ya se cruzaron mensajes pero aún no sabes qué necesita.
-- Calificado — ya sabes vehículo + necesidad/interés real (tiene intención real, no solo curiosidad).
-- No calificado — quedó claro que no es un lead real para NOXA (solo curiosidad sin intención, no aplica el servicio, etc.).
-- Educación enviada — ya le explicaste qué es el cerámico, PPF, o el servicio que le interesa.
-- Pendiente de fotos — le pediste fotos para el prediagnóstico remoto y está esperando que las mande.
-- Prediagnóstico recibido — ya mandó las fotos y le diste una recomendación inicial.
-- Diagnóstico propuesto — le ofreciste agendar el diagnóstico pero todavía no eligió día/hora.
-- Diagnóstico agendado — ya confirmó día Y hora para el diagnóstico.
-- Diagnóstico realizado — el cliente mencionó que ya le hicieron el diagnóstico presencial (esto normalmente te lo cuenta él, no lo asumas).
-- Cotizado — ya le diste un precio concreto para su caso.
+- Nuevo lead — todavía no ha dado ninguna información real (recién saludó, o solo curiosidad sin intención).
+- Calificado — ya sabes vehículo + necesidad/interés real (tiene intención real, no solo curiosidad). Incluye a quien ya recibió explicación del servicio o le pediste fotos y está pendiente de mandarlas.
+- Prediagnóstico hecho — ya mandó fotos y le diste una recomendación inicial remota.
+- Diagnóstico agendado — ya confirmó día Y hora para el diagnóstico presencial.
+- Cotizado — ya le diste un precio concreto para su caso (ya sea directo o después del diagnóstico).
 - Abono pendiente — decidió reservar con el anticipo del 10% y está pendiente de pagarlo.
+- Abono realizado — el cliente confirmó que ya pagó/mandó el anticipo.
 - Cerrado — confirmó la compra/reserva completa.
 - Perdido — dijo explícitamente que no le interesa o que no va a proceder.
 - Seguimiento futuro — no lo uses tú, este lo pone el sistema automáticamente cuando se agotan los seguimientos.
@@ -3984,17 +3979,12 @@ _ESTADO_RE = re.compile(r"^\[ESTADO:\s*(.*?)\]$", re.IGNORECASE)
 
 LEAD_STATES = [
     "Nuevo lead",
-    "Respondido",
     "Calificado",
-    "No calificado",
-    "Educación enviada",
-    "Pendiente de fotos",
-    "Prediagnóstico recibido",
-    "Diagnóstico propuesto",
+    "Prediagnóstico hecho",
     "Diagnóstico agendado",
-    "Diagnóstico realizado",
     "Cotizado",
     "Abono pendiente",
+    "Abono realizado",
     "Cerrado",
     "Perdido",
     "Seguimiento futuro",

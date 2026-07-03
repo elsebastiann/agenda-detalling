@@ -6,9 +6,19 @@
 
   /* ── Sidebar (lista de conversaciones) ── */
   .wa-sidebar { width:340px; flex-shrink:0; border-right:1px solid #202c33; overflow-y:auto; }
-  .wa-row { display:flex; align-items:center; gap:12px; padding:11px 14px; cursor:pointer; border-bottom:1px solid #182229; text-decoration:none; }
-  .wa-row:hover { background:#182229; }
-  .wa-row.active { background:#202c33; }
+  .wa-row { display:flex; align-items:center; gap:12px; padding:11px 14px; cursor:pointer; border-bottom:1px solid #182229; text-decoration:none; border-left:3px solid transparent; }
+  .wa-row[data-status="Nuevo lead"]          { background:rgba(120,140,170,0.07); border-left-color:#7c93b3; }
+  .wa-row[data-status="Calificado"]          { background:rgba(0,180,200,0.09);  border-left-color:#00b4c8; }
+  .wa-row[data-status="Prediagnóstico hecho"]{ background:rgba(150,110,230,0.10); border-left-color:#966ee6; }
+  .wa-row[data-status="Diagnóstico agendado"]{ background:rgba(60,120,220,0.11); border-left-color:#3c78dc; }
+  .wa-row[data-status="Cotizado"]            { background:rgba(230,160,40,0.11); border-left-color:#e6a028; }
+  .wa-row[data-status="Abono pendiente"]     { background:rgba(220,190,40,0.11); border-left-color:#dcbe28; }
+  .wa-row[data-status="Abono realizado"]     { background:rgba(90,200,140,0.11); border-left-color:#5ac88c; }
+  .wa-row[data-status="Cerrado"]             { background:rgba(0,168,132,0.16);  border-left-color:#00a884; }
+  .wa-row[data-status="Perdido"]             { background:rgba(220,80,80,0.13);  border-left-color:#dc5050; }
+  .wa-row[data-status="Seguimiento futuro"]  { background:rgba(120,120,120,0.07); border-left-color:#787878; }
+  .wa-row:hover { background:#202c33; }
+  .wa-row.active { background:#26333c; }
   .wa-avatar { width:44px; height:44px; border-radius:50%; background:#2a3942; display:flex; align-items:center; justify-content:center; font-weight:700; color:#8696a0; flex-shrink:0; }
   .wa-row-main { flex:1; min-width:0; }
   .wa-row-top { display:flex; justify-content:space-between; align-items:baseline; gap:8px; }
