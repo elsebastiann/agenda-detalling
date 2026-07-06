@@ -765,7 +765,8 @@ class Conversation(db.Model):
     profile_name = db.Column(db.String(120), nullable=True)
     bot_active   = db.Column(db.Boolean, nullable=False, default=True)
     followup_count = db.Column(db.Integer, nullable=False, default=0)
-    status       = db.Column(db.String(40), nullable=False, default="Nuevo lead")
+    status       = db.Column(db.String(40), nullable=False, default="En proceso")
+    service_tag  = db.Column(db.String(40), nullable=False, default="Otro servicio")
     created_at   = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     updated_at   = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -804,7 +805,14 @@ def ensure_whatsapp_schema():
             db.session.execute(text("SELECT status FROM whatsapp_conversations LIMIT 1"))
         except Exception:
             db.session.execute(
-                text("ALTER TABLE whatsapp_conversations ADD COLUMN status VARCHAR(40) DEFAULT 'Nuevo lead'")
+                text("ALTER TABLE whatsapp_conversations ADD COLUMN status VARCHAR(40) DEFAULT 'En proceso'")
+            )
+            db.session.commit()
+        try:
+            db.session.execute(text("SELECT service_tag FROM whatsapp_conversations LIMIT 1"))
+        except Exception:
+            db.session.execute(
+                text("ALTER TABLE whatsapp_conversations ADD COLUMN service_tag VARCHAR(40) DEFAULT 'Otro servicio'")
             )
             db.session.commit()
 
@@ -3539,7 +3547,7 @@ En su lugar, frases que sí puedes usar con confianza: "para orientarte bien..."
 - LÍMITE DURO: cada mensaje individual debe tener máximo ~300 caracteres (2-4 líneas cortas de celular). Si tu respuesta completa supera eso, es un error tuyo — recórtala, no la mandes larga.
 - Casi nunca uses viñetas, negrillas en cadena, ni listas — eso es formato de documento, no de chat. Escribe como si estuvieras tecleando rápido desde el celular.
 - Para separar tu respuesta en varios mensajes de WhatsApp, escribe cada mensaje y sepáralos con una línea que contenga únicamente: ---
-  Máximo 3 mensajes VISIBLES por turno (la mayoría de las veces con 1-2 basta). Los marcadores internos [ESCALAR: ...] y [ESTADO: ...] (ver más abajo) van aparte, no cuentan dentro de ese límite de 3 — siempre van al final, cada uno en su propio mensaje separado por "---".
+  Máximo 3 mensajes VISIBLES por turno (la mayoría de las veces con 1-2 basta). Los marcadores internos [ESCALAR: ...], [ESTADO: ...], [SERVICIO: ...] y [NOMBRE: ...] (ver más abajo) van aparte, no cuentan dentro de ese límite de 3 — siempre van al final, cada uno en su propio mensaje separado por "---".
 - Ante preguntas técnicas o comparativas (ej. "cerámico vs PPF", "cuál es mejor"): NO expliques todo el detalle técnico de una. Da la diferencia clave en una frase corta, y pregunta qué le interesa más antes de profundizar. Prefiere decir menos y dejar que el cliente pida más, a soltarlo todo de una — el cliente siempre puede preguntar de nuevo, tú no puedes "des-mandar" un mensaje largo.
 - Termina siempre tu turno (el último mensaje) con una pregunta que haga avanzar la conversación. Nunca dejes un mensaje "cerrado" sin pregunta.
 - REGLA DURA: nunca hagas dos preguntas en el mismo mensaje. Un solo signo de interrogación por turno, siempre — ni siquiera "¿y esto, o esto?" con dos ideas distintas. Elige la más importante ahora y espera la respuesta del cliente antes de hacer la siguiente. Ejemplo de lo que está MAL: "¿Qué carro es, marca y modelo? Y cuéntame, ¿lo usas para el día a día o el fin de semana?" — son dos preguntas, nunca hagas esto. BIEN: "¿Qué carro es?" y en el siguiente turno, ya con esa respuesta, preguntas lo del uso.
@@ -3743,21 +3751,26 @@ Cómo hacerlo (proceso de dos partes, en el mismo turno):
    Este mensaje con corchetes NUNCA lo ve el cliente — es una señal interna para el sistema, así que no le agregues nada de conversación ahí, solo el marcador.
 
 # ESTADO DEL LEAD (seguimiento interno para el negocio)
-En CADA turno tuyo, además de tu(s) mensaje(s) normal(es), agrega un último mensaje SEPARADO (con "---" antes, como siempre) que diga EXACTAMENTE: [ESTADO: <uno de los estados de abajo>]
+En CADA turno tuyo, además de tu(s) mensaje(s) normal(es), agrega un mensaje SEPARADO (con "---" antes, como siempre) que diga EXACTAMENTE: [ESTADO: <uno de los estados de abajo>]
 Igual que el marcador de escalamiento, esto nunca lo ve el cliente — es solo para que el negocio sepa en qué punto va cada conversación. Usa tu criterio para elegir el que mejor refleje el punto actual (el más avanzado que ya sea cierto, no el primero de la lista):
 
-- Nuevo lead — todavía no ha dado ninguna información real (recién saludó, o solo curiosidad sin intención).
-- Calificado — ya sabes vehículo + necesidad/interés real (tiene intención real, no solo curiosidad). Incluye a quien ya recibió explicación del servicio o le pediste fotos y está pendiente de mandarlas.
-- Prediagnóstico hecho — ya mandó fotos y le diste una recomendación inicial remota.
-- Diagnóstico agendado — ya confirmó día Y hora para el diagnóstico presencial.
-- Cotizado — ya le diste un precio concreto para su caso (ya sea directo o después del diagnóstico).
-- Abono pendiente — decidió reservar con el anticipo del 10% y está pendiente de pagarlo.
-- Abono realizado — el cliente confirmó que ya pagó/mandó el anticipo.
-- Cerrado — confirmó la compra/reserva completa.
-- Perdido — dijo explícitamente que no le interesa o que no va a proceder.
+- En proceso — todo lo que pasa antes de agendar algo: desde que recién saluda hasta que ya está calificado, cotizado, o incluso con anticipo pendiente — mientras no haya una cita confirmada, es "En proceso".
+- Diagnóstico agendado — ya confirmó día Y hora para el diagnóstico presencial (la visita gratuita de evaluación).
+- Servicio agendado — ya confirmó día Y hora para el servicio real (cerámico, PPF, detallado, etc.), ya sea directo o después del diagnóstico — este es el punto de conversión real.
 - Seguimiento futuro — no lo uses tú, este lo pone el sistema automáticamente cuando se agotan los seguimientos.
 
-Ejemplo de tu respuesta completa en un turno: primer mensaje visible --- segundo mensaje visible (si aplica) --- [ESTADO: Calificado]"""
+# SERVICIO DE INTERÉS (seguimiento interno para el negocio)
+También en cada turno, agrega otro mensaje separado que diga EXACTAMENTE: [SERVICIO: <uno de los siguientes>]
+- Cerámico — si el interés principal es el coating cerámico (7H+ o 9H).
+- PPF o wrap — si el interés principal es PPF/vinilo de protección, o corrección de wrap.
+- Otro servicio — cualquier otro caso: wash, detallado, polichado, porcelanizado, o todavía no queda claro cuál le interesa más.
+Si todavía no sabes cuál le interesa, usa "Otro servicio" por defecto y ajústalo en cuanto quede claro.
+
+# ACTUALIZAR EL NOMBRE DEL CLIENTE
+Si en algún momento de la conversación el cliente te dice su nombre real (típicamente porque se lo preguntaste al no tener un nombre de perfil válido, pero puede pasar en cualquier momento), agrega otro mensaje separado que diga EXACTAMENTE: [NOMBRE: <nombre que dio>]
+Esto actualiza cómo se muestra el contacto en nuestro sistema interno — hazlo siempre que el cliente te dé su nombre real, aunque ya estuviera usando un nombre distinto antes.
+
+Ejemplo de tu respuesta completa en un turno: primer mensaje visible --- segundo mensaje visible (si aplica) --- [ESTADO: En proceso] --- [SERVICIO: Cerámico]"""
 
 
 def _build_message_history(conversation: "Conversation") -> list[dict]:
@@ -3976,18 +3989,20 @@ def notify_admin_conversation_error(conversation: "Conversation", error: Excepti
 
 _ESCALATE_RE = re.compile(r"^\[ESCALAR:\s*(.*?)\]$", re.IGNORECASE)
 _ESTADO_RE = re.compile(r"^\[ESTADO:\s*(.*?)\]$", re.IGNORECASE)
+_SERVICIO_RE = re.compile(r"^\[SERVICIO:\s*(.*?)\]$", re.IGNORECASE)
+_NOMBRE_RE = re.compile(r"^\[NOMBRE:\s*(.*?)\]$", re.IGNORECASE)
 
 LEAD_STATES = [
-    "Nuevo lead",
-    "Calificado",
-    "Prediagnóstico hecho",
+    "En proceso",
     "Diagnóstico agendado",
-    "Cotizado",
-    "Abono pendiente",
-    "Abono realizado",
-    "Cerrado",
-    "Perdido",
+    "Servicio agendado",
     "Seguimiento futuro",
+]
+
+SERVICE_TAGS = [
+    "Cerámico",
+    "PPF o wrap",
+    "Otro servicio",
 ]
 
 
@@ -4015,11 +4030,15 @@ def _generate_and_send_reply(conversation: "Conversation", from_number: str, med
 
     escalation_reason = None
     new_status = None
+    new_service = None
+    new_name = None
     visible_chunks = []
     for chunk in reply_chunks:
         stripped = chunk.strip()
         m_esc = _ESCALATE_RE.match(stripped)
         m_estado = _ESTADO_RE.match(stripped)
+        m_servicio = _SERVICIO_RE.match(stripped)
+        m_nombre = _NOMBRE_RE.match(stripped)
         if m_esc:
             escalation_reason = m_esc.group(1).strip() or "el cliente necesita atención humana"
         elif m_estado:
@@ -4028,12 +4047,28 @@ def _generate_and_send_reply(conversation: "Conversation", from_number: str, med
                 new_status = candidate
             else:
                 app.logger.warning(f"[WhatsApp] Estado de lead no reconocido, se ignora: {candidate!r}")
+        elif m_servicio:
+            candidate = m_servicio.group(1).strip()
+            if candidate in SERVICE_TAGS:
+                new_service = candidate
+            else:
+                app.logger.warning(f"[WhatsApp] Servicio no reconocido, se ignora: {candidate!r}")
+        elif m_nombre:
+            candidate = m_nombre.group(1).strip()
+            if candidate:
+                new_name = candidate
         else:
             visible_chunks.append(chunk)
     visible_chunks = visible_chunks[:3]  # el límite de "máximo 3 mensajes" aplica solo a lo visible
 
     if new_status and new_status != conversation.status:
         conversation.status = new_status
+        db.session.commit()
+    if new_service and new_service != conversation.service_tag:
+        conversation.service_tag = new_service
+        db.session.commit()
+    if new_name and new_name != conversation.profile_name:
+        conversation.profile_name = new_name
         db.session.commit()
 
     for i, chunk in enumerate(visible_chunks):
