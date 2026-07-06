@@ -766,7 +766,7 @@ class Conversation(db.Model):
     bot_active   = db.Column(db.Boolean, nullable=False, default=True)
     followup_count = db.Column(db.Integer, nullable=False, default=0)
     status       = db.Column(db.String(40), nullable=False, default="En proceso")
-    service_tag  = db.Column(db.String(40), nullable=False, default="Otro servicio")
+    service_tag  = db.Column(db.String(120), nullable=False, default="")  # lista separada por comas, ej. "Cerámico,PPF o wrap"
     created_at   = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     updated_at   = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -3766,12 +3766,16 @@ Igual que el marcador de escalamiento, esto nunca lo ve el cliente — es solo p
 - Servicio agendado — ya confirmó día Y hora para el servicio real (cerámico, PPF, detallado, etc.), ya sea directo o después del diagnóstico — este es el punto de conversión real.
 - Seguimiento futuro — no lo uses tú, este lo pone el sistema automáticamente cuando se agotan los seguimientos.
 
-# SERVICIO DE INTERÉS (seguimiento interno para el negocio)
-También en cada turno, agrega otro mensaje separado que diga EXACTAMENTE: [SERVICIO: <uno de los siguientes>]
-- Cerámico — si el interés principal es el coating cerámico (7H+ o 9H).
-- PPF o wrap — si el interés principal es PPF/vinilo de protección, o corrección de wrap.
-- Otro servicio — cualquier otro caso: wash, detallado, polichado, porcelanizado, o todavía no queda claro cuál le interesa más.
-Si todavía no sabes cuál le interesa, usa "Otro servicio" por defecto y ajústalo en cuanto quede claro.
+# SERVICIOS DE INTERÉS (seguimiento interno para el negocio)
+Cuando el cliente haya mostrado interés real en uno o más servicios, agrega un mensaje separado que diga EXACTAMENTE: [SERVICIO: <servicios>]
+Puede ser más de uno a la vez — sepáralos por coma, ej: [SERVICIO: Cerámico, PPF o wrap]
+
+Opciones válidas:
+- Cerámico — coating cerámico (7H+ o 9H).
+- PPF o wrap — PPF/vinilo de protección, o corrección de wrap.
+- Otro servicio — cualquier otro (wash, detallado, polichado, porcelanizado, etc.).
+
+Importante: un servicio solo cuenta como "interés" si el cliente lo demostró de verdad (preguntó precio, pidió detalles, dijo que le interesa, avanzó la conversación sobre eso) — NO lo agregues solo porque TÚ lo mencionaste de pasada (ej. al explicar la diferencia entre cerámico y PPF, eso no cuenta como interés en PPF si el cliente no reaccionó a eso). Si todavía no hay ningún interés real y claro, simplemente no incluyas este marcador en ese turno.
 
 # ACTUALIZAR EL NOMBRE DEL CLIENTE
 Si en algún momento de la conversación el cliente te dice su nombre real (típicamente porque se lo preguntaste al no tener un nombre de perfil válido, pero puede pasar en cualquier momento), agrega otro mensaje separado que diga EXACTAMENTE: [NOMBRE: <nombre que dio>]
@@ -4057,11 +4061,13 @@ def _generate_and_send_reply(conversation: "Conversation", from_number: str, med
             else:
                 app.logger.warning(f"[WhatsApp] Estado de lead no reconocido, se ignora: {candidate!r}")
         elif m_servicio:
-            candidate = m_servicio.group(1).strip()
-            if candidate in SERVICE_TAGS:
-                new_service = candidate
-            else:
-                app.logger.warning(f"[WhatsApp] Servicio no reconocido, se ignora: {candidate!r}")
+            candidates = [c.strip() for c in m_servicio.group(1).split(",") if c.strip()]
+            valid = [c for c in candidates if c in SERVICE_TAGS]
+            invalid = [c for c in candidates if c not in SERVICE_TAGS]
+            if invalid:
+                app.logger.warning(f"[WhatsApp] Servicio(s) no reconocido(s), se ignoran: {invalid!r}")
+            if valid:
+                new_service = valid
         elif m_nombre:
             candidate = m_nombre.group(1).strip()
             if candidate:
@@ -4073,9 +4079,13 @@ def _generate_and_send_reply(conversation: "Conversation", from_number: str, med
     if new_status and new_status != conversation.status:
         conversation.status = new_status
         db.session.commit()
-    if new_service and new_service != conversation.service_tag:
-        conversation.service_tag = new_service
-        db.session.commit()
+    if new_service:
+        existing = {t.strip() for t in (conversation.service_tag or "").split(",") if t.strip()}
+        merged = existing.union(new_service)
+        merged_str = ",".join(sorted(merged, key=SERVICE_TAGS.index))
+        if merged_str != conversation.service_tag:
+            conversation.service_tag = merged_str
+            db.session.commit()
     if new_name and new_name != conversation.profile_name:
         conversation.profile_name = new_name
         db.session.commit()

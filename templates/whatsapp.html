@@ -1,9 +1,9 @@
 {% extends "base.html" %}
 
-{% macro service_class(tag) -%}
-  {%- if tag == 'Cerámico' -%}tag-ceramico
-  {%- elif tag == 'PPF o wrap' -%}tag-ppf
-  {%- else -%}tag-otro
+{% macro service_pill_class(tag) -%}
+  {%- if tag == 'Cerámico' -%}svc-ceramico
+  {%- elif tag == 'PPF o wrap' -%}svc-ppf
+  {%- else -%}svc-otro
   {%- endif -%}
 {%- endmacro %}
 
@@ -29,11 +29,8 @@
   .wa-row:hover { background:#202c33; }
   .wa-row.active { background:#26333c; }
 
-  /* ── Avatar: la forma indica el servicio de interés, el color de fondo también ── */
-  .wa-avatar { width:44px; height:44px; display:flex; align-items:center; justify-content:center; font-weight:700; color:#1a1814; flex-shrink:0; }
-  .wa-avatar.tag-ceramico { background:#d4b46c; border-radius:8px; }               /* cuadrado dorado */
-  .wa-avatar.tag-ppf { background:#4a6fa5; border-radius:50%; color:#e9edef; }     /* círculo azul índigo */
-  .wa-avatar.tag-otro { background:#8696a0; color:#1a1814; clip-path:polygon(50% 6%, 6% 94%, 94% 94%); padding-top:8px; } /* triángulo gris */
+  /* ── Avatar: círculo simple, color neutro ── */
+  .wa-avatar { width:44px; height:44px; border-radius:50%; background:#2a3942; display:flex; align-items:center; justify-content:center; font-weight:700; color:#8696a0; flex-shrink:0; }
 
   .wa-row-main { flex:1; min-width:0; }
   .wa-row-top { display:flex; justify-content:space-between; align-items:baseline; gap:8px; }
@@ -42,11 +39,16 @@
   .wa-preview { color:#8696a0; font-size:0.78rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:70%; }
   .wa-badge-active { color:#00d9a0; font-size:0.64rem; font-weight:700; white-space:nowrap; }
   .wa-badge-paused { color:#e8c766; font-size:0.64rem; font-weight:700; white-space:nowrap; }
-  .wa-status-pill { display:inline-block; font-size:0.62rem; font-weight:600; padding:1px 7px; border-radius:10px; background:#2a3942; color:#8696a0; white-space:nowrap; margin-top:3px; }
+  .wa-pill-row { display:flex; gap:6px; margin-top:5px; flex-wrap:wrap; }
+  .wa-status-pill { display:inline-block; font-size:0.62rem; font-weight:600; padding:1px 7px; border-radius:10px; background:#2a3942; color:#8696a0; white-space:nowrap; }
   .wa-status-pill.st-proceso { background:rgba(230,140,40,0.18); color:#e6a028; }
   .wa-status-pill.st-diagnostico { background:rgba(60,180,230,0.18); color:#3cb4e6; }
   .wa-status-pill.st-servicio { background:rgba(0,168,132,0.18); color:#00d9a0; }
   .wa-status-pill.st-seguimiento { background:rgba(150,110,230,0.18); color:#966ee6; }
+  .wa-svc-pill { display:inline-block; font-size:0.62rem; font-weight:600; padding:1px 7px; border-radius:10px; white-space:nowrap; }
+  .wa-svc-pill.svc-ceramico { background:rgba(212,180,108,0.20); color:#d4b46c; }
+  .wa-svc-pill.svc-ppf { background:rgba(74,111,165,0.25); color:#8fb8e6; }
+  .wa-svc-pill.svc-otro { background:rgba(134,150,160,0.20); color:#8696a0; }
   .wa-filter-bar { display:flex; align-items:center; gap:8px; margin:8px 0 0; }
   .wa-filter-bar select { background:#202c33; color:#e9edef; border:1px solid #3b4a54; border-radius:8px; padding:5px 8px; font-size:0.8rem; }
 
@@ -109,7 +111,7 @@
     <a class="wa-row {{ 'active' if conversation and conversation.id == conv.id else '' }}"
        data-status="{{ conv.status }}"
        href="{{ url_for('whatsapp_conversation', conversation_id=conv.id) }}">
-      <div class="wa-avatar {{ service_class(conv.service_tag) }}">{{ (conv.profile_name or conv.phone)[0]|upper }}</div>
+      <div class="wa-avatar">{{ (conv.profile_name or conv.phone)[0]|upper }}</div>
       <div class="wa-row-main">
         <div class="wa-row-top">
           <span class="wa-name">{{ conv.profile_name or conv.phone }}</span>
@@ -121,7 +123,12 @@
           </span>
           {% if conv.bot_active %}<span class="wa-badge-active">● Activo</span>{% else %}<span class="wa-badge-paused">⏸ Pausado</span>{% endif %}
         </div>
-        <span class="wa-status-pill {{ status_pill_class(conv.status) }}">{{ conv.status }}</span>
+        <div class="wa-pill-row">
+          <span class="wa-status-pill {{ status_pill_class(conv.status) }}">{{ conv.status }}</span>
+          {% for tag in conv.service_tag.split(',') if tag.strip() %}
+          <span class="wa-svc-pill {{ service_pill_class(tag.strip()) }}">{{ tag.strip() }}</span>
+          {% endfor %}
+        </div>
       </div>
     </a>
     {% else %}
@@ -133,12 +140,16 @@
     {% if conversation %}
       <div class="wa-header">
         <a href="{{ url_for('whatsapp_inbox') }}" class="wa-btn wa-back"><i class="bi bi-arrow-left"></i></a>
-        <div class="wa-avatar {{ service_class(conversation.service_tag) }}">{{ (conversation.profile_name or conversation.phone)[0]|upper }}</div>
+        <div class="wa-avatar">{{ (conversation.profile_name or conversation.phone)[0]|upper }}</div>
         <div>
           <p class="wa-header-name">{{ conversation.profile_name or conversation.phone }}</p>
-          <p class="wa-header-phone">{{ conversation.phone }}
+          <p class="wa-header-phone">{{ conversation.phone }}</p>
+          <div class="wa-pill-row">
             <span class="wa-status-pill {{ status_pill_class(conversation.status) }}">{{ conversation.status }}</span>
-          </p>
+            {% for tag in conversation.service_tag.split(',') if tag.strip() %}
+            <span class="wa-svc-pill {{ service_pill_class(tag.strip()) }}">{{ tag.strip() }}</span>
+            {% endfor %}
+          </div>
         </div>
         <div class="wa-header-actions">
           <form method="POST" action="{{ url_for('whatsapp_toggle_bot', conversation_id=conversation.id) }}" class="m-0">
