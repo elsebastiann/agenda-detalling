@@ -4195,7 +4195,7 @@ def _whatsapp_rows():
 
 @app.route("/whatsapp")
 def whatsapp_inbox():
-    return render_template("whatsapp.html", rows=_whatsapp_rows(), conversation=None, messages=[], lead_states=LEAD_STATES)
+    return render_template("whatsapp.html", rows=_whatsapp_rows(), conversation=None, messages=[], lead_states=LEAD_STATES, service_tags=SERVICE_TAGS)
 
 
 @app.route("/whatsapp/<int:conversation_id>")
@@ -4207,7 +4207,7 @@ def whatsapp_conversation(conversation_id):
         .order_by(Message.created_at)
         .all()
     )
-    return render_template("whatsapp.html", rows=_whatsapp_rows(), conversation=conversation, messages=messages, lead_states=LEAD_STATES)
+    return render_template("whatsapp.html", rows=_whatsapp_rows(), conversation=conversation, messages=messages, lead_states=LEAD_STATES, service_tags=SERVICE_TAGS)
 
 
 @app.route("/whatsapp/<int:conversation_id>/messages.json")

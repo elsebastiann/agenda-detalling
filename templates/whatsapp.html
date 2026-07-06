@@ -51,6 +51,11 @@
   .wa-svc-pill.svc-otro { background:rgba(134,150,160,0.20); color:#8696a0; }
   .wa-filter-bar { display:flex; align-items:center; gap:8px; margin:8px 0 0; }
   .wa-filter-bar select { background:#202c33; color:#e9edef; border:1px solid #3b4a54; border-radius:8px; padding:5px 8px; font-size:0.8rem; }
+  .wa-chip-group { display:flex; gap:6px; flex-wrap:wrap; }
+  .wa-chip { font-size:0.75rem; font-weight:600; padding:4px 10px; border-radius:12px; cursor:pointer; border:1px solid #3b4a54; background:transparent; color:#8696a0; }
+  .wa-chip.svc-ceramico.active { background:rgba(212,180,108,0.20); color:#d4b46c; border-color:#d4b46c; }
+  .wa-chip.svc-ppf.active { background:rgba(74,111,165,0.25); color:#8fb8e6; border-color:#4a6fa5; }
+  .wa-chip.svc-otro.active { background:rgba(134,150,160,0.20); color:#8696a0; border-color:#8696a0; }
 
   /* ── Panel principal (conversación activa) ── */
   .wa-main { flex:1; display:flex; flex-direction:column; min-width:0; }
@@ -96,13 +101,20 @@
 <h2><i class="bi bi-whatsapp"></i> Mensajes WhatsApp</h2>
 
 <div class="wa-filter-bar">
-  <label for="statusFilter" style="color:var(--text2);font-size:0.8rem;">Filtrar por estado:</label>
-  <select id="statusFilter" onchange="applyStatusFilter()">
+  <label for="statusFilter" style="color:var(--text2);font-size:0.8rem;">Estado:</label>
+  <select id="statusFilter" onchange="applyFilters()">
     <option value="">Todos</option>
     {% for s in lead_states %}
     <option value="{{ s }}">{{ s }}</option>
     {% endfor %}
   </select>
+
+  <label style="color:var(--text2);font-size:0.8rem;margin-left:8px;">Servicio:</label>
+  <div id="serviceChips" class="wa-chip-group">
+    {% for tag in service_tags %}
+    <button type="button" class="wa-chip {{ service_pill_class(tag) }}" data-value="{{ tag }}" onclick="toggleServiceChip(this)">{{ tag }}</button>
+    {% endfor %}
+  </div>
 </div>
 
 <div class="wa-shell {{ 'has-active' if conversation else '' }}">
@@ -110,6 +122,7 @@
     {% for conv, last_msg in rows %}
     <a class="wa-row {{ 'active' if conversation and conversation.id == conv.id else '' }}"
        data-status="{{ conv.status }}"
+       data-services="{{ conv.service_tag }}"
        href="{{ url_for('whatsapp_conversation', conversation_id=conv.id) }}">
       <div class="wa-avatar">{{ (conv.profile_name or conv.phone)[0]|upper }}</div>
       <div class="wa-row-main">
@@ -241,10 +254,19 @@
 </div>
 
 <script>
-  function applyStatusFilter() {
-    const value = document.getElementById('statusFilter').value;
+  function toggleServiceChip(el) {
+    el.classList.toggle('active');
+    applyFilters();
+  }
+
+  function applyFilters() {
+    const statusValue = document.getElementById('statusFilter').value;
+    const activeServices = Array.from(document.querySelectorAll('#serviceChips .wa-chip.active')).map(c => c.dataset.value);
     document.querySelectorAll('.wa-row').forEach(row => {
-      row.style.display = (!value || row.dataset.status === value) ? '' : 'none';
+      const statusOk = !statusValue || row.dataset.status === statusValue;
+      const rowServices = (row.dataset.services || '').split(',').map(s => s.trim()).filter(Boolean);
+      const servicesOk = activeServices.length === 0 || activeServices.some(s => rowServices.includes(s));
+      row.style.display = (statusOk && servicesOk) ? '' : 'none';
     });
   }
 
@@ -255,7 +277,7 @@
       const newSidebar = doc.querySelector('.wa-sidebar');
       const curSidebar = document.querySelector('.wa-sidebar');
       if (newSidebar && curSidebar) curSidebar.innerHTML = newSidebar.innerHTML;
-      applyStatusFilter();
+      applyFilters();
     }).catch(() => {});
   }, 30000);
 </script>
