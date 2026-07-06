@@ -3548,7 +3548,7 @@ En su lugar, frases que sí puedes usar con confianza: "para orientarte bien..."
 - LÍMITE DURO: cada mensaje individual debe tener máximo ~300 caracteres (2-4 líneas cortas de celular). Si tu respuesta completa supera eso, es un error tuyo — recórtala, no la mandes larga.
 - Casi nunca uses viñetas, negrillas en cadena, ni listas — eso es formato de documento, no de chat. Escribe como si estuvieras tecleando rápido desde el celular.
 - Para separar tu respuesta en varios mensajes de WhatsApp, escribe cada mensaje y sepáralos con una línea que contenga únicamente: ---
-  Máximo 3 mensajes VISIBLES por turno (la mayoría de las veces con 1-2 basta). Los marcadores internos [ESCALAR: ...], [ESTADO: ...], [SERVICIO: ...] y [NOMBRE: ...] (ver más abajo) van aparte, no cuentan dentro de ese límite de 3 — siempre van al final, cada uno en su propio mensaje separado por "---".
+  Máximo 3 mensajes VISIBLES por turno (la mayoría de las veces con 1-2 basta). Los marcadores internos [ESCALAR: ...], [META: ...] y [NOMBRE: ...] (ver más abajo) van aparte, no cuentan dentro de ese límite de 3 — siempre van al final, cada uno en su propio mensaje separado por "---".
 - Ante preguntas técnicas o comparativas (ej. "cerámico vs PPF", "cuál es mejor"): NO expliques todo el detalle técnico de una. Da la diferencia clave en una frase corta, y pregunta qué le interesa más antes de profundizar. Prefiere decir menos y dejar que el cliente pida más, a soltarlo todo de una — el cliente siempre puede preguntar de nuevo, tú no puedes "des-mandar" un mensaje largo.
 - Termina siempre tu turno (el último mensaje) con una pregunta que haga avanzar la conversación. Nunca dejes un mensaje "cerrado" sin pregunta.
 - REGLA DURA: nunca hagas dos preguntas en el mismo mensaje. Un solo signo de interrogación por turno, siempre — ni siquiera "¿y esto, o esto?" con dos ideas distintas. Elige la más importante ahora y espera la respuesta del cliente antes de hacer la siguiente. Ejemplo de lo que está MAL: "¿Qué carro es, marca y modelo? Y cuéntame, ¿lo usas para el día a día o el fin de semana?" — son dos preguntas, nunca hagas esto. BIEN: "¿Qué carro es?" y en el siguiente turno, ya con esa respuesta, preguntas lo del uso.
@@ -3757,31 +3757,32 @@ Cómo hacerlo (proceso de dos partes, en el mismo turno):
    Ejemplo: [ESCALAR: cliente quiere pagar el anticipo del cerámico 9H]
    Este mensaje con corchetes NUNCA lo ve el cliente — es una señal interna para el sistema, así que no le agregues nada de conversación ahí, solo el marcador.
 
-# ESTADO DEL LEAD (seguimiento interno para el negocio)
-En CADA turno tuyo, además de tu(s) mensaje(s) normal(es), agrega un mensaje SEPARADO (con "---" antes, como siempre) que diga EXACTAMENTE: [ESTADO: <uno de los estados de abajo>]
-Igual que el marcador de escalamiento, esto nunca lo ve el cliente — es solo para que el negocio sepa en qué punto va cada conversación. Usa tu criterio para elegir el que mejor refleje el punto actual (el más avanzado que ya sea cierto, no el primero de la lista):
+# ESTADO Y SERVICIOS DEL LEAD (seguimiento interno para el negocio)
+En CADA turno tuyo, sin excepción, además de tu(s) mensaje(s) normal(es), agrega un último mensaje SEPARADO (con "---" antes, como siempre) con este formato EXACTO:
+[META: estado=<estado>; servicios=<lista o vacío>]
 
-- En proceso — todo lo que pasa antes de agendar algo: desde que recién saluda hasta que ya está calificado, cotizado, o incluso con anticipo pendiente — mientras no haya una cita confirmada, es "En proceso".
-- Diagnóstico agendado — ya confirmó día Y hora para el diagnóstico presencial (la visita gratuita de evaluación).
-- Servicio agendado — ya confirmó día Y hora para el servicio real (cerámico, PPF, detallado, etc.), ya sea directo o después del diagnóstico — este es el punto de conversión real.
-- Seguimiento futuro — no lo uses tú, este lo pone el sistema automáticamente cuando se agotan los seguimientos.
+Esto nunca lo ve el cliente — es solo para que el negocio sepa en qué punto va cada conversación. Cada vez que lo escribas, repasa TODA la conversación hasta ahora y refleja el panorama completo actual — no solo lo que cambió en este mensaje. Es mejor repetir información que ya diste antes que dejarla por fuera.
 
-# SERVICIOS DE INTERÉS (seguimiento interno para el negocio)
-Cuando el cliente haya mostrado interés real en uno o más servicios, agrega un mensaje separado que diga EXACTAMENTE: [SERVICIO: <servicios>]
-Puede ser más de uno a la vez — sepáralos por coma, ej: [SERVICIO: Cerámico, PPF o wrap]
+**<estado>** — uno de estos tres (el más avanzado que ya sea cierto):
+- En proceso — todo lo que pasa antes de agendar algo: desde que recién saluda hasta que ya está calificado, cotizado, o incluso con anticipo pendiente.
+- Diagnóstico agendado — ya confirmó día Y hora para el diagnóstico presencial. IMPORTANTE: si acabas de confirmar día y hora en ESTE MISMO turno, actualiza el estado ya, en este mismo mensaje — no lo dejes para el siguiente turno.
+- Servicio agendado — ya confirmó día Y hora para el servicio real (cerámico, PPF, detallado, etc.), directo o después del diagnóstico. Misma regla: si lo acabas de confirmar en este turno, actualízalo ya.
+(No uses "Seguimiento futuro" — ese lo pone el sistema automáticamente.)
 
-Opciones válidas:
+**<servicios>** — lista de TODOS los servicios en los que el cliente ha mostrado interés real hasta ahora en la conversación (no solo el de este mensaje), separados por coma, o vacío si ninguno todavía:
 - Cerámico — coating cerámico (7H+ o 9H).
 - PPF o wrap — PPF/vinilo de protección, o corrección de wrap.
 - Otro servicio — cualquier otro (wash, detallado, polichado, porcelanizado, etc.).
+Un servicio solo cuenta como "interés" si el cliente lo demostró de verdad (preguntó precio, pidió detalles, dijo que le interesa) — NO por solo haberlo mencionado tú de pasada.
 
-Importante: un servicio solo cuenta como "interés" si el cliente lo demostró de verdad (preguntó precio, pidió detalles, dijo que le interesa, avanzó la conversación sobre eso) — NO lo agregues solo porque TÚ lo mencionaste de pasada (ej. al explicar la diferencia entre cerámico y PPF, eso no cuenta como interés en PPF si el cliente no reaccionó a eso). Si todavía no hay ningún interés real y claro, simplemente no incluyas este marcador en ese turno.
+Ejemplo completo: [META: estado=Diagnóstico agendado; servicios=Cerámico,PPF o wrap]
+Ejemplo sin servicios aún: [META: estado=En proceso; servicios=]
 
 # ACTUALIZAR EL NOMBRE DEL CLIENTE
 Si en algún momento de la conversación el cliente te dice su nombre real (típicamente porque se lo preguntaste al no tener un nombre de perfil válido, pero puede pasar en cualquier momento), agrega otro mensaje separado que diga EXACTAMENTE: [NOMBRE: <nombre que dio>]
 Esto actualiza cómo se muestra el contacto en nuestro sistema interno — hazlo siempre que el cliente te dé su nombre real, aunque ya estuviera usando un nombre distinto antes.
 
-Ejemplo de tu respuesta completa en un turno: primer mensaje visible --- segundo mensaje visible (si aplica) --- [ESTADO: En proceso] --- [SERVICIO: Cerámico]"""
+Ejemplo de tu respuesta completa en un turno: primer mensaje visible --- segundo mensaje visible (si aplica) --- [META: estado=En proceso; servicios=Cerámico]"""
 
 
 def _build_message_history(conversation: "Conversation") -> list[dict]:
@@ -3925,7 +3926,7 @@ def generate_followup_message(conversation: "Conversation", stage: str) -> str:
     messages = _build_message_history(conversation)
     messages.append({
         "role": "user",
-        "content": f"[Sistema: el cliente quedó en silencio, genera un mensaje de seguimiento — etapa: {stage}. No agregues marcadores de [ESTADO], [SERVICIO], [NOMBRE] ni [ESCALAR] aquí, solo el mensaje de seguimiento.]",
+        "content": f"[Sistema: el cliente quedó en silencio, genera un mensaje de seguimiento — etapa: {stage}. No agregues marcadores de [META], [NOMBRE] ni [ESCALAR] aquí, solo el mensaje de seguimiento.]",
     })
 
     profile_line = (
@@ -3950,7 +3951,7 @@ def _summarize_conversation_for_admin(conversation: "Conversation") -> str:
             "conversación — con el contexto suficiente para que un asesor humano pueda "
             "seguir la conversación sin tener que leer todo el historial. No saludes, "
             "no uses comillas ni el nombre del cliente al inicio, ve directo al resumen. "
-            "No agregues marcadores de [ESTADO], [SERVICIO], [NOMBRE] ni [ESCALAR] aquí, "
+            "No agregues marcadores de [META], [NOMBRE] ni [ESCALAR] aquí, "
             "solo el resumen.]"
         ),
     })
@@ -4001,8 +4002,7 @@ def notify_admin_conversation_error(conversation: "Conversation", error: Excepti
 
 
 _ESCALATE_RE = re.compile(r"^\[ESCALAR:\s*(.*?)\]$", re.IGNORECASE)
-_ESTADO_RE = re.compile(r"^\[ESTADO:\s*(.*?)\]$", re.IGNORECASE)
-_SERVICIO_RE = re.compile(r"^\[SERVICIO:\s*(.*?)\]$", re.IGNORECASE)
+_META_RE = re.compile(r"^\[META:\s*estado\s*=\s*(.*?)\s*;\s*servicios\s*=\s*(.*?)\s*\]$", re.IGNORECASE)
 _NOMBRE_RE = re.compile(r"^\[NOMBRE:\s*(.*?)\]$", re.IGNORECASE)
 
 LEAD_STATES = [
@@ -4049,21 +4049,20 @@ def _generate_and_send_reply(conversation: "Conversation", from_number: str, med
     for chunk in reply_chunks:
         stripped = chunk.strip()
         m_esc = _ESCALATE_RE.match(stripped)
-        m_estado = _ESTADO_RE.match(stripped)
-        m_servicio = _SERVICIO_RE.match(stripped)
+        m_meta = _META_RE.match(stripped)
         m_nombre = _NOMBRE_RE.match(stripped)
         if m_esc:
             escalation_reason = m_esc.group(1).strip() or "el cliente necesita atención humana"
-        elif m_estado:
-            candidate = m_estado.group(1).strip()
-            if candidate in LEAD_STATES:
-                new_status = candidate
-            else:
-                app.logger.warning(f"[WhatsApp] Estado de lead no reconocido, se ignora: {candidate!r}")
-        elif m_servicio:
-            candidates = [c.strip() for c in m_servicio.group(1).split(",") if c.strip()]
-            valid = [c for c in candidates if c in SERVICE_TAGS]
-            invalid = [c for c in candidates if c not in SERVICE_TAGS]
+        elif m_meta:
+            estado_candidate = m_meta.group(1).strip()
+            if estado_candidate in LEAD_STATES:
+                new_status = estado_candidate
+            elif estado_candidate:
+                app.logger.warning(f"[WhatsApp] Estado de lead no reconocido, se ignora: {estado_candidate!r}")
+
+            servicio_candidates = [c.strip() for c in m_meta.group(2).split(",") if c.strip()]
+            valid = [c for c in servicio_candidates if c in SERVICE_TAGS]
+            invalid = [c for c in servicio_candidates if c not in SERVICE_TAGS]
             if invalid:
                 app.logger.warning(f"[WhatsApp] Servicio(s) no reconocido(s), se ignoran: {invalid!r}")
             if valid:
