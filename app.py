@@ -3489,32 +3489,7 @@ def send_whatsapp(to: str, body: str) -> tuple[bool, str]:
         return False, str(exc)
 
 
-NOXA_LOCATION = {"lat": 4.7148773, "lng": -74.0616704, "label": "NOXA Car Care"}
-
-
-def send_whatsapp_location(to: str) -> tuple[bool, str]:
-    """Envía el pin de ubicación real de NOXA como mensaje nativo de WhatsApp."""
-    account_sid = os.environ.get("TWILIO_ACCOUNT_SID", "")
-    auth_token  = os.environ.get("TWILIO_AUTH_TOKEN", "")
-    from_number = os.environ.get("TWILIO_FROM", "whatsapp:+14155238886")
-    if not account_sid or not auth_token:
-        return False, "Variables TWILIO_ACCOUNT_SID / TWILIO_AUTH_TOKEN no configuradas."
-    try:
-        from twilio.rest import Client as TwilioClient
-        phone = to.strip().replace(" ", "").replace("whatsapp:", "")
-        if not phone.startswith("+"):
-            phone = "+57" + phone  # Colombia por defecto
-        from_clean = from_number.strip().replace("whatsapp:", "")
-        TwilioClient(account_sid, auth_token).messages.create(
-            from_=f"whatsapp:{from_clean}",
-            to=f"whatsapp:{phone}",
-            persistent_action=[f"geo:{NOXA_LOCATION['lat']},{NOXA_LOCATION['lng']}|{NOXA_LOCATION['label']}"],
-        )
-        app.logger.info(f"[WhatsApp] Ubicación enviada a {phone}")
-        return True, ""
-    except Exception as exc:
-        app.logger.error(f"[WhatsApp] Error enviando ubicación a {to}: {exc}")
-        return False, str(exc)
+NOXA_MAPS_LINK = "https://maps.app.goo.gl/qjiSRV3ypoV3i4aF9"
 
 
 # ── Claude — motor de respuesta del bot de ventas ─────────────────────────────
@@ -3576,7 +3551,7 @@ En su lugar, frases que sí puedes usar con confianza: "para orientarte bien..."
 - LÍMITE DURO: cada mensaje individual debe tener máximo ~300 caracteres (2-4 líneas cortas de celular). Si tu respuesta completa supera eso, es un error tuyo — recórtala, no la mandes larga.
 - Casi nunca uses viñetas, negrillas en cadena, ni listas — eso es formato de documento, no de chat. Escribe como si estuvieras tecleando rápido desde el celular.
 - Para separar tu respuesta en varios mensajes de WhatsApp, escribe cada mensaje y sepáralos con una línea que contenga únicamente: ---
-  Máximo 3 mensajes VISIBLES por turno (la mayoría de las veces con 1-2 basta). Los marcadores internos [ESCALAR: ...], [META: ...], [NOMBRE: ...] y [UBICACION] (ver más abajo) van aparte, no cuentan dentro de ese límite de 3 — siempre van al final, cada uno en su propio mensaje separado por "---".
+  Máximo 3 mensajes VISIBLES por turno (la mayoría de las veces con 1-2 basta). Los marcadores internos [ESCALAR: ...], [META: ...] y [NOMBRE: ...] (ver más abajo) van aparte, no cuentan dentro de ese límite de 3 — siempre van al final, cada uno en su propio mensaje separado por "---".
 - Ante preguntas técnicas o comparativas (ej. "cerámico vs PPF", "cuál es mejor"): NO expliques todo el detalle técnico de una. Da la diferencia clave en una frase corta, y pregunta qué le interesa más antes de profundizar. Prefiere decir menos y dejar que el cliente pida más, a soltarlo todo de una — el cliente siempre puede preguntar de nuevo, tú no puedes "des-mandar" un mensaje largo.
 - Termina siempre tu turno (el último mensaje) con una pregunta que haga avanzar la conversación. Nunca dejes un mensaje "cerrado" sin pregunta.
 - REGLA DURA: nunca hagas dos preguntas en el mismo mensaje. Un solo signo de interrogación por turno, siempre — ni siquiera "¿y esto, o esto?" con dos ideas distintas. Elige la más importante ahora y espera la respuesta del cliente antes de hacer la siguiente. Ejemplo de lo que está MAL: "¿Qué carro es, marca y modelo? Y cuéntame, ¿lo usas para el día a día o el fin de semana?" — son dos preguntas, nunca hagas esto. BIEN: "¿Qué carro es?" y en el siguiente turno, ya con esa respuesta, preguntas lo del uso.
@@ -3663,10 +3638,10 @@ Por qué le conviene al cliente: es la forma de saber con certeza qué necesita 
 Explica esto de forma natural cuando el cliente no tenga claro qué implica el diagnóstico o cuando dude en agendarlo — no asumas que ya lo sabe.
 
 # UBICACIÓN — puedes mandarla tú misma
-Cuando el cliente pida la ubicación o dirección de NOXA, SÍ la puedes mandar directo — no hace falta escalar a un humano para esto. Da las dos cosas:
-1. La dirección exacta en tu mensaje: **Calle 128B # 53D-2**, Prado Veraniego, Bogotá.
-2. Además, agrega un mensaje SEPARADO (con "---" antes, al final de tu turno, después de cualquier [META: ...]) que diga exactamente: [UBICACION]
-Ese marcador nunca lo ve el cliente — el sistema, al verlo, le manda automáticamente el pin real de ubicación de NOXA por WhatsApp justo después de tu mensaje, como complemento a la dirección escrita.
+Cuando el cliente pida la ubicación o dirección de NOXA, SÍ la puedes mandar directo en tu mensaje de texto — no hace falta escalar a un humano para esto. Da las dos cosas juntas, en el mismo mensaje:
+- La dirección exacta: **Calle 128B # 53D-2**, Prado Veraniego, Bogotá.
+- El link de Google Maps: https://maps.app.goo.gl/qjiSRV3ypoV3i4aF9
+El link sale clickeable en WhatsApp, así que no necesitas nada más — no es un marcador especial, simplemente escríbelo como parte normal de tu mensaje.
 
 # PREDIAGNÓSTICO REMOTO (para leads que no pueden ir pronto)
 Si el cliente está interesado pero dice que no tiene tiempo, no puede llevar el carro pronto, vive lejos, tiene agenda difícil, o simplemente pide una idea antes de comprometerse a ir — ofrécele un **prediagnóstico remoto por fotos**, en vez de dejarlo esperando hasta que pueda ir en persona.
@@ -4038,7 +4013,6 @@ def notify_admin_conversation_error(conversation: "Conversation", error: Excepti
 _ESCALATE_RE = re.compile(r"^\[ESCALAR:\s*(.*?)\]$", re.IGNORECASE)
 _META_RE = re.compile(r"^\[META:\s*estado\s*=\s*(.*?)\s*;\s*servicios\s*=\s*(.*?)\s*\]$", re.IGNORECASE)
 _NOMBRE_RE = re.compile(r"^\[NOMBRE:\s*(.*?)\]$", re.IGNORECASE)
-_UBICACION_RE = re.compile(r"^\[UBICACION\]$", re.IGNORECASE)
 
 LEAD_STATES = [
     "En proceso",
@@ -4080,18 +4054,14 @@ def _generate_and_send_reply(conversation: "Conversation", from_number: str, med
     new_status = None
     new_service = None
     new_name = None
-    send_location = False
     visible_chunks = []
     for chunk in reply_chunks:
         stripped = chunk.strip()
         m_esc = _ESCALATE_RE.match(stripped)
         m_meta = _META_RE.match(stripped)
         m_nombre = _NOMBRE_RE.match(stripped)
-        m_ubicacion = _UBICACION_RE.match(stripped)
         if m_esc:
             escalation_reason = m_esc.group(1).strip() or "el cliente necesita atención humana"
-        elif m_ubicacion:
-            send_location = True
         elif m_meta:
             estado_candidate = m_meta.group(1).strip()
             if estado_candidate in LEAD_STATES:
@@ -4137,14 +4107,6 @@ def _generate_and_send_reply(conversation: "Conversation", from_number: str, med
         db.session.commit()
         if i < len(visible_chunks) - 1:
             time.sleep(1.2)  # pausa breve para que se sientan mensajes naturales, no un bloque
-
-    if send_location:
-        ok, err = send_whatsapp_location(from_number)
-        if ok:
-            db.session.add(Message(conversation_id=conversation.id, direction="out", body="[Ubicación enviada]"))
-            db.session.commit()
-        else:
-            app.logger.error(f"[WhatsApp] Error enviando ubicación: {err}")
 
     if escalation_reason:
         conversation.bot_active = False
