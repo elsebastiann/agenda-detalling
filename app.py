@@ -3264,9 +3264,12 @@ def payroll_new():
     ).all()
 
     for emp in employees:
-        salary    = emp.salary or 0
+        # User.salary es el sueldo MENSUAL; cada quincena paga la mitad
+        # (entero, redondeando hacia arriba para evitar el redondeo bancario
+        # de floats en montos impares).
+        salary_quincenal = ((emp.salary or 0) + 1) // 2
         is_trial  = emp.in_trial
-        base      = max(salary - TRIAL_DEDUCTION, 0) if is_trial else salary
+        base      = max(salary_quincenal - TRIAL_DEDUCTION, 0) if is_trial else salary_quincenal
         bonus     = 0 if is_trial else BONUS_MAX
 
         # Calcular descuento de calidad acumulado (errores sin período asignado)
@@ -3379,7 +3382,13 @@ def payroll_entry_update(period_id, entry_id):
 
     entry.recalculate()
     db.session.commit()
-    return jsonify({"ok": True, "total": entry.total})
+    return jsonify({
+        "ok": True,
+        "total": entry.total,
+        "deduction_absences": entry.deduction_absences,
+        "deduction_vales": entry.deduction_vales,
+        "bonus_extra": entry.bonus_extra,
+    })
 
 @app.route("/payroll/<int:period_id>/pay", methods=["POST"])
 def payroll_pay(period_id):

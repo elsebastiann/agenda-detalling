@@ -195,9 +195,10 @@ class TestQualityErrorSplit:
 # D. payroll_new: creación de una quincena
 # =====================================================================
 class TestPayrollNew:
-    def test_regular_employee_gets_full_salary_and_full_bonus(self, client):
+    def test_regular_employee_gets_half_salary_and_full_bonus(self, client):
+        # User.salary es MENSUAL; la quincena paga la mitad.
         make_admin(client)
-        op = make_user("op_reg", role="operario", salary=1_000_000,
+        op = make_user("op_reg", role="operario", salary=2_000_000,
                         hire_date=date.today() - timedelta(days=200))
         period = create_period(client, date.today() - timedelta(days=14), date.today())
         e = entry_for(period.id, op.id)
@@ -212,7 +213,7 @@ class TestPayrollNew:
         $20.000 (bono reducido Y restado de nuevo en el total).
         """
         make_admin(client)
-        op = make_user("op_qc", role="operario", salary=1_000_000,
+        op = make_user("op_qc", role="operario", salary=2_000_000,
                         hire_date=date.today() - timedelta(days=200))
         create_quality_error(client, "grave", [op.id])  # 10.000
 
@@ -226,7 +227,7 @@ class TestPayrollNew:
 
     def test_quality_errors_exceeding_bonus_never_touch_base_salary(self, client):
         make_admin(client)
-        op = make_user("op_qc_over", role="operario", salary=1_000_000,
+        op = make_user("op_qc_over", role="operario", salary=2_000_000,
                         hire_date=date.today() - timedelta(days=200))
         # 20 errores graves de 10.000 = 200.000 > bono máximo de 100.000
         for _ in range(20):
@@ -239,27 +240,27 @@ class TestPayrollNew:
         assert e.deduction_quality == 200_000  # informativo, aunque exceda el bono
         assert e.total == 1_000_000  # nunca baja del salario base por calidad
 
-    def test_trial_employee_gets_salary_minus_100k_and_zero_bonus(self, client):
+    def test_trial_employee_gets_half_salary_minus_100k_and_zero_bonus(self, client):
         make_admin(client)
-        op = make_user("op_trial", role="operario", salary=800_000,
+        op = make_user("op_trial", role="operario", salary=1_600_000,
                         hire_date=date.today())  # recién ingresado, en prueba
         period = create_period(client, date.today() - timedelta(days=14), date.today())
         e = entry_for(period.id, op.id)
-        assert e.base_salary == 700_000
+        assert e.base_salary == 700_000  # 1_600_000/2 - 100_000
         assert e.bonus == 0
         assert e.total == 700_000
 
     def test_trial_employee_salary_floors_at_zero_not_negative(self, client):
         make_admin(client)
-        op = make_user("op_trial_low", role="operario", salary=50_000,
+        op = make_user("op_trial_low", role="operario", salary=100_000,
                         hire_date=date.today())
         period = create_period(client, date.today() - timedelta(days=14), date.today())
         e = entry_for(period.id, op.id)
-        assert e.base_salary == 0  # max(50_000 - 100_000, 0)
+        assert e.base_salary == 0  # max(100_000/2 - 100_000, 0)
 
     def test_quality_error_ignored_for_bonus_during_trial(self, client):
         make_admin(client)
-        op = make_user("op_trial_qc", role="operario", salary=800_000,
+        op = make_user("op_trial_qc", role="operario", salary=1_600_000,
                         hire_date=date.today())
         create_quality_error(client, "grave", [op.id])
         period = create_period(client, date.today() - timedelta(days=14), date.today())
@@ -269,7 +270,7 @@ class TestPayrollNew:
 
     def test_pending_vale_is_swept_into_new_period_and_deducted(self, client):
         make_admin(client)
-        op = make_user("op_vale", role="operario", salary=1_000_000,
+        op = make_user("op_vale", role="operario", salary=2_000_000,
                         hire_date=date.today() - timedelta(days=200))
         create_vale(client, op.id, 50_000, "Adelanto")
         period = create_period(client, date.today() - timedelta(days=14), date.today())
@@ -282,7 +283,7 @@ class TestPayrollNew:
 
     def test_vale_already_assigned_is_not_swept_into_a_second_period(self, client):
         make_admin(client)
-        op = make_user("op_vale2", role="operario", salary=1_000_000,
+        op = make_user("op_vale2", role="operario", salary=2_000_000,
                         hire_date=date.today() - timedelta(days=200))
         create_vale(client, op.id, 50_000)
         period1 = create_period(client, date.today() - timedelta(days=28), date.today() - timedelta(days=15))
@@ -295,10 +296,10 @@ class TestPayrollNew:
 
     def test_only_active_operarios_get_entries(self, client):
         make_admin(client)
-        make_user("op_lider", role="lider", salary=1_000_000)
-        make_user("op_admin2", role="admin", salary=1_000_000)
-        make_user("op_inactive", role="operario", salary=1_000_000, is_active=False)
-        op_ok = make_user("op_ok", role="operario", salary=1_000_000,
+        make_user("op_lider", role="lider", salary=2_000_000)
+        make_user("op_admin2", role="admin", salary=2_000_000)
+        make_user("op_inactive", role="operario", salary=2_000_000, is_active=False)
+        op_ok = make_user("op_ok", role="operario", salary=2_000_000,
                            hire_date=date.today() - timedelta(days=200))
 
         period = create_period(client, date.today() - timedelta(days=14), date.today())
@@ -306,6 +307,22 @@ class TestPayrollNew:
 
         assert len(entries) == 1
         assert entries[0].employee_id == op_ok.id
+
+    def test_base_salary_is_half_of_monthly_salary(self, client):
+        make_admin(client)
+        op = make_user("op_half", role="operario", salary=1_700_000,
+                        hire_date=date.today() - timedelta(days=200))
+        period = create_period(client, date.today() - timedelta(days=14), date.today())
+        e = entry_for(period.id, op.id)
+        assert e.base_salary == 850_000
+
+    def test_base_salary_rounds_up_for_odd_monthly_salary(self, client):
+        make_admin(client)
+        op = make_user("op_odd", role="operario", salary=1_000_001,
+                        hire_date=date.today() - timedelta(days=200))
+        period = create_period(client, date.today() - timedelta(days=14), date.today())
+        e = entry_for(period.id, op.id)
+        assert e.base_salary == 500_001
 
 
 # =====================================================================
@@ -365,7 +382,7 @@ class TestPayrollEntryUpdate:
 
     def test_bonus_extra_applied_for_non_trial_employee(self, client):
         make_admin(client)
-        op = make_user("op_bonus_extra", role="operario", salary=1_000_000,
+        op = make_user("op_bonus_extra", role="operario", salary=2_000_000,
                         hire_date=date.today() - timedelta(days=200))
         period = create_period(client, date.today() - timedelta(days=14), date.today())
         e = entry_for(period.id, op.id)
@@ -381,7 +398,7 @@ class TestPayrollEntryUpdate:
 
     def test_vale_added_via_payroll_screen_updates_entry_once(self, client):
         make_admin(client)
-        op = make_user("op_vale3", role="operario", salary=1_000_000,
+        op = make_user("op_vale3", role="operario", salary=2_000_000,
                         hire_date=date.today() - timedelta(days=200))
         period = create_period(client, date.today() - timedelta(days=14), date.today())
         e = entry_for(period.id, op.id)

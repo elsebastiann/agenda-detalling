@@ -146,7 +146,7 @@
               </tr>
               <tr>
                 <td class="text-muted">Desc. vales</td>
-                <td class="text-end text-danger">
+                <td class="text-end text-danger" id="vales-deduction-{{ entry.id }}">
                   − $ {{ "{:,}".format(entry.deduction_vales).replace(",",".") }}
                 </td>
               </tr>
@@ -274,6 +274,15 @@ function updateEntry(entryId, field, value) {
       const totalEl = document.getElementById('total-' + entryId);
       if (totalEl) {
         totalEl.textContent = '$ ' + data.total.toLocaleString('es-CL');
+      }
+      // Actualizar celdas de descuento que dependen del recálculo del servidor
+      const absenceEl = document.getElementById('absence-deduction-' + entryId);
+      if (absenceEl && data.deduction_absences !== undefined) {
+        absenceEl.textContent = '− $ ' + data.deduction_absences.toLocaleString('es-CL');
+      }
+      const valesEl = document.getElementById('vales-deduction-' + entryId);
+      if (valesEl && data.deduction_vales !== undefined) {
+        valesEl.textContent = '− $ ' + data.deduction_vales.toLocaleString('es-CL');
       }
     }
   });
