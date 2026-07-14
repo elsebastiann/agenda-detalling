@@ -686,6 +686,9 @@ class PayrollEntry(db.Model):
     deduction_absences  = db.Column(db.Integer, nullable=False, default=0)
     deduction_vales     = db.Column(db.Integer, nullable=False, default=0)
     deduction_drinks    = db.Column(db.Integer, nullable=False, default=0)
+    # Informativo: cuánto de los errores de calidad ya quedó reflejado en `bonus` más arriba.
+    # No se resta de nuevo en recalculate() — los errores de calidad solo reducen el bono (tope $100k),
+    # nunca el salario base.
     deduction_quality   = db.Column(db.Integer, nullable=False, default=0)
     deduction_other     = db.Column(db.Integer, nullable=False, default=0)
     deduction_other_notes = db.Column(db.String(300), nullable=True)
@@ -703,7 +706,6 @@ class PayrollEntry(db.Model):
             - self.deduction_absences
             - self.deduction_vales
             - self.deduction_drinks
-            - self.deduction_quality
             - self.deduction_other
         )
 
