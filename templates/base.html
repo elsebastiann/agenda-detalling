@@ -487,10 +487,14 @@
     <div class="collapse navbar-collapse justify-content-end" id="navbarContent">
       <div class="d-flex flex-column flex-lg-row align-items-lg-center gap-1 py-2 py-lg-0">
         <a class="nav-link-custom" href="{{ url_for('calendar_view') }}">Agenda</a>
+        {% if not current_user or current_user.role != 'operario' %}
         <a class="nav-link-custom" href="{{ url_for('whatsapp_inbox') }}">Mensajes</a>
         <a class="nav-link-custom" href="{{ url_for('quality_errors_list') }}">Errores</a>
+        {% endif %}
         <a class="nav-link-custom nav-link-accent" href="{{ url_for('new_appointment') }}">+ Nueva</a>
+        {% if not current_user or current_user.role != 'operario' %}
         <a class="nav-link-custom" href="{{ url_for('expenses_new') }}">Gastos</a>
+        {% endif %}
         <div class="dropdown">
           <button class="nav-link-custom border-0 bg-transparent dropdown-toggle"
                   type="button" data-bs-toggle="dropdown" aria-expanded="false">Más</button>
@@ -498,10 +502,13 @@
               style="background:var(--surface);border:1px solid var(--border);border-radius:14px;min-width:220px;box-shadow:0 8px 24px rgba(0,0,0,0.1);">
             {# ── Operaciones ── #}
             <li><div class="dropdown-group-label">Operaciones</div></li>
+            {% if not current_user or current_user.role != 'operario' %}
             <li><a class="dropdown-item-custom" href="{{ url_for('sales_list') }}"><i class="bi bi-graph-up-arrow"></i>Ingresos</a></li>
+            {% endif %}
             <li><a class="dropdown-item-custom" href="{{ url_for('appointments_list') }}"><i class="bi bi-card-list"></i>Citas</a></li>
             <li><a class="dropdown-item-custom" href="{{ url_for('parking_list') }}"><i class="bi bi-p-square"></i>Parqueaderos</a></li>
             {# ── Configuración ── #}
+            {% if not current_user or current_user.role != 'operario' %}
             <li><hr style="border-color:var(--border);margin:6px 14px;"></li>
             <li><div class="dropdown-group-label">Configuración</div></li>
             <li><a class="dropdown-item-custom" href="{{ url_for('services_view') }}"><i class="bi bi-tools"></i>Servicios</a></li>
@@ -510,6 +517,7 @@
             <li><a class="dropdown-item-custom" href="{{ url_for('payment_methods_list') }}"><i class="bi bi-credit-card"></i>Medios de pago</a></li>
             <li><a class="dropdown-item-custom" href="{{ url_for('agreements_list') }}"><i class="bi bi-handshake"></i>Convenios</a></li>
             <li><a class="dropdown-item-custom" href="{{ url_for('expense_categories_list') }}"><i class="bi bi-tags"></i>Categorías de gastos</a></li>
+            {% endif %}
             {# ── Administración ── #}
             {% if current_user and current_user.role == 'admin' %}
             <li><hr style="border-color:var(--border);margin:6px 14px;"></li>
@@ -588,13 +596,16 @@
   {# ── Operaciones ── #}
   <hr>
   <div class="bn-group-label">Operaciones</div>
+  {% if not current_user or current_user.role != 'operario' %}
   <a href="{{ url_for('whatsapp_inbox') }}"><i class="bi bi-whatsapp"></i>Mensajes</a>
   <a href="{{ url_for('expenses_new') }}"><i class="bi bi-cash-stack"></i>Gastos</a>
   <a href="{{ url_for('sales_list') }}"><i class="bi bi-graph-up-arrow"></i>Ingresos</a>
+  {% endif %}
   <a href="{{ url_for('appointments_list') }}"><i class="bi bi-card-list"></i>Citas</a>
   <a href="{{ url_for('parking_list') }}"><i class="bi bi-p-square"></i>Parqueaderos</a>
 
   {# ── Configuración ── #}
+  {% if not current_user or current_user.role != 'operario' %}
   <hr>
   <div class="bn-group-label">Configuración</div>
   <a href="{{ url_for('services_view') }}"><i class="bi bi-tools"></i>Servicios</a>
@@ -603,6 +614,7 @@
   <a href="{{ url_for('payment_methods_list') }}"><i class="bi bi-credit-card"></i>Medios de pago</a>
   <a href="{{ url_for('agreements_list') }}"><i class="bi bi-handshake"></i>Convenios</a>
   <a href="{{ url_for('expense_categories_list') }}"><i class="bi bi-tags"></i>Categorías de gastos</a>
+  {% endif %}
 
   {# ── Administración (solo admin) ── #}
   {% if current_user and current_user.role == 'admin' %}
@@ -633,15 +645,19 @@
   <a class="bn-item" href="{{ url_for('calendar_view') }}">
     <i class="bi bi-calendar3"></i><span>Agenda</span>
   </a>
+  {% if not current_user or current_user.role != 'operario' %}
   <a class="bn-item" href="{{ url_for('quality_errors_list') }}">
     <i class="bi bi-exclamation-triangle-fill"></i><span>Errores</span>
   </a>
+  {% endif %}
   <a class="bn-item bn-primary" href="{{ url_for('new_appointment') }}">
     <i class="bi bi-plus"></i><span>Nueva</span>
   </a>
+  {% if not current_user or current_user.role != 'operario' %}
   <a class="bn-item" href="{{ url_for('whatsapp_inbox') }}">
     <i class="bi bi-whatsapp"></i><span>Mensajes</span>
   </a>
+  {% endif %}
   <button class="bn-item" onclick="toggleBnMenu()">
     <i class="bi bi-grid-3x3-gap"></i><span>Más</span>
   </button>

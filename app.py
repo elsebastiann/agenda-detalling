@@ -2948,6 +2948,7 @@ OPERARIO_ENDPOINTS = {
     "parking_list", "parking_new", "parking_delete",
     "api_events", "api_client_by_plate", "api_client_plates",
     "api_client_names", "api_client_by_name", "api_estimate_price",
+    "change_password",
 }
 
 @app.before_request
