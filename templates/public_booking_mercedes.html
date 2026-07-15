@@ -604,7 +604,11 @@
     slotsGrid.innerHTML = "";
     customerCard.classList.add("hidden");
     calGrid.innerHTML = "";
-    calMsg.innerHTML = '<div class="msg info">Selecciona servicio(s) y tipo de vehículo para ver el calendario.</div>';
+    if (mode === "diagnostic"){
+      calMsg.innerHTML = '<div class="msg error">No hay diagnósticos disponibles por ahora. Contáctanos directamente.</div>';
+    } else {
+      calMsg.innerHTML = '<div class="msg info">Selecciona servicio(s) y tipo de vehículo para ver el calendario.</div>';
+    }
   }
 
   function isoDate(y,m,d){
