@@ -1,0 +1,383 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Agenda tu cita — Convenio Club Mercedes-Benz</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root {
+    color-scheme: dark;
+    --bg:        #1a1814;
+    --surface:   #252118;
+    --surface2:  #2e2a20;
+    --border:    #3a332a;
+    --text:      #f0ead8;
+    --text2:     #9e9282;
+    --text3:     #6b5f52;
+    --accent:    #d4b46c;
+    --accent-dk: #c4a050;
+    --accent-bg: rgba(212,180,108,0.10);
+    --radius:    12px;
+    --radius-sm: 8px;
+    --danger:    #e07060;
+    --success:   #4caf6e;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 15px;
+  }
+  .wrap { max-width: 480px; margin: 0 auto; padding: 20px 16px 40px; }
+  h1 { font-size: 1.15rem; font-weight: 800; margin: 0 0 2px; }
+  .sub { color: var(--text2); font-size: 0.82rem; margin: 0 0 20px; }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 14px;
+  }
+  .label {
+    color: var(--text2); font-size: 0.72rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 8px; display: block;
+  }
+
+  .pill-group { display: flex; flex-wrap: wrap; gap: 8px; }
+  .pill {
+    flex: 1 1 auto; min-width: 120px;
+    border: 1.5px solid var(--border);
+    background: var(--surface2);
+    color: var(--text2);
+    border-radius: 999px;
+    padding: 9px 14px;
+    font-size: 0.82rem; font-weight: 600;
+    text-align: center; cursor: pointer;
+    user-select: none;
+    transition: all .15s;
+  }
+  .pill.active { border-color: var(--accent); background: var(--accent-bg); color: var(--accent); }
+
+  .tab-row { display: flex; gap: 8px; margin-bottom: 12px; }
+  .tab {
+    flex: 1; text-align: center; padding: 9px; border-radius: var(--radius-sm);
+    background: var(--surface2); border: 1px solid var(--border);
+    color: var(--text2); font-size: 0.82rem; font-weight: 700; cursor: pointer;
+  }
+  .tab.active { background: var(--accent); color: #1a1814; border-color: var(--accent); }
+
+  .checklist { display: flex; flex-direction: column; gap: 6px; }
+  .check-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 12px; border-radius: var(--radius-sm);
+    border: 1px solid var(--border); background: var(--surface2);
+    cursor: pointer; font-size: 0.85rem;
+  }
+  .check-item input { accent-color: var(--accent); width: 16px; height: 16px; }
+  .check-item.checked { border-color: var(--accent); background: var(--accent-bg); color: var(--accent); }
+
+  select, input[type="text"], input[type="tel"], input[type="date"] {
+    width: 100%;
+    background: var(--surface2);
+    border: 1.5px solid var(--border);
+    color: var(--text);
+    border-radius: var(--radius-sm);
+    padding: 10px 12px;
+    font-size: 0.88rem;
+    margin-bottom: 4px;
+  }
+  select:focus, input:focus { outline: none; border-color: var(--accent); }
+  input[type="date"] { color-scheme: dark; }
+
+  .slots { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 10px; }
+  .slot-btn {
+    border: 1.5px solid var(--border);
+    background: var(--surface2);
+    color: var(--text);
+    border-radius: var(--radius-sm);
+    padding: 10px 8px;
+    text-align: center;
+    cursor: pointer;
+    font-size: 0.8rem;
+  }
+  .slot-btn .t1 { font-weight: 700; font-size: 0.92rem; }
+  .slot-btn .t2 { color: var(--text3); font-size: 0.68rem; margin-top: 2px; }
+  .slot-btn.active { border-color: var(--accent); background: var(--accent-bg); }
+  .slot-btn.active .t1 { color: var(--accent); }
+
+  .btn {
+    display: block; width: 100%;
+    background: var(--accent); color: #1a1814;
+    border: none; border-radius: var(--radius-sm);
+    padding: 13px; font-size: 0.92rem; font-weight: 700;
+    cursor: pointer; margin-top: 6px;
+  }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn:hover:not(:disabled) { background: var(--accent-dk); }
+
+  .msg { font-size: 0.8rem; padding: 10px 12px; border-radius: var(--radius-sm); margin-top: 10px; }
+  .msg.error { background: rgba(224,112,96,0.12); color: var(--danger); border: 1px solid rgba(224,112,96,0.3); }
+  .msg.info  { color: var(--text3); }
+  .msg.success { background: rgba(76,175,110,0.12); color: var(--success); border: 1px solid rgba(76,175,110,0.3); }
+
+  .hidden { display: none !important; }
+  .confirm-box { text-align: center; padding: 24px 16px; }
+  .confirm-box i { font-size: 2.2rem; color: var(--success); }
+  .confirm-box h2 { font-size: 1.1rem; margin: 12px 0 6px; }
+  .confirm-box p { color: var(--text2); font-size: 0.85rem; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Agenda tu cita</h1>
+  <p class="sub">Convenio Club Mercedes-Benz · Noxa Detailing</p>
+
+  <div id="bookingForm">
+
+    <div class="card">
+      <span class="label">Tu membresía</span>
+      <div class="pill-group" id="tierPills">
+        {% for key, label in tiers.items() %}
+        <div class="pill" data-tier="{{ key }}">{{ label }}</div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="card">
+      <span class="label">Tipo de cita</span>
+      <div class="tab-row">
+        <div class="tab active" data-mode="service">Servicio</div>
+        <div class="tab" data-mode="diagnostic">Diagnóstico</div>
+      </div>
+
+      <div id="serviceList" class="checklist">
+        {% for s in normal_services %}
+        <label class="check-item" data-name="service">
+          <input type="checkbox" value="{{ s.id }}">
+          <span>{{ s.name }}</span>
+        </label>
+        {% endfor %}
+      </div>
+      <div id="diagnosticList" class="checklist hidden">
+        {% for s in diagnostic_services %}
+        <label class="check-item" data-name="diagnostic">
+          <input type="checkbox" value="{{ s.id }}">
+          <span>{{ s.name }}</span>
+        </label>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="card">
+      <span class="label">Tipo de vehículo</span>
+      <select id="vehicleType">
+        <option value="">Selecciona...</option>
+        {% for v in vehicle_types %}
+        <option value="{{ v.id }}">{{ v.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="card">
+      <span class="label">Fecha</span>
+      <input type="date" id="dateInput" min="{{ min_date }}" max="{{ max_date }}" value="{{ min_date }}">
+      <button class="btn" id="btnCheckAvailability" type="button">Ver horarios disponibles</button>
+      <div id="availabilityMsg"></div>
+      <div class="slots hidden" id="slotsGrid"></div>
+    </div>
+
+    <div class="card hidden" id="customerCard">
+      <span class="label">Tus datos</span>
+      <input type="text" id="customerName" placeholder="Nombre completo">
+      <input type="tel" id="customerPhone" placeholder="Teléfono / WhatsApp">
+      <input type="text" id="customerPlate" placeholder="Placa del vehículo">
+      <button class="btn" id="btnConfirm" type="button">Confirmar reserva</button>
+      <div id="bookMsg"></div>
+    </div>
+
+  </div>
+
+  <div class="card confirm-box hidden" id="confirmBox">
+    <i>✓</i>
+    <h2>¡Cita confirmada!</h2>
+    <p id="confirmText"></p>
+  </div>
+
+</div>
+
+<script>
+(function(){
+  var selectedTier = null;
+  var mode = "service";
+  var selectedSlot = null;
+
+  var tierPills = document.querySelectorAll("#tierPills .pill");
+  var tabs = document.querySelectorAll(".tab");
+  var serviceList = document.getElementById("serviceList");
+  var diagnosticList = document.getElementById("diagnosticList");
+  var vehicleType = document.getElementById("vehicleType");
+  var dateInput = document.getElementById("dateInput");
+  var btnCheck = document.getElementById("btnCheckAvailability");
+  var availabilityMsg = document.getElementById("availabilityMsg");
+  var slotsGrid = document.getElementById("slotsGrid");
+  var customerCard = document.getElementById("customerCard");
+  var btnConfirm = document.getElementById("btnConfirm");
+  var bookMsg = document.getElementById("bookMsg");
+  var bookingForm = document.getElementById("bookingForm");
+  var confirmBox = document.getElementById("confirmBox");
+  var confirmText = document.getElementById("confirmText");
+
+  tierPills.forEach(function(p){
+    p.addEventListener("click", function(){
+      tierPills.forEach(function(x){ x.classList.remove("active"); });
+      p.classList.add("active");
+      selectedTier = p.getAttribute("data-tier");
+    });
+  });
+
+  tabs.forEach(function(t){
+    t.addEventListener("click", function(){
+      tabs.forEach(function(x){ x.classList.remove("active"); });
+      t.classList.add("active");
+      mode = t.getAttribute("data-mode");
+      serviceList.classList.toggle("hidden", mode !== "service");
+      diagnosticList.classList.toggle("hidden", mode !== "diagnostic");
+      resetSlots();
+    });
+  });
+
+  document.querySelectorAll(".check-item input").forEach(function(cb){
+    cb.addEventListener("change", function(){
+      cb.closest(".check-item").classList.toggle("checked", cb.checked);
+      resetSlots();
+    });
+  });
+  vehicleType.addEventListener("change", resetSlots);
+  dateInput.addEventListener("change", resetSlots);
+
+  function resetSlots(){
+    slotsGrid.classList.add("hidden");
+    slotsGrid.innerHTML = "";
+    availabilityMsg.innerHTML = "";
+    customerCard.classList.add("hidden");
+    selectedSlot = null;
+  }
+
+  function getSelectedServiceIds(){
+    var list = mode === "service" ? serviceList : diagnosticList;
+    return Array.prototype.slice.call(list.querySelectorAll("input:checked")).map(function(cb){ return cb.value; });
+  }
+
+  btnCheck.addEventListener("click", function(){
+    var ids = getSelectedServiceIds();
+    var vtId = vehicleType.value;
+    var dateVal = dateInput.value;
+
+    resetSlots();
+
+    if (!ids.length){
+      availabilityMsg.innerHTML = '<div class="msg error">Selecciona al menos un servicio.</div>';
+      return;
+    }
+    if (!vtId){
+      availabilityMsg.innerHTML = '<div class="msg error">Selecciona el tipo de vehículo.</div>';
+      return;
+    }
+
+    availabilityMsg.innerHTML = '<div class="msg info">Buscando horarios...</div>';
+
+    var url = "/api/public/mercedes-benz/availability?date=" + encodeURIComponent(dateVal)
+      + "&service_ids=" + encodeURIComponent(ids.join(","))
+      + "&vehicle_type_id=" + encodeURIComponent(vtId);
+
+    fetch(url).then(function(r){ return r.json(); }).then(function(data){
+      if (!data.ok){
+        availabilityMsg.innerHTML = '<div class="msg error">' + (data.error || "No se pudo consultar disponibilidad.") + '</div>';
+        return;
+      }
+      if (data.closed){
+        availabilityMsg.innerHTML = '<div class="msg error">No atendemos ese día.</div>';
+        return;
+      }
+      if (!data.slots.length){
+        availabilityMsg.innerHTML = '<div class="msg error">No hay horarios disponibles ese día. Prueba otra fecha.</div>';
+        return;
+      }
+      availabilityMsg.innerHTML = '';
+      slotsGrid.classList.remove("hidden");
+      data.slots.forEach(function(slot){
+        var el = document.createElement("div");
+        el.className = "slot-btn";
+        el.innerHTML = '<div class="t1">' + slot.start_label + '</div><div class="t2">Listo aprox. ' + slot.end_estimate_label + '</div>';
+        el.addEventListener("click", function(){
+          document.querySelectorAll(".slot-btn").forEach(function(x){ x.classList.remove("active"); });
+          el.classList.add("active");
+          selectedSlot = slot;
+          customerCard.classList.remove("hidden");
+          customerCard.scrollIntoView({behavior: "smooth", block: "nearest"});
+        });
+        slotsGrid.appendChild(el);
+      });
+    }).catch(function(){
+      availabilityMsg.innerHTML = '<div class="msg error">Error de conexión. Intenta de nuevo.</div>';
+    });
+  });
+
+  btnConfirm.addEventListener("click", function(){
+    var name = document.getElementById("customerName").value.trim();
+    var phone = document.getElementById("customerPhone").value.trim();
+    var plate = document.getElementById("customerPlate").value.trim();
+
+    bookMsg.innerHTML = "";
+
+    if (!selectedTier){
+      bookMsg.innerHTML = '<div class="msg error">Selecciona tu tipo de membresía arriba.</div>';
+      return;
+    }
+    if (!selectedSlot){
+      bookMsg.innerHTML = '<div class="msg error">Selecciona un horario.</div>';
+      return;
+    }
+    if (!name || !phone || !plate){
+      bookMsg.innerHTML = '<div class="msg error">Completa nombre, teléfono y placa.</div>';
+      return;
+    }
+
+    btnConfirm.disabled = true;
+    bookMsg.innerHTML = '<div class="msg info">Confirmando...</div>';
+
+    fetch("/api/public/mercedes-benz/book", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({
+        tier: selectedTier,
+        customer_name: name,
+        phone: phone,
+        plate: plate,
+        date: dateInput.value,
+        start_time: selectedSlot.start_label,
+        vehicle_type_id: vehicleType.value,
+        service_ids: getSelectedServiceIds()
+      })
+    }).then(function(r){ return r.json(); }).then(function(data){
+      btnConfirm.disabled = false;
+      if (!data.ok){
+        bookMsg.innerHTML = '<div class="msg error">' + (data.error || "No se pudo agendar.") + '</div>';
+        return;
+      }
+      bookingForm.classList.add("hidden");
+      confirmBox.classList.remove("hidden");
+      confirmText.textContent = "Te esperamos el " + dateInput.value + " a las " + data.start_label
+        + ". Entrega estimada aprox. " + data.end_estimate_label + ".";
+    }).catch(function(){
+      btnConfirm.disabled = false;
+      bookMsg.innerHTML = '<div class="msg error">Error de conexión. Intenta de nuevo.</div>';
+    });
+  });
+})();
+</script>
+</body>
+</html>

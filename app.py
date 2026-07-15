@@ -16,6 +16,34 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 
+# -----------------------
+# WIDGET PÚBLICO — CONVENIO CLUB MERCEDES-BENZ
+# -----------------------
+# Cupo máximo de servicios normales (operarios) al mismo tiempo.
+MAX_CONCURRENT_SERVICES = 3
+# Cupo máximo de diagnósticos al mismo tiempo (los hace el dueño, no operarios;
+# pueden solaparse entre sí y con los 3 servicios normales de arriba).
+MAX_CONCURRENT_DIAGNOSTICS = 2
+# Horario de atención para el agendamiento público.
+BUSINESS_START_HOUR = 8
+BUSINESS_END_HOUR = 17
+# Días hábiles: lunes=0 ... domingo=6 (por defecto lunes a sábado)
+BUSINESS_WEEKDAYS = {0, 1, 2, 3, 4, 5}
+# Con cuántos días de anticipación máxima se puede agendar desde el widget.
+BOOKING_WINDOW_DAYS = 15
+# Granularidad de los horarios ofrecidos.
+SLOT_INTERVAL_MINUTES = 30
+
+# Tier del socio -> nombre exacto del convenio (Agreement.name) en producción.
+TIER_AGREEMENT_NAMES = {
+    "classic_star": "Club Mercedes-Benz",
+    "silver": "Membresia Mercedez",
+}
+TIER_LABELS = {
+    "classic_star": "Classic / Star",
+    "silver": "Silver",
+}
+
 COLORS = {
     "wash essential":           "#FFF3B0",
     "wash shine":               "#FFD6E0",
@@ -117,9 +145,24 @@ class Service(db.Model):
     name = db.Column(db.String(120), nullable=False, unique=True)
     duration_minutes = db.Column(db.Integer, nullable=False)
     is_active = db.Column(db.Boolean, default=True)
+    # Diagnósticos los hace el dueño (no operarios): pueden solaparse entre
+    # sí y con servicios normales, con su propio cupo de concurrencia.
+    is_diagnostic = db.Column(db.Boolean, nullable=False, default=False)
 
     def __repr__(self):
         return f"<Service {self.name} ({self.duration_minutes} min)>"
+
+def ensure_service_diagnostic_schema():
+    with app.app_context():
+        try:
+            db.session.execute(text("SELECT is_diagnostic FROM services LIMIT 1"))
+        except Exception:
+            db.session.execute(
+                text("ALTER TABLE services ADD COLUMN is_diagnostic BOOLEAN DEFAULT 0")
+            )
+            db.session.commit()
+
+ensure_service_diagnostic_schema()
 
 # -----------------------
 # VEHICLE TYPES (CATÁLOGO)
@@ -372,6 +415,10 @@ class Appointment(db.Model):
     # Estado de la cita: scheduled | completed | cancelled
     status = db.Column(db.String(20), nullable=False, default="scheduled")
 
+    # Origen de la cita: None/"internal" (agendada por el equipo) o
+    # "mercedes_benz_widget" (autoagendada por un socio del club)
+    source = db.Column(db.String(50), nullable=True)
+
     # Timing real del trabajo: pending | in_progress | paused | done
     work_status         = db.Column(db.String(20), nullable=False, default="pending")
     work_started_at     = db.Column(db.DateTime, nullable=True)
@@ -466,6 +513,18 @@ def ensure_appointment_notif_schema():
         db.session.commit()
 
 ensure_appointment_notif_schema()
+
+def ensure_appointment_source_schema():
+    with app.app_context():
+        try:
+            db.session.execute(text("SELECT source FROM appointments LIMIT 1"))
+        except Exception:
+            db.session.execute(
+                text("ALTER TABLE appointments ADD COLUMN source VARCHAR(50)")
+            )
+            db.session.commit()
+
+ensure_appointment_source_schema()
 
 # --- Migración: tabla appointment_operators ---
 def ensure_appointment_operators_schema():
@@ -1050,6 +1109,89 @@ def calculate_real_price(service_ids: list[int], vehicle_type_id: int) -> int:
 
     return int(total_price)
 
+# -----------------------
+# WIDGET PÚBLICO — disponibilidad y reservas
+# -----------------------
+
+def resolve_tier_agreement_id(tier_key: str):
+    """Busca en producción el Agreement activo que corresponde al tier del socio."""
+    name = TIER_AGREEMENT_NAMES.get(tier_key)
+    if not name:
+        return None
+    ag = Agreement.query.filter_by(name=name, is_active=True).first()
+    return ag.id if ag else None
+
+
+def _appointment_is_diagnostic_only(appt, service_lookup: dict) -> bool:
+    """
+    Determina si una cita existente es 100% de diagnóstico, a partir del
+    texto libre en Appointment.services (no hay FK a Service ahí).
+    Si algún nombre no matchea un servicio conocido, se trata como cita
+    normal por seguridad (para no dejar pasar de largo el cupo de 3).
+    """
+    names = [n.strip().lower() for n in (appt.services or "").split(",") if n.strip()]
+    if not names:
+        return False
+    flags = [service_lookup.get(n) for n in names]
+    if any(f is None for f in flags):
+        return False
+    return all(flags)
+
+
+def get_available_slots(target_date, service_ids: list[int], vehicle_type_id: int):
+    """
+    Devuelve (slots, total_minutes) para una fecha dada.
+    Cada slot es {"start_iso", "start_label", "end_estimate_label"}.
+    Lanza ValueError si se mezclan diagnósticos con servicios normales.
+    """
+    services = Service.query.filter(Service.id.in_(service_ids)).all()
+    if not services:
+        raise ValueError("Servicios inválidos.")
+
+    is_diagnostic_booking = all(s.is_diagnostic for s in services)
+    if any(s.is_diagnostic for s in services) and not is_diagnostic_booking:
+        raise ValueError("No se pueden combinar diagnósticos con otros servicios en la misma cita.")
+
+    total_minutes = calculate_real_duration_minutes(service_ids, vehicle_type_id)
+
+    day_start = datetime.combine(target_date, datetime.min.time()).replace(hour=BUSINESS_START_HOUR)
+    day_end = datetime.combine(target_date, datetime.min.time()).replace(hour=BUSINESS_END_HOUR)
+
+    existing = Appointment.query.filter(
+        Appointment.status != "cancelled",
+        Appointment.start_datetime < day_end,
+        Appointment.end_datetime > day_start,
+    ).all()
+
+    service_lookup = {s.name.strip().lower(): s.is_diagnostic for s in Service.query.all()}
+    relevant = [
+        a for a in existing
+        if _appointment_is_diagnostic_only(a, service_lookup) == is_diagnostic_booking
+    ]
+
+    limit = MAX_CONCURRENT_DIAGNOSTICS if is_diagnostic_booking else MAX_CONCURRENT_SERVICES
+
+    now = datetime.now()
+    slots = []
+    cursor = day_start
+    while cursor + timedelta(minutes=total_minutes) <= day_end:
+        candidate_end = cursor + timedelta(minutes=total_minutes)
+        if cursor >= now:
+            overlapping = sum(
+                1 for a in relevant
+                if a.start_datetime < candidate_end and a.end_datetime > cursor
+            )
+            if overlapping < limit:
+                slots.append({
+                    "start_iso": cursor.isoformat(),
+                    "start_label": cursor.strftime("%H:%M"),
+                    "end_estimate_label": candidate_end.strftime("%H:%M"),
+                })
+        cursor += timedelta(minutes=SLOT_INTERVAL_MINUTES)
+
+    return slots, total_minutes
+
+
 # Servicios excluidos de descuentos por convenio (siempre precio completo)
 AGREEMENT_EXCLUDED_SERVICES = {
     "Wash Essential",
@@ -1457,6 +1599,153 @@ def new_appointment():
     )
 
 
+# -----------------------
+# WIDGET PÚBLICO — CONVENIO CLUB MERCEDES-BENZ
+# (pensado para embeberse en un <iframe> en la página del club; sin login)
+# -----------------------
+
+@app.route("/agendar/mercedes-benz")
+def public_booking_mercedes():
+    normal_services = Service.query.filter_by(is_active=True, is_diagnostic=False).order_by(Service.name).all()
+    diagnostic_services = Service.query.filter_by(is_active=True, is_diagnostic=True).order_by(Service.name).all()
+    vehicle_types = VehicleType.query.filter_by(is_active=True).order_by(VehicleType.name).all()
+
+    today = date.today()
+    return render_template(
+        "public_booking_mercedes.html",
+        normal_services=normal_services,
+        diagnostic_services=diagnostic_services,
+        vehicle_types=vehicle_types,
+        tiers=TIER_LABELS,
+        min_date=today.isoformat(),
+        max_date=(today + timedelta(days=BOOKING_WINDOW_DAYS)).isoformat(),
+    )
+
+
+@app.route("/api/public/mercedes-benz/availability")
+def api_public_mb_availability():
+    date_str = request.args.get("date") or ""
+    service_ids_str = request.args.get("service_ids") or ""
+    vehicle_type_id = request.args.get("vehicle_type_id")
+
+    try:
+        target_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+    except ValueError:
+        return jsonify({"ok": False, "error": "Fecha inválida."}), 400
+
+    today = date.today()
+    if target_date < today or target_date > today + timedelta(days=BOOKING_WINDOW_DAYS):
+        return jsonify({"ok": False, "error": "Esa fecha está fuera de la ventana de agendamiento."}), 400
+
+    if target_date.weekday() not in BUSINESS_WEEKDAYS:
+        return jsonify({"ok": True, "slots": [], "total_minutes": 0, "closed": True})
+
+    try:
+        service_ids = [int(x) for x in service_ids_str.split(",") if x.strip()]
+    except ValueError:
+        service_ids = []
+
+    if not service_ids or not vehicle_type_id:
+        return jsonify({"ok": False, "error": "Selecciona servicio(s) y tipo de vehículo."}), 400
+
+    try:
+        vehicle_type_id = int(vehicle_type_id)
+    except ValueError:
+        return jsonify({"ok": False, "error": "Tipo de vehículo inválido."}), 400
+
+    try:
+        slots, total_minutes = get_available_slots(target_date, service_ids, vehicle_type_id)
+    except ValueError as e:
+        return jsonify({"ok": False, "error": str(e)}), 400
+
+    return jsonify({"ok": True, "slots": slots, "total_minutes": total_minutes})
+
+
+@app.route("/api/public/mercedes-benz/book", methods=["POST"])
+def api_public_mb_book():
+    data = request.get_json(silent=True) or {}
+
+    tier = data.get("tier")
+    customer_name = (data.get("customer_name") or "").strip()
+    phone = (data.get("phone") or "").strip()
+    plate = normalize_plate(data.get("plate") or "")
+    date_str = data.get("date") or ""
+    start_time = data.get("start_time") or ""
+    vehicle_type_id = data.get("vehicle_type_id")
+    service_ids = data.get("service_ids") or []
+
+    if tier not in TIER_AGREEMENT_NAMES:
+        return jsonify({"ok": False, "error": "Selecciona tu tipo de membresía."}), 400
+    if not customer_name or not phone or not plate:
+        return jsonify({"ok": False, "error": "Nombre, teléfono y placa son obligatorios."}), 400
+    if not vehicle_type_id or not service_ids:
+        return jsonify({"ok": False, "error": "Selecciona vehículo y servicio(s)."}), 400
+
+    try:
+        target_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+        vehicle_type_id = int(vehicle_type_id)
+        service_ids = [int(x) for x in service_ids]
+    except (ValueError, TypeError):
+        return jsonify({"ok": False, "error": "Datos inválidos."}), 400
+
+    today = date.today()
+    if target_date < today or target_date > today + timedelta(days=BOOKING_WINDOW_DAYS):
+        return jsonify({"ok": False, "error": "Esa fecha está fuera de la ventana de agendamiento."}), 400
+
+    agreement_id = resolve_tier_agreement_id(tier)
+    if not agreement_id:
+        return jsonify({"ok": False, "error": "No se encontró el convenio para tu membresía. Contáctanos directamente."}), 400
+
+    # Revalidar disponibilidad en el servidor (nunca confiar en lo que mostró el navegador)
+    try:
+        slots, total_minutes = get_available_slots(target_date, service_ids, vehicle_type_id)
+    except ValueError as e:
+        return jsonify({"ok": False, "error": str(e)}), 400
+
+    matching_slot = next((s for s in slots if s["start_label"] == start_time), None)
+    if not matching_slot:
+        return jsonify({"ok": False, "error": "Ese horario ya no está disponible. Elige otro."}), 409
+
+    start_dt = datetime.combine(target_date, datetime.min.time()).replace(
+        hour=int(start_time.split(":")[0]), minute=int(start_time.split(":")[1])
+    )
+    end_dt = start_dt + timedelta(minutes=total_minutes)
+
+    selected_services = Service.query.filter(Service.id.in_(service_ids)).all()
+    services_str = ", ".join(s.name for s in selected_services)
+
+    upsert_client_from_appointment(
+        plate=plate,
+        full_name=customer_name,
+        phone=phone,
+        vehicle_type_id=vehicle_type_id,
+        agreement_id=agreement_id,
+    )
+
+    appt = Appointment(
+        customer_name=customer_name,
+        plate=plate,
+        phone=phone,
+        services=services_str,
+        start_datetime=start_dt,
+        end_datetime=end_dt,
+        notes=f"Agendado por el socio vía widget club Mercedes-Benz ({TIER_LABELS.get(tier, tier)}).",
+        vehicle_type_id=vehicle_type_id,
+        status="scheduled",
+        agreement_id=agreement_id,
+        source="mercedes_benz_widget",
+    )
+    db.session.add(appt)
+    db.session.commit()
+
+    return jsonify({
+        "ok": True,
+        "appointment_id": appt.id,
+        "start_label": matching_slot["start_label"],
+        "end_estimate_label": matching_slot["end_estimate_label"],
+    })
+
+
 @app.route("/appointments")
 def appointments_list():
     """Lista simple en tabla de las próximas citas."""
@@ -1615,6 +1904,14 @@ def services_view():
 def toggle_service(service_id):
     s = Service.query.get_or_404(service_id)
     s.is_active = not s.is_active
+    db.session.commit()
+    return redirect(url_for("services_view"))
+
+
+@app.route("/services/<int:service_id>/toggle-diagnostic", methods=["POST"])
+def toggle_service_diagnostic(service_id):
+    s = Service.query.get_or_404(service_id)
+    s.is_diagnostic = not s.is_diagnostic
     db.session.commit()
     return redirect(url_for("services_view"))
 
@@ -2939,7 +3236,10 @@ def seed_superadmin():
 seed_superadmin()
 
 # --- Endpoints que NO requieren sesión ---
-PUBLIC_ENDPOINTS  = {"login", "logout", "static", "whatsapp_webhook"}
+PUBLIC_ENDPOINTS  = {
+    "login", "logout", "static", "whatsapp_webhook",
+    "public_booking_mercedes", "api_public_mb_availability", "api_public_mb_book",
+}
 CHANGE_PWD_ENDPOINTS = {"change_password", "logout", "static"}
 
 # --- Endpoints accesibles por operario (además de los públicos) ---

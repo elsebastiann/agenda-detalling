@@ -28,6 +28,7 @@
         <tr>
           <th>Servicio</th>
           <th class="text-center">Estado</th>
+          <th class="text-center">Diagnóstico</th>
           <th class="text-center">Acción</th>
         </tr>
       </thead>
@@ -41,6 +42,16 @@
             {% else %}
               <span class="badge bg-secondary">Inactivo</span>
             {% endif %}
+          </td>
+          <td class="text-center">
+            <form method="POST"
+                  action="{{ url_for('toggle_service_diagnostic', service_id=s.id) }}">
+              {% if s.is_diagnostic %}
+                <button type="submit" class="btn btn-sm btn-outline-info">Sí</button>
+              {% else %}
+                <button type="submit" class="btn btn-sm btn-outline-secondary">No</button>
+              {% endif %}
+            </form>
           </td>
           <td class="text-center">
             <form method="POST"
