@@ -1839,6 +1839,7 @@ def api_public_mb_book():
     start_time = data.get("start_time") or ""
     vehicle_type_id = data.get("vehicle_type_id")
     service_ids = data.get("service_ids") or []
+    diagnostic_reason = (data.get("diagnostic_reason") or "").strip()[:500]
 
     if tier not in TIER_AGREEMENT_NAMES:
         return jsonify({"ok": False, "error": "Selecciona tu tipo de membresía."}), 400
@@ -1892,6 +1893,10 @@ def api_public_mb_book():
         agreement_id=agreement_id,
     )
 
+    notes = f"Agendado por el socio vía widget club Mercedes-Benz ({TIER_LABELS.get(tier, tier)})."
+    if diagnostic_reason:
+        notes += f" Motivo del diagnóstico: {diagnostic_reason}"
+
     appt = Appointment(
         customer_name=customer_name,
         plate=plate,
@@ -1899,7 +1904,7 @@ def api_public_mb_book():
         services=services_str,
         start_datetime=start_dt,
         end_datetime=end_dt,
-        notes=f"Agendado por el socio vía widget club Mercedes-Benz ({TIER_LABELS.get(tier, tier)}).",
+        notes=notes,
         vehicle_type_id=vehicle_type_id,
         status="scheduled",
         agreement_id=agreement_id,

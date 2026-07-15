@@ -319,6 +319,7 @@
       <input type="text" id="customerName" placeholder="Nombre completo">
       <input type="tel" id="customerPhone" placeholder="Teléfono / WhatsApp">
       <input type="text" id="customerPlate" placeholder="Placa del vehículo">
+      <textarea id="diagnosticReason" class="hidden" rows="3" placeholder="Cuéntanos brevemente qué quieres que revisemos..." style="width:100%;background:var(--surface2);border:1.5px solid var(--border);color:var(--text);border-radius:var(--radius-sm);padding:10px 12px;font-size:0.88rem;margin-bottom:4px;resize:vertical;"></textarea>
       <button class="btn" id="btnConfirm" type="button">Confirmar reserva</button>
       <div id="bookMsg"></div>
     </div>
@@ -368,6 +369,7 @@
   var calMsg = document.getElementById("calMsg");
   var slotsGrid = document.getElementById("slotsGrid");
   var customerCard = document.getElementById("customerCard");
+  var diagnosticReason = document.getElementById("diagnosticReason");
   var btnConfirm = document.getElementById("btnConfirm");
   var bookMsg = document.getElementById("bookMsg");
   var bookingForm = document.getElementById("bookingForm");
@@ -417,17 +419,21 @@
 
       // Lo seleccionado antes ya no aplica: cada cambio de modo empieza limpio.
       document.querySelectorAll(".ms-item-row input").forEach(function(cb){ cb.checked = false; });
+      diagnosticReason.value = "";
 
       if (mode === "diagnostic"){
         // Diagnóstico: no se elige servicio ni vehículo, se agenda directo, siempre sin costo.
+        // El "para qué" lo escribe el cliente en texto libre, no eligiendo del catálogo.
         serviceSelectorBlock.classList.add("hidden");
         diagnosticNote.classList.remove("hidden");
         vehicleTypeCard.classList.add("hidden");
+        diagnosticReason.classList.remove("hidden");
         document.querySelectorAll('#servicePanel_diagnostic .ms-item-row input').forEach(function(cb){ cb.checked = true; });
       } else {
         serviceSelectorBlock.classList.remove("hidden");
         diagnosticNote.classList.add("hidden");
         vehicleTypeCard.classList.remove("hidden");
+        diagnosticReason.classList.add("hidden");
       }
 
       onSelectionChanged();
@@ -732,6 +738,7 @@
     var name = document.getElementById("customerName").value.trim();
     var phone = document.getElementById("customerPhone").value.trim();
     var plate = document.getElementById("customerPlate").value.trim();
+    var reason = diagnosticReason.value.trim();
 
     bookMsg.innerHTML = "";
 
@@ -745,6 +752,10 @@
     }
     if (!name || !phone || !plate){
       bookMsg.innerHTML = '<div class="msg error">Completa nombre, teléfono y placa.</div>';
+      return;
+    }
+    if (mode === "diagnostic" && !reason){
+      bookMsg.innerHTML = '<div class="msg error">Cuéntanos brevemente qué quieres que revisemos.</div>';
       return;
     }
 
@@ -762,7 +773,8 @@
         date: selectedDate,
         start_time: selectedSlot.start_label,
         vehicle_type_id: vehicleType.value,
-        service_ids: getSelectedServiceIds()
+        service_ids: getSelectedServiceIds(),
+        diagnostic_reason: mode === "diagnostic" ? reason : ""
       })
     }).then(function(r){ return r.json(); }).then(function(data){
       btnConfirm.disabled = false;
