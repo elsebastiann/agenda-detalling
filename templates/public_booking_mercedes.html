@@ -289,7 +289,7 @@
       <div class="msg info hidden" id="diagnosticNote">Diagnóstico agendado directamente, sin costo — lo evalúa el equipo en el taller.</div>
     </div>
 
-    <div class="card">
+    <div class="card" id="vehicleTypeCard">
       <span class="label">Tipo de vehículo</span>
       <select id="vehicleType" disabled>
         <option value="">Primero selecciona servicio(s)...</option>
@@ -401,6 +401,7 @@
   // ── Tabs servicio/diagnóstico ──
   var serviceSelectorBlock = document.getElementById("serviceSelectorBlock");
   var diagnosticNote = document.getElementById("diagnosticNote");
+  var vehicleTypeCard = document.getElementById("vehicleTypeCard");
 
   tabs.forEach(function(t){
     t.addEventListener("click", function(){
@@ -418,13 +419,15 @@
       document.querySelectorAll(".ms-item-row input").forEach(function(cb){ cb.checked = false; });
 
       if (mode === "diagnostic"){
-        // Diagnóstico: no se elige servicio, se agenda directo, siempre sin costo.
+        // Diagnóstico: no se elige servicio ni vehículo, se agenda directo, siempre sin costo.
         serviceSelectorBlock.classList.add("hidden");
         diagnosticNote.classList.remove("hidden");
+        vehicleTypeCard.classList.add("hidden");
         document.querySelectorAll('#servicePanel_diagnostic .ms-item-row input').forEach(function(cb){ cb.checked = true; });
       } else {
         serviceSelectorBlock.classList.remove("hidden");
         diagnosticNote.classList.add("hidden");
+        vehicleTypeCard.classList.remove("hidden");
       }
 
       onSelectionChanged();
@@ -536,7 +539,10 @@
       vehicleType.appendChild(opt);
     });
 
-    if (allowed.indexOf(parseInt(prevValue)) !== -1){
+    if (mode === "diagnostic"){
+      // No se le pide al usuario elegir vehículo: se fija uno automáticamente.
+      vehicleType.value = allowed[0];
+    } else if (allowed.indexOf(parseInt(prevValue)) !== -1){
       vehicleType.value = prevValue;
     }
 
