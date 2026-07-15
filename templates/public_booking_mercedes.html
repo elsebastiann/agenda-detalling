@@ -244,6 +244,7 @@
         <div class="tab" data-mode="diagnostic">Diagnóstico</div>
       </div>
 
+      <div id="serviceSelectorBlock">
       <span class="label">Servicios</span>
       <div class="ms-dropdown" id="serviceDropdown">
         <button type="button" class="ms-trigger" id="serviceTrigger">
@@ -284,6 +285,8 @@
         </div>
       </div>
       <div class="ms-tags" id="serviceTags"></div>
+      </div>
+      <div class="msg info hidden" id="diagnosticNote">Diagnóstico agendado directamente, sin costo — lo evalúa el equipo en el taller.</div>
     </div>
 
     <div class="card">
@@ -396,18 +399,34 @@
   });
 
   // ── Tabs servicio/diagnóstico ──
+  var serviceSelectorBlock = document.getElementById("serviceSelectorBlock");
+  var diagnosticNote = document.getElementById("diagnosticNote");
+
   tabs.forEach(function(t){
     t.addEventListener("click", function(){
       tabs.forEach(function(x){ x.classList.remove("active"); });
       t.classList.add("active");
       mode = t.getAttribute("data-mode");
+
       document.getElementById("servicePanel_service").classList.toggle("hidden", mode !== "service");
       document.getElementById("servicePanel_diagnostic").classList.toggle("hidden", mode !== "diagnostic");
       document.querySelectorAll(".ms-item").forEach(function(item){
         item.classList.toggle("hidden", item.getAttribute("data-mode") !== mode);
-        var cb = item.querySelector("input");
-        if (item.getAttribute("data-mode") !== mode) cb.checked = false;
       });
+
+      // Lo seleccionado antes ya no aplica: cada cambio de modo empieza limpio.
+      document.querySelectorAll(".ms-item-row input").forEach(function(cb){ cb.checked = false; });
+
+      if (mode === "diagnostic"){
+        // Diagnóstico: no se elige servicio, se agenda directo, siempre sin costo.
+        serviceSelectorBlock.classList.add("hidden");
+        diagnosticNote.classList.remove("hidden");
+        document.querySelectorAll('#servicePanel_diagnostic .ms-item-row input').forEach(function(cb){ cb.checked = true; });
+      } else {
+        serviceSelectorBlock.classList.remove("hidden");
+        diagnosticNote.classList.add("hidden");
+      }
+
       onSelectionChanged();
     });
   });
@@ -485,11 +504,18 @@
       return;
     }
 
-    var allowed = null;
-    ids.forEach(function(sid){
-      var covered = VEHICLE_COVERAGE[sid] || [];
-      allowed = allowed === null ? covered.slice() : allowed.filter(function(v){ return covered.indexOf(v) !== -1; });
-    });
+    // Los diagnósticos siempre valen $0, así que la cobertura de precio por
+    // vehículo no aplica: se muestran todos los tipos de vehículo activos.
+    var allowed;
+    if (mode === "diagnostic"){
+      allowed = VEHICLE_TYPES.slice();
+    } else {
+      allowed = null;
+      ids.forEach(function(sid){
+        var covered = VEHICLE_COVERAGE[sid] || [];
+        allowed = allowed === null ? covered.slice() : allowed.filter(function(v){ return covered.indexOf(v) !== -1; });
+      });
+    }
 
     vehicleType.disabled = false;
     vehicleType.innerHTML = '<option value="">Selecciona...</option>';
@@ -529,6 +555,12 @@
 
   // ── Precio ──
   function refreshPrice(){
+    if (mode === "diagnostic"){
+      priceCard.classList.remove("hidden");
+      priceBody.innerHTML = '<div class="price-row final"><span>Total</span><span>' + fmtMoney(0) + '</span></div>';
+      return;
+    }
+
     var ids = getSelectedServiceIds();
     if (!ids.length || !vehicleType.value || !selectedTier){
       priceCard.classList.add("hidden");
@@ -730,7 +762,7 @@
       }
       bookingForm.classList.add("hidden");
       confirmBox.classList.remove("hidden");
-      var priceLine = data.final_price ? (" Total: " + fmtMoney(data.final_price) + ".") : "";
+      var priceLine = (mode === "diagnostic") ? (" Total: " + fmtMoney(0) + ".") : (data.final_price ? (" Total: " + fmtMoney(data.final_price) + ".") : "");
       confirmText.textContent = "Te esperamos el " + selectedDate + " a las " + data.start_label
         + ". Entrega estimada aprox. " + data.end_estimate_label + "." + priceLine;
     }).catch(function(){
