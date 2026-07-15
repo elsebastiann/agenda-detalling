@@ -27,8 +27,11 @@
       <thead>
         <tr>
           <th>Servicio</th>
+          <th style="min-width:220px;">Descripción (tooltip widget)</th>
           <th class="text-center">Estado</th>
           <th class="text-center">Diagnóstico</th>
+          <th class="text-center">Widget club</th>
+          <th class="text-center">Curado 1 día</th>
           <th class="text-center">Acción</th>
         </tr>
       </thead>
@@ -36,6 +39,13 @@
         {% for s in services %}
         <tr>
           <td>{{ s.name }}</td>
+          <td>
+            <form method="POST" action="{{ url_for('update_service_description', service_id=s.id) }}" class="d-flex gap-1">
+              <input type="text" name="description" class="form-control form-control-sm"
+                     value="{{ s.description or '' }}" placeholder="Descripción corta...">
+              <button type="submit" class="btn btn-sm btn-outline-secondary">Guardar</button>
+            </form>
+          </td>
           <td class="text-center">
             {% if s.is_active %}
               <span class="badge bg-success">Activo</span>
@@ -47,6 +57,26 @@
             <form method="POST"
                   action="{{ url_for('toggle_service_diagnostic', service_id=s.id) }}">
               {% if s.is_diagnostic %}
+                <button type="submit" class="btn btn-sm btn-outline-info">Sí</button>
+              {% else %}
+                <button type="submit" class="btn btn-sm btn-outline-secondary">No</button>
+              {% endif %}
+            </form>
+          </td>
+          <td class="text-center">
+            <form method="POST"
+                  action="{{ url_for('toggle_service_online_bookable', service_id=s.id) }}">
+              {% if s.is_online_bookable %}
+                <button type="submit" class="btn btn-sm btn-outline-success">Sí</button>
+              {% else %}
+                <button type="submit" class="btn btn-sm btn-outline-secondary">No</button>
+              {% endif %}
+            </form>
+          </td>
+          <td class="text-center">
+            <form method="POST"
+                  action="{{ url_for('toggle_service_single_day', service_id=s.id) }}">
+              {% if s.occupies_single_day %}
                 <button type="submit" class="btn btn-sm btn-outline-info">Sí</button>
               {% else %}
                 <button type="submit" class="btn btn-sm btn-outline-secondary">No</button>

@@ -41,6 +41,7 @@
     padding: 16px;
     margin-bottom: 14px;
   }
+  .card.disabled { opacity: 0.45; pointer-events: none; }
   .label {
     color: var(--text2); font-size: 0.72rem; font-weight: 700;
     text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 8px; display: block;
@@ -69,17 +70,80 @@
   }
   .tab.active { background: var(--accent); color: #1a1814; border-color: var(--accent); }
 
-  .checklist { display: flex; flex-direction: column; gap: 6px; }
-  .check-item {
-    display: flex; align-items: center; gap: 10px;
-    padding: 9px 12px; border-radius: var(--radius-sm);
-    border: 1px solid var(--border); background: var(--surface2);
-    cursor: pointer; font-size: 0.85rem;
+  /* Dropdown multi-select de servicios */
+  .ms-dropdown { position: relative; }
+  .ms-trigger {
+    width: 100%;
+    background: var(--surface2);
+    border: 1.5px solid var(--border);
+    color: var(--text);
+    border-radius: var(--radius-sm);
+    padding: 10px 12px;
+    font-size: 0.85rem;
+    text-align: left;
+    cursor: pointer;
+    display: flex; justify-content: space-between; align-items: center;
+    gap: 8px;
   }
-  .check-item input { accent-color: var(--accent); width: 16px; height: 16px; }
-  .check-item.checked { border-color: var(--accent); background: var(--accent-bg); color: var(--accent); }
+  .ms-trigger .ph { color: var(--text3); }
+  .ms-trigger .car { color: var(--text3); transition: transform .15s; }
+  .ms-dropdown.open .ms-trigger .car { transform: rotate(180deg); }
+  .ms-panel {
+    display: none;
+    margin-top: 8px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface2);
+    max-height: 300px;
+    overflow-y: auto;
+  }
+  .ms-dropdown.open .ms-panel { display: block; }
+  .ms-item { border-bottom: 1px solid var(--border); }
+  .ms-item:last-child { border-bottom: none; }
+  .ms-item-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 12px;
+    cursor: pointer;
+    font-size: 0.85rem;
+  }
+  .ms-item-row input { accent-color: var(--accent); width: 16px; height: 16px; flex-shrink: 0; }
+  .ms-item-row span { flex: 1; }
+  .ms-info-btn {
+    width: 20px; height: 20px; border-radius: 50%;
+    border: 1px solid var(--border); background: transparent;
+    color: var(--text3); font-size: 0.7rem; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; flex-shrink: 0;
+  }
+  .ms-info-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .ms-desc {
+    display: none;
+    padding: 0 12px 10px 42px;
+    color: var(--text3);
+    font-size: 0.76rem;
+    line-height: 1.4;
+  }
+  .ms-desc.show { display: block; }
+  .ms-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .ms-tag {
+    background: var(--accent-bg); color: var(--accent);
+    border: 1px solid var(--border2, rgba(212,180,108,0.3));
+    border-radius: 999px; padding: 4px 10px; font-size: 0.74rem; font-weight: 600;
+  }
 
-  select, input[type="text"], input[type="tel"], input[type="date"] {
+  select {
+    width: 100%;
+    background: var(--surface2);
+    border: 1.5px solid var(--border);
+    color: var(--text);
+    border-radius: var(--radius-sm);
+    padding: 10px 12px;
+    font-size: 0.88rem;
+  }
+  select:focus { outline: none; border-color: var(--accent); }
+  select:disabled { opacity: 0.5; }
+
+  input[type="text"], input[type="tel"] {
     width: 100%;
     background: var(--surface2);
     border: 1.5px solid var(--border);
@@ -89,10 +153,37 @@
     font-size: 0.88rem;
     margin-bottom: 4px;
   }
-  select:focus, input:focus { outline: none; border-color: var(--accent); }
-  input[type="date"] { color-scheme: dark; }
+  input:focus { outline: none; border-color: var(--accent); }
 
-  .slots { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 10px; }
+  /* Precio */
+  .price-row { display: flex; justify-content: space-between; align-items: baseline; padding: 3px 0; font-size: 0.85rem; color: var(--text2); }
+  .price-row.final { font-size: 1.05rem; font-weight: 800; color: var(--accent); border-top: 1px solid var(--border); margin-top: 6px; padding-top: 8px; }
+  .price-row .strike { text-decoration: line-through; color: var(--text3); }
+
+  /* Calendario */
+  .cal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .cal-header button {
+    background: var(--surface2); border: 1px solid var(--border); color: var(--text);
+    border-radius: var(--radius-sm); width: 32px; height: 32px; cursor: pointer; font-size: 1rem;
+  }
+  .cal-header button:disabled { opacity: 0.3; cursor: not-allowed; }
+  .cal-title { font-weight: 700; font-size: 0.9rem; text-transform: capitalize; }
+  .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+  .cal-dow { text-align: center; font-size: 0.65rem; color: var(--text3); font-weight: 700; padding-bottom: 4px; }
+  .cal-cell { aspect-ratio: 1; }
+  .cal-day {
+    width: 100%; height: 100%;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: var(--radius-sm);
+    background: var(--surface2); border: 1px solid var(--border);
+    color: var(--text3); font-size: 0.82rem;
+    cursor: not-allowed;
+  }
+  .cal-day.available { color: var(--text); cursor: pointer; border-color: var(--border); }
+  .cal-day.available:hover { border-color: var(--accent); }
+  .cal-day.selected { background: var(--accent); color: #1a1814; border-color: var(--accent); font-weight: 700; }
+
+  .slots { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 14px; }
   .slot-btn {
     border: 1.5px solid var(--border);
     background: var(--surface2);
@@ -153,39 +244,70 @@
         <div class="tab" data-mode="diagnostic">Diagnóstico</div>
       </div>
 
-      <div id="serviceList" class="checklist">
-        {% for s in normal_services %}
-        <label class="check-item" data-name="service">
-          <input type="checkbox" value="{{ s.id }}">
-          <span>{{ s.name }}</span>
-        </label>
-        {% endfor %}
+      <span class="label">Servicios</span>
+      <div class="ms-dropdown" id="serviceDropdown">
+        <button type="button" class="ms-trigger" id="serviceTrigger">
+          <span class="ph" id="serviceTriggerLabel">Selecciona uno o varios...</span>
+          <span class="car">▾</span>
+        </button>
+        <div class="ms-panel" id="servicePanel_service">
+          {% for s in normal_services %}
+          <div class="ms-item" data-mode="service">
+            <div class="ms-item-row">
+              <input type="checkbox" value="{{ s.id }}">
+              <span>{{ s.name }}</span>
+              {% if s.description %}
+              <button type="button" class="ms-info-btn" aria-label="Descripción">i</button>
+              {% endif %}
+            </div>
+            {% if s.description %}
+            <div class="ms-desc">{{ s.description }}</div>
+            {% endif %}
+          </div>
+          {% endfor %}
+        </div>
+        <div class="ms-panel" id="servicePanel_diagnostic">
+          {% for s in diagnostic_services %}
+          <div class="ms-item" data-mode="diagnostic">
+            <div class="ms-item-row">
+              <input type="checkbox" value="{{ s.id }}">
+              <span>{{ s.name }}</span>
+              {% if s.description %}
+              <button type="button" class="ms-info-btn" aria-label="Descripción">i</button>
+              {% endif %}
+            </div>
+            {% if s.description %}
+            <div class="ms-desc">{{ s.description }}</div>
+            {% endif %}
+          </div>
+          {% endfor %}
+        </div>
       </div>
-      <div id="diagnosticList" class="checklist hidden">
-        {% for s in diagnostic_services %}
-        <label class="check-item" data-name="diagnostic">
-          <input type="checkbox" value="{{ s.id }}">
-          <span>{{ s.name }}</span>
-        </label>
-        {% endfor %}
-      </div>
+      <div class="ms-tags" id="serviceTags"></div>
     </div>
 
     <div class="card">
       <span class="label">Tipo de vehículo</span>
-      <select id="vehicleType">
-        <option value="">Selecciona...</option>
-        {% for v in vehicle_types %}
-        <option value="{{ v.id }}">{{ v.name }}</option>
-        {% endfor %}
+      <select id="vehicleType" disabled>
+        <option value="">Primero selecciona servicio(s)...</option>
       </select>
     </div>
 
-    <div class="card">
+    <div class="card hidden" id="priceCard">
+      <span class="label">Precio estimado</span>
+      <div id="priceBody"></div>
+    </div>
+
+    <div class="card" id="calendarCard">
       <span class="label">Fecha</span>
-      <input type="date" id="dateInput" min="{{ min_date }}" max="{{ max_date }}" value="{{ min_date }}">
-      <button class="btn" id="btnCheckAvailability" type="button">Ver horarios disponibles</button>
-      <div id="availabilityMsg"></div>
+      <div class="cal-header">
+        <button type="button" id="calPrev">‹</button>
+        <div class="cal-title" id="calTitle">-</div>
+        <button type="button" id="calNext">›</button>
+      </div>
+      <div class="cal-grid" id="calDow"></div>
+      <div class="cal-grid" id="calGrid" style="margin-top:4px;"></div>
+      <div id="calMsg"></div>
       <div class="slots hidden" id="slotsGrid"></div>
     </div>
 
@@ -210,18 +332,37 @@
 
 <script>
 (function(){
+  var VEHICLE_TYPES = {{ vehicle_types | map(attribute="id") | list | tojson }};
+  var VEHICLE_NAMES = {{ vehicle_types | map(attribute="name") | list | tojson }};
+  var VEHICLE_COVERAGE = {{ vehicle_coverage | tojson }};
+  var MIN_DATE = "{{ min_date }}";
+  var MAX_DATE = "{{ max_date }}";
+
   var selectedTier = null;
   var mode = "service";
+  var selectedDate = null;
   var selectedSlot = null;
+  var calYear, calMonth;
+
+  var today = new Date();
+  calYear = today.getFullYear();
+  calMonth = today.getMonth();
 
   var tierPills = document.querySelectorAll("#tierPills .pill");
   var tabs = document.querySelectorAll(".tab");
-  var serviceList = document.getElementById("serviceList");
-  var diagnosticList = document.getElementById("diagnosticList");
+  var serviceDropdown = document.getElementById("serviceDropdown");
+  var serviceTrigger = document.getElementById("serviceTrigger");
+  var serviceTriggerLabel = document.getElementById("serviceTriggerLabel");
+  var serviceTags = document.getElementById("serviceTags");
   var vehicleType = document.getElementById("vehicleType");
-  var dateInput = document.getElementById("dateInput");
-  var btnCheck = document.getElementById("btnCheckAvailability");
-  var availabilityMsg = document.getElementById("availabilityMsg");
+  var priceCard = document.getElementById("priceCard");
+  var priceBody = document.getElementById("priceBody");
+  var calPrev = document.getElementById("calPrev");
+  var calNext = document.getElementById("calNext");
+  var calTitle = document.getElementById("calTitle");
+  var calDow = document.getElementById("calDow");
+  var calGrid = document.getElementById("calGrid");
+  var calMsg = document.getElementById("calMsg");
   var slotsGrid = document.getElementById("slotsGrid");
   var customerCard = document.getElementById("customerCard");
   var btnConfirm = document.getElementById("btnConfirm");
@@ -230,84 +371,300 @@
   var confirmBox = document.getElementById("confirmBox");
   var confirmText = document.getElementById("confirmText");
 
+  var DOW = ["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"];
+  DOW.forEach(function(d){
+    var el = document.createElement("div");
+    el.className = "cal-dow";
+    el.textContent = d;
+    calDow.appendChild(el);
+  });
+
+  var MONTHS = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
+
+  function fmtMoney(n){
+    return "$" + Math.round(n).toLocaleString("es-CO");
+  }
+
+  // ── Tier ──
   tierPills.forEach(function(p){
     p.addEventListener("click", function(){
       tierPills.forEach(function(x){ x.classList.remove("active"); });
       p.classList.add("active");
       selectedTier = p.getAttribute("data-tier");
+      refreshPrice();
     });
   });
 
+  // ── Tabs servicio/diagnóstico ──
   tabs.forEach(function(t){
     t.addEventListener("click", function(){
       tabs.forEach(function(x){ x.classList.remove("active"); });
       t.classList.add("active");
       mode = t.getAttribute("data-mode");
-      serviceList.classList.toggle("hidden", mode !== "service");
-      diagnosticList.classList.toggle("hidden", mode !== "diagnostic");
-      resetSlots();
+      document.getElementById("servicePanel_service").classList.toggle("hidden", mode !== "service");
+      document.getElementById("servicePanel_diagnostic").classList.toggle("hidden", mode !== "diagnostic");
+      document.querySelectorAll(".ms-item").forEach(function(item){
+        item.classList.toggle("hidden", item.getAttribute("data-mode") !== mode);
+        var cb = item.querySelector("input");
+        if (item.getAttribute("data-mode") !== mode) cb.checked = false;
+      });
+      onSelectionChanged();
+    });
+  });
+  document.getElementById("servicePanel_diagnostic").classList.add("hidden");
+  document.querySelectorAll('.ms-item[data-mode="diagnostic"]').forEach(function(i){ i.classList.add("hidden"); });
+
+  // ── Dropdown open/close ──
+  serviceTrigger.addEventListener("click", function(e){
+    e.stopPropagation();
+    serviceDropdown.classList.toggle("open");
+  });
+  document.addEventListener("mousedown", function(e){
+    if (!serviceDropdown.contains(e.target)) serviceDropdown.classList.remove("open");
+  });
+
+  document.querySelectorAll(".ms-info-btn").forEach(function(btn){
+    btn.addEventListener("click", function(e){
+      e.stopPropagation();
+      var desc = btn.closest(".ms-item").querySelector(".ms-desc");
+      if (desc) desc.classList.toggle("show");
     });
   });
 
-  document.querySelectorAll(".check-item input").forEach(function(cb){
-    cb.addEventListener("change", function(){
-      cb.closest(".check-item").classList.toggle("checked", cb.checked);
-      resetSlots();
+  document.querySelectorAll(".ms-item-row input").forEach(function(cb){
+    cb.addEventListener("change", onSelectionChanged);
+    cb.addEventListener("click", function(e){ e.stopPropagation(); });
+  });
+  document.querySelectorAll(".ms-item-row").forEach(function(row){
+    row.addEventListener("click", function(e){
+      if (e.target.tagName === "INPUT" || e.target.classList.contains("ms-info-btn")) return;
+      var cb = row.querySelector("input");
+      cb.checked = !cb.checked;
+      cb.dispatchEvent(new Event("change"));
     });
   });
-  vehicleType.addEventListener("change", resetSlots);
-  dateInput.addEventListener("change", resetSlots);
-
-  function resetSlots(){
-    slotsGrid.classList.add("hidden");
-    slotsGrid.innerHTML = "";
-    availabilityMsg.innerHTML = "";
-    customerCard.classList.add("hidden");
-    selectedSlot = null;
-  }
 
   function getSelectedServiceIds(){
-    var list = mode === "service" ? serviceList : diagnosticList;
-    return Array.prototype.slice.call(list.querySelectorAll("input:checked")).map(function(cb){ return cb.value; });
+    var panel = document.getElementById("servicePanel_" + mode);
+    return Array.prototype.slice.call(panel.querySelectorAll("input:checked")).map(function(cb){ return cb.value; });
   }
 
-  btnCheck.addEventListener("click", function(){
-    var ids = getSelectedServiceIds();
-    var vtId = vehicleType.value;
-    var dateVal = dateInput.value;
+  function getSelectedServiceNames(){
+    var panel = document.getElementById("servicePanel_" + mode);
+    return Array.prototype.slice.call(panel.querySelectorAll("input:checked")).map(function(cb){
+      return cb.closest(".ms-item-row").querySelector("span").textContent;
+    });
+  }
 
-    resetSlots();
+  function onSelectionChanged(){
+    var ids = getSelectedServiceIds();
+    var names = getSelectedServiceNames();
+
+    serviceTriggerLabel.textContent = names.length ? (names.length + " servicio(s) seleccionado(s)") : "Selecciona uno o varios...";
+    serviceTriggerLabel.classList.toggle("ph", !names.length);
+    serviceTags.innerHTML = "";
+    names.forEach(function(n){
+      var t = document.createElement("span");
+      t.className = "ms-tag";
+      t.textContent = n;
+      serviceTags.appendChild(t);
+    });
+
+    refreshVehicleOptions();
+  }
+
+  // ── Tipo de vehículo (filtrado por cobertura de precio) ──
+  function refreshVehicleOptions(){
+    var ids = getSelectedServiceIds();
+    var prevValue = vehicleType.value;
 
     if (!ids.length){
-      availabilityMsg.innerHTML = '<div class="msg error">Selecciona al menos un servicio.</div>';
-      return;
-    }
-    if (!vtId){
-      availabilityMsg.innerHTML = '<div class="msg error">Selecciona el tipo de vehículo.</div>';
+      vehicleType.innerHTML = '<option value="">Primero selecciona servicio(s)...</option>';
+      vehicleType.disabled = true;
+      resetCalendarAndDownstream();
       return;
     }
 
-    availabilityMsg.innerHTML = '<div class="msg info">Buscando horarios...</div>';
+    var allowed = null;
+    ids.forEach(function(sid){
+      var covered = VEHICLE_COVERAGE[sid] || [];
+      allowed = allowed === null ? covered.slice() : allowed.filter(function(v){ return covered.indexOf(v) !== -1; });
+    });
 
-    var url = "/api/public/mercedes-benz/availability?date=" + encodeURIComponent(dateVal)
+    vehicleType.disabled = false;
+    vehicleType.innerHTML = '<option value="">Selecciona...</option>';
+
+    if (!allowed || !allowed.length){
+      vehicleType.innerHTML = '<option value="">No disponible para esta combinación</option>';
+      vehicleType.disabled = true;
+      resetCalendarAndDownstream();
+      return;
+    }
+
+    allowed.forEach(function(vid){
+      var idx = VEHICLE_TYPES.indexOf(vid);
+      if (idx === -1) return;
+      var opt = document.createElement("option");
+      opt.value = vid;
+      opt.textContent = VEHICLE_NAMES[idx];
+      vehicleType.appendChild(opt);
+    });
+
+    if (allowed.indexOf(parseInt(prevValue)) !== -1){
+      vehicleType.value = prevValue;
+    }
+
+    onVehicleOrServiceReady();
+  }
+
+  vehicleType.addEventListener("change", onVehicleOrServiceReady);
+
+  function onVehicleOrServiceReady(){
+    refreshPrice();
+    resetCalendarAndDownstream();
+    if (getSelectedServiceIds().length && vehicleType.value){
+      renderCalendar();
+    }
+  }
+
+  // ── Precio ──
+  function refreshPrice(){
+    var ids = getSelectedServiceIds();
+    if (!ids.length || !vehicleType.value || !selectedTier){
+      priceCard.classList.add("hidden");
+      return;
+    }
+    var url = "/api/public/mercedes-benz/price?tier=" + encodeURIComponent(selectedTier)
       + "&service_ids=" + encodeURIComponent(ids.join(","))
-      + "&vehicle_type_id=" + encodeURIComponent(vtId);
+      + "&vehicle_type_id=" + encodeURIComponent(vehicleType.value);
 
     fetch(url).then(function(r){ return r.json(); }).then(function(data){
       if (!data.ok){
-        availabilityMsg.innerHTML = '<div class="msg error">' + (data.error || "No se pudo consultar disponibilidad.") + '</div>';
+        priceCard.classList.remove("hidden");
+        priceBody.innerHTML = '<div class="msg error">' + (data.error || "No se pudo calcular el precio.") + '</div>';
         return;
       }
-      if (data.closed){
-        availabilityMsg.innerHTML = '<div class="msg error">No atendemos ese día.</div>';
+      priceCard.classList.remove("hidden");
+      var html = "";
+      if (data.discount_amount > 0){
+        html += '<div class="price-row"><span>Precio de lista</span><span class="strike">' + fmtMoney(data.base_price) + '</span></div>';
+        html += '<div class="price-row"><span>Descuento convenio</span><span>-' + fmtMoney(data.discount_amount) + '</span></div>';
+      }
+      html += '<div class="price-row final"><span>Total</span><span>' + fmtMoney(data.final_price) + '</span></div>';
+      priceBody.innerHTML = html;
+    }).catch(function(){
+      priceCard.classList.remove("hidden");
+      priceBody.innerHTML = '<div class="msg error">Error de conexión.</div>';
+    });
+  }
+
+  // ── Calendario ──
+  function resetCalendarAndDownstream(){
+    selectedDate = null;
+    selectedSlot = null;
+    slotsGrid.classList.add("hidden");
+    slotsGrid.innerHTML = "";
+    customerCard.classList.add("hidden");
+    calGrid.innerHTML = "";
+    calMsg.innerHTML = '<div class="msg info">Selecciona servicio(s) y tipo de vehículo para ver el calendario.</div>';
+  }
+
+  function isoDate(y,m,d){
+    var mm = String(m+1).padStart(2,"0");
+    var dd = String(d).padStart(2,"0");
+    return y + "-" + mm + "-" + dd;
+  }
+
+  function renderCalendar(){
+    var ids = getSelectedServiceIds();
+    if (!ids.length || !vehicleType.value) return;
+
+    var monthStr = calYear + "-" + String(calMonth+1).padStart(2,"0");
+    calTitle.textContent = MONTHS[calMonth] + " " + calYear;
+
+    var minMonth = MIN_DATE.slice(0,7);
+    var maxMonth = MAX_DATE.slice(0,7);
+    calPrev.disabled = monthStr <= minMonth;
+    calNext.disabled = monthStr >= maxMonth;
+
+    calMsg.innerHTML = '<div class="msg info">Cargando calendario...</div>';
+    calGrid.innerHTML = "";
+
+    var url = "/api/public/mercedes-benz/available-days?month=" + monthStr
+      + "&service_ids=" + encodeURIComponent(ids.join(","))
+      + "&vehicle_type_id=" + encodeURIComponent(vehicleType.value);
+
+    fetch(url).then(function(r){ return r.json(); }).then(function(data){
+      if (!data.ok){
+        calMsg.innerHTML = '<div class="msg error">' + (data.error || "No se pudo cargar el calendario.") + '</div>';
         return;
       }
-      if (!data.slots.length){
-        availabilityMsg.innerHTML = '<div class="msg error">No hay horarios disponibles ese día. Prueba otra fecha.</div>';
+      var availableSet = {};
+      data.days.forEach(function(d){ availableSet[d] = true; });
+
+      calMsg.innerHTML = data.days.length ? "" : '<div class="msg error">No hay días disponibles este mes. Prueba el siguiente mes.</div>';
+
+      var firstOfMonth = new Date(calYear, calMonth, 1);
+      var startOffset = (firstOfMonth.getDay() + 6) % 7; // lunes=0
+      var daysInMonth = new Date(calYear, calMonth+1, 0).getDate();
+
+      for (var i=0;i<startOffset;i++){
+        var pad = document.createElement("div");
+        pad.className = "cal-cell";
+        calGrid.appendChild(pad);
+      }
+      for (var d=1; d<=daysInMonth; d++){
+        var iso = isoDate(calYear, calMonth, d);
+        var cell = document.createElement("div");
+        cell.className = "cal-cell";
+        var day = document.createElement("div");
+        day.className = "cal-day" + (availableSet[iso] ? " available" : "") + (iso === selectedDate ? " selected" : "");
+        day.textContent = d;
+        if (availableSet[iso]){
+          day.addEventListener("click", function(iso){
+            return function(){ selectDay(iso); };
+          }(iso));
+        }
+        cell.appendChild(day);
+        calGrid.appendChild(cell);
+      }
+    }).catch(function(){
+      calMsg.innerHTML = '<div class="msg error">Error de conexión.</div>';
+    });
+  }
+
+  calPrev.addEventListener("click", function(){
+    calMonth -= 1;
+    if (calMonth < 0){ calMonth = 11; calYear -= 1; }
+    renderCalendar();
+  });
+  calNext.addEventListener("click", function(){
+    calMonth += 1;
+    if (calMonth > 11){ calMonth = 0; calYear += 1; }
+    renderCalendar();
+  });
+
+  function selectDay(iso){
+    selectedDate = iso;
+    selectedSlot = null;
+    customerCard.classList.add("hidden");
+    document.querySelectorAll(".cal-day").forEach(function(x){ x.classList.remove("selected"); });
+    renderCalendar();
+
+    var ids = getSelectedServiceIds();
+    slotsGrid.classList.remove("hidden");
+    slotsGrid.innerHTML = '<div class="msg info">Buscando horarios...</div>';
+
+    var url = "/api/public/mercedes-benz/availability?date=" + encodeURIComponent(iso)
+      + "&service_ids=" + encodeURIComponent(ids.join(","))
+      + "&vehicle_type_id=" + encodeURIComponent(vehicleType.value);
+
+    fetch(url).then(function(r){ return r.json(); }).then(function(data){
+      slotsGrid.innerHTML = "";
+      if (!data.ok || !data.slots.length){
+        slotsGrid.innerHTML = '<div class="msg error">No hay horarios disponibles ese día.</div>';
         return;
       }
-      availabilityMsg.innerHTML = '';
-      slotsGrid.classList.remove("hidden");
       data.slots.forEach(function(slot){
         var el = document.createElement("div");
         el.className = "slot-btn";
@@ -322,10 +679,13 @@
         slotsGrid.appendChild(el);
       });
     }).catch(function(){
-      availabilityMsg.innerHTML = '<div class="msg error">Error de conexión. Intenta de nuevo.</div>';
+      slotsGrid.innerHTML = '<div class="msg error">Error de conexión.</div>';
     });
-  });
+  }
 
+  resetCalendarAndDownstream();
+
+  // ── Confirmar ──
   btnConfirm.addEventListener("click", function(){
     var name = document.getElementById("customerName").value.trim();
     var phone = document.getElementById("customerPhone").value.trim();
@@ -337,8 +697,8 @@
       bookMsg.innerHTML = '<div class="msg error">Selecciona tu tipo de membresía arriba.</div>';
       return;
     }
-    if (!selectedSlot){
-      bookMsg.innerHTML = '<div class="msg error">Selecciona un horario.</div>';
+    if (!selectedDate || !selectedSlot){
+      bookMsg.innerHTML = '<div class="msg error">Selecciona una fecha y un horario.</div>';
       return;
     }
     if (!name || !phone || !plate){
@@ -357,7 +717,7 @@
         customer_name: name,
         phone: phone,
         plate: plate,
-        date: dateInput.value,
+        date: selectedDate,
         start_time: selectedSlot.start_label,
         vehicle_type_id: vehicleType.value,
         service_ids: getSelectedServiceIds()
@@ -370,8 +730,9 @@
       }
       bookingForm.classList.add("hidden");
       confirmBox.classList.remove("hidden");
-      confirmText.textContent = "Te esperamos el " + dateInput.value + " a las " + data.start_label
-        + ". Entrega estimada aprox. " + data.end_estimate_label + ".";
+      var priceLine = data.final_price ? (" Total: " + fmtMoney(data.final_price) + ".") : "";
+      confirmText.textContent = "Te esperamos el " + selectedDate + " a las " + data.start_label
+        + ". Entrega estimada aprox. " + data.end_estimate_label + "." + priceLine;
     }).catch(function(){
       btnConfirm.disabled = false;
       bookMsg.innerHTML = '<div class="msg error">Error de conexión. Intenta de nuevo.</div>';
