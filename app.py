@@ -1146,6 +1146,34 @@ def resolve_tier_agreement_id(tier_key: str):
     return ag.id if ag else None
 
 
+def notify_admin_mercedes_benz_booking(appt, tier: str, diagnostic_reason: str, final_price: int) -> None:
+    """Avisa por WhatsApp al admin cuando un socio del club Mercedes-Benz se
+    autoagenda desde el widget público (no bloquea la reserva si falla)."""
+    admin_phone = os.environ.get("ADMIN_WHATSAPP", "")
+    if not admin_phone:
+        app.logger.error("[WhatsApp] No se pudo avisar al admin: ADMIN_WHATSAPP no configurado.")
+        return
+
+    if diagnostic_reason:
+        detalle = f"Diagnóstico — motivo: {diagnostic_reason}"
+        precio_linea = "Sin costo (diagnóstico)."
+    else:
+        detalle = appt.services
+        precio_linea = f"Valor estimado: ${final_price:,.0f}".replace(",", ".")
+
+    msg = (
+        f"🚗 Nueva cita agendada — Convenio Club Mercedes-Benz ({TIER_LABELS.get(tier, tier)})\n\n"
+        f"Cliente: {appt.customer_name}\n"
+        f"Teléfono: {appt.phone}\n"
+        f"Placa: {appt.plate}\n"
+        f"Servicio: {detalle}\n"
+        f"Fecha: {appt.start_datetime.strftime('%d/%m/%Y')} a las {appt.start_datetime.strftime('%H:%M')}\n"
+        f"{precio_linea}\n\n"
+        f"Agendada directamente por el cliente desde el widget del club."
+    )
+    send_whatsapp(admin_phone, msg)
+
+
 def _day_business_end(day):
     return datetime.combine(day, datetime.min.time()).replace(hour=BUSINESS_END_HOUR)
 
@@ -1914,6 +1942,11 @@ def api_public_mb_book():
     db.session.commit()
 
     final_price = calculate_estimated_amount_for_appointment(appt)
+
+    try:
+        notify_admin_mercedes_benz_booking(appt, tier, diagnostic_reason, final_price)
+    except Exception as exc:
+        app.logger.error(f"[WhatsApp] No se pudo avisar al admin de la cita del widget club MB: {exc}")
 
     return jsonify({
         "ok": True,
